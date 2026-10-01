@@ -89,6 +89,15 @@ func (l *ProjectLink) BuildIndexKey(_ context.Context) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// IndexerData returns a copy of the link for indexer payloads. The index document is readable
+// at the viewer relation, so created_by/updated_by are redacted to display-only fields.
+func (l *ProjectLink) IndexerData() ProjectLink {
+	cp := *l
+	cp.CreatedBy = RedactAuditUser(l.CreatedBy)
+	cp.UpdatedBy = RedactAuditUser(l.UpdatedBy)
+	return cp
+}
+
 // IndexingConfig returns indexing configuration for the project link.
 func (l *ProjectLink) IndexingConfig() *indexerTypes.IndexingConfig {
 	if l == nil {

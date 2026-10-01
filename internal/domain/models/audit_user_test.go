@@ -262,3 +262,42 @@ func TestAuditUserNeedsMigration(t *testing.T) {
 		})
 	}
 }
+
+func TestRedactAuditUser(t *testing.T) {
+	expires := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name string
+		in   *UserInfo
+		want *UserInfo
+	}{
+		{
+			name: "nil returns nil",
+			in:   nil,
+			want: nil,
+		},
+		{
+			name: "drops email and invite, keeps display fields",
+			in: &UserInfo{
+				Name:     "Alice Example",
+				Email:    "alice@example.com",
+				Username: "alice",
+				Avatar:   "https://example.com/a.png",
+				Invite:   &InviteInfo{UID: "00000000-0000-0000-0000-000000000001", Email: "alice@example.com", ExpiresAt: &expires},
+			},
+			want: &UserInfo{
+				Name:     "Alice Example",
+				Username: "alice",
+				Avatar:   "https://example.com/a.png",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RedactAuditUser(tt.in)
+			assert.Equal(t, tt.want, got)
+			if tt.in != nil {
+				assert.Equal(t, "alice@example.com", tt.in.Email, "original must not be mutated")
+			}
+		})
+	}
+}

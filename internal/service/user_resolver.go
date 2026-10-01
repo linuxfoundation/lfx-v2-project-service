@@ -26,20 +26,20 @@ func NewUserResolver(reader domain.UserReader) *UserResolver {
 	return &UserResolver{reader: reader}
 }
 
-// ResolveRequestingUser reads the JWT principal from ctx and resolves it to a full UserInfo
-// for stamping created_by/updated_by on resource writes. Returns nil when no principal is
-// present in the context.
+// ResolveRequestingUser reads the JWT principal from ctx and resolves it to a display-only
+// UserInfo (username, name, avatar) for stamping created_by/updated_by on resource writes.
+// Email is intentionally not stamped: audit attribution is readable at the viewer relation
+// (including the anonymous principal on public projects), so the writer's primary email must
+// not be persisted into it. Returns nil when no principal is present in the context.
 func (r *UserResolver) ResolveRequestingUser(ctx context.Context) *models.UserInfo {
 	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 	principal = strings.TrimSpace(principal)
 	if principal == "" {
 		return nil
 	}
-	email, _ := ctx.Value(constants.EmailContextID).(string)
-	email = strings.TrimSpace(email)
 
 	if r.reader == nil {
-		return &models.UserInfo{Username: principal, Email: email}
+		return &models.UserInfo{Username: principal}
 	}
 
 	lookupCtx, cancel := context.WithTimeout(ctx, userProfileResolveTimeout)
@@ -48,7 +48,7 @@ func (r *UserResolver) ResolveRequestingUser(ctx context.Context) *models.UserIn
 	user := &models.UserInfo{Username: principal}
 	meta, err := r.reader.UserMetadataByPrincipal(lookupCtx, principal)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to resolve user profile for audit stamp; stamping username/email only",
+		slog.WarnContext(ctx, "failed to resolve user profile for audit stamp; stamping username only",
 			"username", principal, constants.ErrKey, err)
 	} else if meta != nil {
 		if name := strings.TrimSpace(meta.Name); name != "" {
@@ -57,16 +57,6 @@ func (r *UserResolver) ResolveRequestingUser(ctx context.Context) *models.UserIn
 			user.Name = full
 		}
 		user.Avatar = meta.Picture
-	}
-
-	if resolvedEmail, emailErr := r.reader.PrimaryEmailByUsername(lookupCtx, principal); emailErr != nil {
-		slog.WarnContext(ctx, "failed to resolve email for audit stamp; using JWT email if present",
-			"username", principal, constants.ErrKey, emailErr)
-	} else if resolvedEmail != "" {
-		user.Email = resolvedEmail
-	}
-	if user.Email == "" {
-		user.Email = email
 	}
 
 	return user

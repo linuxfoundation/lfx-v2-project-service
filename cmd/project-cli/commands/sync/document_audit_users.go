@@ -172,7 +172,7 @@ func (r *documentAuditUsersRunner) migrateFolder(ctx context.Context, folder *mo
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
-			Data:           *fresh,
+			Data:           fresh.IndexerData(),
 			IndexingConfig: fresh.IndexingConfig(),
 		}
 		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false)
@@ -195,7 +195,7 @@ func (r *documentAuditUsersRunner) reindexFolder(ctx context.Context, folder *mo
 	}
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionUpdated,
-		Data:           *fresh,
+		Data:           fresh.IndexerData(),
 		IndexingConfig: fresh.IndexingConfig(),
 	}
 	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
@@ -254,7 +254,7 @@ func (r *documentAuditUsersRunner) migrateLink(ctx context.Context, link *models
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
-			Data:           *fresh,
+			Data:           fresh.IndexerData(),
 			IndexingConfig: fresh.IndexingConfig(),
 		}
 		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false)
@@ -277,7 +277,7 @@ func (r *documentAuditUsersRunner) reindexLink(ctx context.Context, link *models
 	}
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionUpdated,
-		Data:           *fresh,
+		Data:           fresh.IndexerData(),
 		IndexingConfig: fresh.IndexingConfig(),
 	}
 	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
@@ -336,7 +336,7 @@ func (r *documentAuditUsersRunner) migrateDocument(ctx context.Context, doc *mod
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
-			Data:           *fresh,
+			Data:           fresh.IndexerData(),
 			IndexingConfig: fresh.IndexingConfig(),
 		}
 		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false)
@@ -359,7 +359,7 @@ func (r *documentAuditUsersRunner) reindexDocument(ctx context.Context, doc *mod
 	}
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionUpdated,
-		Data:           *fresh,
+		Data:           fresh.IndexerData(),
 		IndexingConfig: fresh.IndexingConfig(),
 	}
 	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {

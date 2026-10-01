@@ -148,9 +148,9 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `mentorship_program_admins` | []object | Users with mentorship program admin access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
-| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
-| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
+| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
+| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
@@ -221,7 +221,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `name` | string | Display name of the link |
 | `url` | string | Target URL |
 | `description` | string (optional) | Link description |
-| `created_by` | object (optional) | User who created the link. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `created_by` | object (optional) | User who created the link. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
 | `updated_by` | object (optional) | User who last updated the link. Same shape as `created_by`; identical to `created_by` on create |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
@@ -280,7 +280,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `uid` | string | Folder unique identifier |
 | `project_uid` | string | UID of the owning project |
 | `name` | string | Display name of the folder (unique per project) |
-| `created_by` | object (optional) | User who created the folder. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `created_by` | object (optional) | User who created the folder. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
 | `updated_by` | object (optional) | User who last updated the folder. Same shape as `created_by`; identical to `created_by` on create |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
@@ -343,7 +343,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `file_name` | string | Original file name from the upload |
 | `file_size` | int64 | File size in bytes |
 | `content_type` | string | MIME type of the file |
-| `created_by` | object (optional) | User who uploaded the document. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `created_by` | object (optional) | User who uploaded the document. Object has `avatar` (string), `email` (string — always empty; audit users are redacted because this index document is readable at `viewer`), `name` (string), `username` (string — LFX username) |
 | `updated_by` | object (optional) | User who last updated the document. Same shape as `created_by`; identical to `created_by` on upload |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |

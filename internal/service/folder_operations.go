@@ -69,7 +69,7 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionCreated,
-		Data:           *folder,
+		Data:           folder.IndexerData(),
 		IndexingConfig: folder.IndexingConfig(),
 	}
 	if xSync {

@@ -131,7 +131,7 @@ func (s *ProjectsService) UploadDocument(
 
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionCreated,
-		Data:           *doc,
+		Data:           doc.IndexerData(),
 		IndexingConfig: doc.IndexingConfig(),
 	}
 	if xSync {

@@ -24,6 +24,21 @@ func CloneUserInfo(u *UserInfo) *UserInfo {
 	return &cp
 }
 
+// RedactAuditUser returns a display-only copy of u (name, username, avatar) for payloads
+// readable at the viewer relation, such as indexer documents. Email and invite metadata are
+// dropped so viewers, including the anonymous principal on public projects, never receive the
+// audit user's contact details. Returns nil when u is nil.
+func RedactAuditUser(u *UserInfo) *UserInfo {
+	if u == nil {
+		return nil
+	}
+	return &UserInfo{
+		Name:     u.Name,
+		Username: u.Username,
+		Avatar:   u.Avatar,
+	}
+}
+
 // NormalizeLegacyAuditUsers populates CreatedBy/UpdatedBy from legacy flat username
 // fields when reading older KV records. Idempotent for records already migrated.
 func NormalizeLegacyAuditUsers(createdBy, updatedBy *UserInfo, legacyCreatedByUsername, legacyUploadedByUsername string) (*UserInfo, *UserInfo) {

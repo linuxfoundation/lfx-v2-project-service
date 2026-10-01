@@ -25,7 +25,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("no user reader stamps username and email from context", func(t *testing.T) {
+	t.Run("no user reader stamps username only and never the JWT email", func(t *testing.T) {
 		resolver := NewUserResolver(nil)
 		ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
 		ctx = context.WithValue(ctx, constants.EmailContextID, "alice@example.com")
@@ -34,7 +34,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 
 		assert.NotNil(t, got)
 		assert.Equal(t, "alice", got.Username)
-		assert.Equal(t, "alice@example.com", got.Email)
+		assert.Empty(t, got.Email)
 	})
 
 	t.Run("happy path resolves full profile", func(t *testing.T) {
@@ -43,7 +43,6 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 			Name:    "Alice Example",
 			Picture: "https://cdn.example/avatar.png",
 		}, nil)
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@example.com", nil)
 
 		resolver := NewUserResolver(mockUser)
 		ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
@@ -55,14 +54,14 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 		assert.Equal(t, "alice", got.Username)
 		assert.Equal(t, "Alice Example", got.Name)
 		assert.Equal(t, "https://cdn.example/avatar.png", got.Avatar)
-		assert.Equal(t, "alice@example.com", got.Email)
+		assert.Empty(t, got.Email, "audit stamps must not carry the writer's email")
 		mockUser.AssertExpectations(t)
+		mockUser.AssertNotCalled(t, "PrimaryEmailByUsername", mock.Anything, mock.Anything)
 	})
 
-	t.Run("metadata failure falls back to username and JWT email", func(t *testing.T) {
+	t.Run("metadata failure falls back to username only", func(t *testing.T) {
 		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("nats unavailable"))
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
 		resolver := NewUserResolver(mockUser)
 		ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
@@ -72,7 +71,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 
 		assert.NotNil(t, got)
 		assert.Equal(t, "alice", got.Username)
-		assert.Equal(t, "jwt@example.com", got.Email)
+		assert.Empty(t, got.Email)
 		assert.Empty(t, got.Name)
 		mockUser.AssertExpectations(t)
 	})
@@ -83,7 +82,6 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 			GivenName:  "Bob",
 			FamilyName: "Fixture",
 		}, nil)
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "bob").Return("", nil)
 
 		resolver := NewUserResolver(mockUser)
 		ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "bob")
@@ -229,9 +227,9 @@ func TestProjectsService_stampAuditUsers(t *testing.T) {
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
 	}, nil)
-	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@example.com", nil)
 
 	ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
+	ctx = context.WithValue(ctx, constants.EmailContextID, "alice@example.com")
 	created, updated := svc.stampAuditUsers(ctx)
 
 	assert.NotNil(t, created)
@@ -239,6 +237,8 @@ func TestProjectsService_stampAuditUsers(t *testing.T) {
 	assert.Equal(t, created.Username, updated.Username)
 	assert.Equal(t, created.Name, updated.Name)
 	assert.Equal(t, "Alice Example", created.Name)
+	assert.Empty(t, created.Email)
+	assert.Empty(t, updated.Email)
 	mockUser.AssertExpectations(t)
 }
 

@@ -81,7 +81,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 
 	msg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionCreated,
-		Data:           *link,
+		Data:           link.IndexerData(),
 		IndexingConfig: link.IndexingConfig(),
 	}
 	if xSync {

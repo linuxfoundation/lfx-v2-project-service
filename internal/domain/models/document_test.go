@@ -147,3 +147,37 @@ func TestProjectDocument_Tags(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectDocument_IndexerData(t *testing.T) {
+	tests := []struct {
+		name      string
+		createdBy *UserInfo
+		updatedBy *UserInfo
+	}{
+		{
+			name:      "redacts audit user email",
+			createdBy: &UserInfo{Name: "Alice Example", Email: "alice@example.com", Username: "alice", Avatar: "https://example.com/a.png"},
+			updatedBy: &UserInfo{Name: "Bob Fixture", Email: "bob@example.com", Username: "bob"},
+		},
+		{
+			name: "nil audit users stay nil",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &ProjectDocument{UID: "00000000-0000-0000-0000-000000000001", ProjectUID: "00000000-0000-0000-0000-000000000002", Name: "Test", CreatedBy: tt.createdBy, UpdatedBy: tt.updatedBy}
+
+			got := r.IndexerData()
+
+			assert.Equal(t, r.UID, got.UID)
+			assert.Equal(t, r.Name, got.Name)
+			assert.Equal(t, RedactAuditUser(tt.createdBy), got.CreatedBy)
+			assert.Equal(t, RedactAuditUser(tt.updatedBy), got.UpdatedBy)
+			if tt.createdBy != nil {
+				assert.Empty(t, got.CreatedBy.Email)
+				assert.Empty(t, got.UpdatedBy.Email)
+				assert.Equal(t, "alice@example.com", r.CreatedBy.Email, "stored record must not be mutated")
+			}
+		})
+	}
+}

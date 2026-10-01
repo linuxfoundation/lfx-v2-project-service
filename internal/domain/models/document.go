@@ -117,6 +117,15 @@ func (d *ProjectDocument) BuildIndexKey(_ context.Context) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// IndexerData returns a copy of the document for indexer payloads. The index document is
+// readable at the viewer relation, so created_by/updated_by are redacted to display-only fields.
+func (d *ProjectDocument) IndexerData() ProjectDocument {
+	cp := *d
+	cp.CreatedBy = RedactAuditUser(d.CreatedBy)
+	cp.UpdatedBy = RedactAuditUser(d.UpdatedBy)
+	return cp
+}
+
 // IndexingConfig returns indexing configuration for the project document.
 func (d *ProjectDocument) IndexingConfig() *indexerTypes.IndexingConfig {
 	if d == nil {

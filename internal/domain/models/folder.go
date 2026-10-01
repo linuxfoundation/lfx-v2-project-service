@@ -74,6 +74,15 @@ func (f *ProjectFolder) BuildIndexKey(_ context.Context) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// IndexerData returns a copy of the folder for indexer payloads. The index document is readable
+// at the viewer relation, so created_by/updated_by are redacted to display-only fields.
+func (f *ProjectFolder) IndexerData() ProjectFolder {
+	cp := *f
+	cp.CreatedBy = RedactAuditUser(f.CreatedBy)
+	cp.UpdatedBy = RedactAuditUser(f.UpdatedBy)
+	return cp
+}
+
 // IndexingConfig returns indexing configuration for the project folder.
 func (f *ProjectFolder) IndexingConfig() *indexerTypes.IndexingConfig {
 	if f == nil {
