@@ -932,7 +932,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							UID:        "project-uid-1",
 							Public:     true,
 							Relations:  make(map[string][]string),
-							References: make(map[string][]string),
+							References: wantAllGrants,
 						},
 					},
 				).Return(nil)
@@ -978,7 +978,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							UID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 							Public:     false,
 							Relations:  make(map[string][]string),
-							References: map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
+							References: wantAllGrantsWithParent("11111111-2222-3333-4444-555555555555"),
 						},
 					},
 				).Return(nil)
