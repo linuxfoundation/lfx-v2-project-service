@@ -2047,6 +2047,16 @@ func TestValidateProjectName(t *testing.T) {
 			input:   "Evil\x00Project",
 			wantErr: true,
 		},
+		{
+			name:    "name with trailing LF is rejected",
+			input:   "Project\n",
+			wantErr: true,
+		},
+		{
+			name:    "name with leading CR is rejected",
+			input:   "\rProject",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
