@@ -158,7 +158,7 @@ The LFX V2 Project Service is a RESTful API service that manages projects within
 The service follows **Clean Architecture** principles with clear separation of concerns:
 
 ```text
-.github/                    # CI/CD workflow files for Github Actions
+.github/                    # CI/CD workflow files for GitHub Actions
 
 api/                        # API contracts
 └── project/

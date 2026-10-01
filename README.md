@@ -362,7 +362,7 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 
 ## Development
 
-Before making any changes, read [CLAUDE.md](CLAUDE.md) — it is the authoritative guide for AI agents and human contributors alike. Non-Claude AI tools should read [AGENTS.md](AGENTS.md), which redirects to the same guide.
+Before making any changes, read [AGENTS.md](AGENTS.md) — it is the authoritative guide for AI agents and human contributors alike.
 
 To contribute to this repository:
 
@@ -377,7 +377,7 @@ To contribute to this repository:
    ```bash
    git commit -s -S
    ```
-   See [CLAUDE.md](CLAUDE.md) for one-time GPG setup instructions.
+   See [AGENTS.md](AGENTS.md) for one-time GPG setup instructions.
 5. Ensure the chart version in `charts/lfx-v2-project-service/Chart.yaml` has been
    updated following semantic version conventions if you are making changes to the chart.
 6. Submit your pull request. PR titles follow the same `type(scope): summary` format.

@@ -65,7 +65,7 @@ changed, or `charts/lfx-v2-project-service/templates/ruleset.yaml` changed.
 
 **Detect:** when `api/project/v1/design/**` changes add/modify a route or its auth, confirm `charts/lfx-v2-project-service/templates/ruleset.yaml` is changed in the same diff with a matching rule. Also confirm the new rule's OpenFGA `object`/`relation` is correct (and that `parent_uid` is validated where the rule reads `.Request.Body.parent_uid`).
 
-**Empirical citation:** repo convention recorded as a CodeRabbit learning on this repo — "Applies to charts/*/templates/ruleset.yaml : Update Heimdall ruleset in `charts/*/templates/ruleset.yaml` when adding new endpoints" (surfaced in PR #10). Reinforced by PR #21 `charts/.../templates/ruleset.yaml:49` (Copilot) flagging the `parent_uid` authorization check, and stated in `CLAUDE.md`: "any design change that affects authorization must also update `charts/lfx-v2-project-service/templates/ruleset.yaml` in the same PR."
+**Empirical citation:** repo convention recorded as a CodeRabbit learning on this repo — "Applies to charts/*/templates/ruleset.yaml : Update Heimdall ruleset in `charts/*/templates/ruleset.yaml` when adding new endpoints" (surfaced in PR #10). Reinforced by PR #21 `charts/.../templates/ruleset.yaml:49` (Copilot) flagging the `parent_uid` authorization check, and stated in `AGENTS.md`: "any design change that affects authorization must also update `charts/lfx-v2-project-service/templates/ruleset.yaml` in the same PR."
 
 **Failure message:** Authorization-affecting design change without a matching `ruleset.yaml` update — Heimdall and the API disagree on access.
 
