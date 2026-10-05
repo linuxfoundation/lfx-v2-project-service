@@ -29,12 +29,7 @@ func toServiceFolder(f *models.ProjectFolder) *projsvc.ProjectFolder {
 
 // CreateProjectFolder creates a new project folder.
 func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.CreateProjectFolderPayload) (*projsvc.ProjectFolder, error) {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
-	folder, err := s.service.CreateFolder(ctx, payload.UID, payload.Name, xSync)
+	folder, err := s.service.CreateFolder(ctx, payload.UID, payload.Name)
 	if err != nil {
 		return nil, handleError(ctx, err)
 	}
@@ -57,12 +52,7 @@ func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.Get
 
 // DeleteProjectFolder deletes a project folder.
 func (s *ProjectsAPI) DeleteProjectFolder(ctx context.Context, payload *projsvc.DeleteProjectFolderPayload) error {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
-	if err := s.service.DeleteFolder(ctx, payload.UID, payload.FolderUID, payload.IfMatch, xSync); err != nil {
+	if err := s.service.DeleteFolder(ctx, payload.UID, payload.FolderUID, payload.IfMatch); err != nil {
 		return handleError(ctx, err)
 	}
 
