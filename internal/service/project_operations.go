@@ -561,7 +561,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	// Only publish FGA update_access when the base fields that affect FGA state
-	// (Public, ParentUID) actually changed. UpdateProjectSettings is the
+	// (Public, ParentUID, or a Stage change that withholds or restores the
+	// global team grants) actually changed. UpdateProjectSettings is the
 	// authoritative publisher for relation changes; publishing here
 	// unconditionally requires a cross-KV settings read whose snapshot may be
 	// stale relative to a concurrent revocation, allowing a re-grant in OpenFGA
@@ -574,7 +575,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// ConvertToDBProjectBase already applied the nil→false default; comparing
 	// projectDB values keeps the gate consistent with what was actually written.
 	var fgaProj *ProjectProjection
-	if projectDB.Public != existingProjectDB.Public || projectDB.ParentUID != existingProjectDB.ParentUID {
+	if projectDB.Public != existingProjectDB.Public || projectDB.ParentUID != existingProjectDB.ParentUID ||
+		withholdsGlobalGrants(projectDB.Stage) != withholdsGlobalGrants(existingProjectDB.Stage) {
 		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)

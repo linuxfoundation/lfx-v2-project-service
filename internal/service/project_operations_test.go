@@ -1126,6 +1126,72 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "stage moves into Prospect — publishes owner-only global grants",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Prospect"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Active"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access",
+					mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+						data, ok := msg.Data.(fgatypes.GenericAccessData)
+						return ok && assert.ObjectsAreEqual(wantOwnerOnlyGrants, data.References)
+					}),
+				).Return(nil).Once()
+			},
+			wantErr: false,
+		},
+		{
+			name: "stage moves out of Formation - Confidential — publishes every global grant",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Active"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Formation - Confidential"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access",
+					mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+						data, ok := msg.Data.(fgatypes.GenericAccessData)
+						return ok && assert.ObjectsAreEqual(wantAllGrants, data.References)
+					}),
+				).Return(nil).Once()
+			},
+			wantErr: false,
+		},
+		{
+			name: "stage moves between withheld stages — skips FGA publish",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Formation - Confidential"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Prospect"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				// GetProjectSettings and PublishAccessMessage must NOT be called.
+			},
+			wantErr: false,
+		},
+		{
 			// Neither Public nor ParentUID changes: FGA must NOT be published.
 			name: "successful update — no FGA-relevant fields changed — skips FGA publish",
 			payload: &projsvc.UpdateProjectBasePayload{

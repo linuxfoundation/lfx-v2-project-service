@@ -1,3 +1,6 @@
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Global project grant backfill
 
 This directory provides an operator wrapper for the existing project-service
@@ -16,7 +19,16 @@ deployment in the selected cluster and does not print it.
 - A `project-cli` image built from a revision that includes the global team
   grant behavior
 - The image supplied by immutable SHA-256 digest
-- The compatible FGA synchronizer release already deployed
+- fga-sync v0.3.12 or later deployed in the target environment. Earlier
+  releases add `global_*` team grants but never withdraw a grant that an
+  access message omits.
+- The global team membership migration complete: `global-project-writers` and
+  `global-project-auditors` hold only their intended members. The backfill
+  grants whatever membership the teams hold.
+- Every project migrated into the v2 project set
+  ([lfx-self-serve#1953](https://github.com/linuxfoundation/lfx-self-serve/issues/1953)).
+  The backfill and the verifier both enumerate the NATS project set, so a
+  project that is not there is neither granted nor reported.
 
 Review the dry-run logs before authorizing the write-enabled run. The command
 must be run in development and validated there before production.
@@ -71,6 +83,9 @@ has completed successfully and an independent read-only comparison confirms:
 - ordinary projects have the expected writer, auditor, and marketing teams;
 - restricted projects have only the grants permitted by policy;
 - there are no missing, unexpected, or conditioned global-team tuples.
+
+A clean comparison does not prove the team membership or project migration
+prerequisites above; confirm both separately before removing the legacy path.
 
 Re-running the apply command is the supported repair path because the
 downstream synchronizer reconciles the desired project access tuples. Retain
