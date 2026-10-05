@@ -84,18 +84,8 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		Data:           *link,
 		IndexingConfig: link.IndexingConfig(),
 	}
-	if xSync {
-		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg); err != nil {
-			slog.WarnContext(ctx, "error sending link indexer message", constants.ErrKey, err)
-			return nil, err
-		}
-	} else {
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, msg); err != nil {
-				slog.WarnContext(bgCtx, "error sending link indexer message", constants.ErrKey, err)
-			}
-		}()
+	if err := s.publishIndexer(ctx, constants.IndexProjectLinkSubject, msg, xSync); err != nil {
+		return nil, err
 	}
 
 	bgCtx := context.WithoutCancel(ctx)
@@ -177,19 +167,5 @@ func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID st
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	if xSync {
-		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, deleteMsg); err != nil {
-			slog.WarnContext(ctx, "error sending link delete indexer message", constants.ErrKey, err)
-			return err
-		}
-	} else {
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, deleteMsg); err != nil {
-				slog.WarnContext(bgCtx, "error sending link delete indexer message", constants.ErrKey, err)
-			}
-		}()
-	}
-
-	return nil
+	return s.publishIndexer(ctx, constants.IndexProjectLinkSubject, deleteMsg, xSync)
 }

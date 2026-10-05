@@ -4,7 +4,11 @@
 package service
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 // ProjectsService implements the projsvc.Service interface and domain.MessageHandler
@@ -65,6 +69,27 @@ func (s *ProjectsService) ServiceReady() bool {
 	return s.ProjectRepository != nil && s.Publisher != nil && s.Sender != nil &&
 		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
 		s.UserReader != nil && s.Resolver != nil && s.Dispatcher != nil
+}
+
+// publishIndexer sends msg to the NATS indexer subject. When sync is true the
+// call blocks and the error (if any) is returned. When sync is false the publish
+// runs in a background goroutine with a detached context and this method always
+// returns nil immediately.
+func (s *ProjectsService) publishIndexer(ctx context.Context, subject string, msg any, sync bool) error {
+	if sync {
+		if err := s.Publisher.SendIndexerMessage(ctx, subject, msg); err != nil {
+			slog.WarnContext(ctx, "error sending indexer message", constants.ErrKey, err)
+			return err
+		}
+		return nil
+	}
+	bgCtx := context.WithoutCancel(ctx)
+	go func() {
+		if err := s.Publisher.SendIndexerMessage(bgCtx, subject, msg); err != nil {
+			slog.WarnContext(bgCtx, "error sending indexer message", constants.ErrKey, err)
+		}
+	}()
+	return nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.
