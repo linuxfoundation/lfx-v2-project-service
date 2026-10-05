@@ -1094,7 +1094,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			expectedErr: domain.ErrValidationFailed,
 		},
 		{
-			name: "parent change authorized — writer on both old and new parent",
+			name: "parent change authorized — writer_guard on both old and new parent",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
 				IfMatch:   misc.StringPtr("3"),
@@ -1119,8 +1119,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:22222222-3333-4444-5555-666666666666").Return(true, nil)
 				return m
 			}(),
 			wantErr: false,
@@ -1180,7 +1180,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			expectedErr: domain.ErrInternal,
 		},
 		{
-			name: "parent change blocked — caller lacks writer on current parent",
+			name: "parent change blocked — caller lacks writer_guard on current parent",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
 				IfMatch:   misc.StringPtr("3"),
@@ -1199,14 +1199,14 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
 				return m
 			}(),
 			wantErr:     true,
 			expectedErr: domain.ErrForbidden,
 		},
 		{
-			name: "parent change blocked — caller lacks writer on new parent",
+			name: "parent change blocked — caller lacks writer_guard on new parent",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
 				IfMatch:   misc.StringPtr("3"),
@@ -1225,15 +1225,15 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").Return(false, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:22222222-3333-4444-5555-666666666666").Return(false, nil)
 				return m
 			}(),
 			wantErr:     true,
 			expectedErr: domain.ErrForbidden,
 		},
 		{
-			name: "detach to root blocked — caller lacks writer on current parent",
+			name: "detach to root blocked — caller lacks writer_guard on current parent",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
 				IfMatch:   misc.StringPtr("3"),
@@ -1252,7 +1252,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
 				return m
 			}(),
 			wantErr:     true,
@@ -1278,7 +1278,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").
 					Return(false, errors.New("nats: no responders"))
 				return m
 			}(),
@@ -1305,8 +1305,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
-				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:22222222-3333-4444-5555-666666666666").
 					Return(false, errors.New("nats: no responders"))
 				return m
 			}(),

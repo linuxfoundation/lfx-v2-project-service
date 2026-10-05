@@ -548,7 +548,7 @@ When deployed, the service uses OpenFGA for authorization:
 - **POST /projects** - Requires `writer_guard` on parent (if specified)
 - **GET /projects/:id** - Requires `viewer` on project
 - **GET /projects/:id/settings** - Requires `auditor_guard` on project
-- **PUT /projects/:id** - Requires `writer_guard` on project; when `parent_uid` changes, also requires `writer` on both the old parent (detach) and new parent (attach)
+- **PUT /projects/:id** - Requires `writer_guard` on project; when `parent_uid` changes, also requires `writer_guard` on both the old parent (detach) and new parent (attach)
 - **PUT /projects/:id/settings** - Requires `writer_guard` on project
 - **DELETE /projects/:id** - Requires `owner` on project
 
