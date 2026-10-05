@@ -477,14 +477,18 @@ main() {
     exit 0
   fi
 
-  local planned_before users_before apply_rc=0
+  local planned_before users_before store_before model_before apply_rc=0
   planned_before="$(delete_plan_snapshot)"
+  store_before="$STORE_ID"
+  model_before="$GATEWAY_MODEL_ID"
   confirm_apply
 
   # The confirmation prompt is intentionally unbounded. Re-read every
   # precondition afterwards so the deletes never act on a stale plan.
   resolve_heimdall_openfga_config ||
     die 1 "could not refresh Heimdall's OpenFGA store and model IDs"
+  [[ "$STORE_ID" == "$store_before" && "$GATEWAY_MODEL_ID" == "$model_before" ]] ||
+    die 3 "Heimdall's OpenFGA store or model ID changed during confirmation; nothing deleted, re-run the dry run"
   verify_root_identity
   verify_deployed_model
   TUPLES="$(read_root_tuples)" || die 1 "could not refresh tuples on ${OBJECT}"
