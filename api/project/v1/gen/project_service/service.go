@@ -116,7 +116,8 @@ type ConflictError struct {
 type CreateProjectFolderPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// Version of the API
 	Version *string
@@ -131,7 +132,8 @@ type CreateProjectFolderPayload struct {
 type CreateProjectLinkPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// Version of the API
 	Version *string
@@ -152,7 +154,8 @@ type CreateProjectLinkPayload struct {
 type CreateProjectPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// Version of the API
 	Version *string
@@ -227,7 +230,8 @@ type CreateProjectPayload struct {
 type DeleteProjectDocumentPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -244,7 +248,8 @@ type DeleteProjectDocumentPayload struct {
 type DeleteProjectFolderPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -261,7 +266,8 @@ type DeleteProjectFolderPayload struct {
 type DeleteProjectLinkPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -278,7 +284,8 @@ type DeleteProjectLinkPayload struct {
 type DeleteProjectPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -715,7 +722,8 @@ type ServiceUnavailableError struct {
 type UpdateProjectBasePayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -774,7 +782,8 @@ type UpdateProjectBasePayload struct {
 type UpdateProjectSettingsPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
@@ -809,7 +818,8 @@ type UpdateProjectSettingsPayload struct {
 type UploadProjectDocumentPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
+	// Deprecated: accepted for backward compatibility but has no effect. Indexer
+	// publishes are always asynchronous.
 	XSync *bool
 	// Version of the API
 	Version *string
