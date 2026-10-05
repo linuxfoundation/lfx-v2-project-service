@@ -86,6 +86,17 @@ const ServiceName = "project-service"
 // MethodKey key.
 var MethodNames = [20]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
 
+// Display-only user identity for audit attribution on viewer-readable
+// resources.
+type AuditUserInfo struct {
+	// The full name of the user
+	Name *string
+	// The username/LFID of the user
+	Username *string
+	// The avatar URL of the user
+	Avatar *string
+}
+
 type BadRequestError struct {
 	// HTTP status code
 	Code string
@@ -288,6 +299,13 @@ type DownloadProjectDocumentPayload struct {
 	UID string
 	// Document UID
 	DocumentUID string
+}
+
+type ForbiddenError struct {
+	// HTTP status code
+	Code string
+	// Error message
+	Message string
 }
 
 // GetOneProjectBasePayload is the payload type of the project-service service
@@ -508,9 +526,9 @@ type ProjectDocument struct {
 	// MIME type of the file
 	ContentType *string
 	// User who created this resource
-	CreatedBy *UserInfo
+	CreatedBy *AuditUserInfo
 	// User who last updated this resource
-	UpdatedBy *UserInfo
+	UpdatedBy *AuditUserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp
@@ -527,9 +545,9 @@ type ProjectFolder struct {
 	// Folder display name
 	Name *string
 	// User who created this resource
-	CreatedBy *UserInfo
+	CreatedBy *AuditUserInfo
 	// User who last updated this resource
-	UpdatedBy *UserInfo
+	UpdatedBy *AuditUserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp
@@ -627,9 +645,9 @@ type ProjectLink struct {
 	// A description of the link
 	Description *string
 	// User who created this resource
-	CreatedBy *UserInfo
+	CreatedBy *AuditUserInfo
 	// User who last updated this resource
-	UpdatedBy *UserInfo
+	UpdatedBy *AuditUserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp
@@ -858,6 +876,23 @@ func (e *ConflictError) ErrorName() string {
 // GoaErrorName returns "ConflictError".
 func (e *ConflictError) GoaErrorName() string {
 	return "Conflict"
+}
+
+// Error returns an error description.
+func (e *ForbiddenError) Error() string {
+	return ""
+}
+
+// ErrorName returns "ForbiddenError".
+//
+// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+func (e *ForbiddenError) ErrorName() string {
+	return e.GoaErrorName()
+}
+
+// GoaErrorName returns "ForbiddenError".
+func (e *ForbiddenError) GoaErrorName() string {
+	return "Forbidden"
 }
 
 // Error returns an error description.

@@ -22,8 +22,8 @@ func toServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
 		FolderUID:  l.FolderUID,
 		Name:       &l.Name,
 		URL:        &l.URL,
-		CreatedBy:  service.ConvertUserToAPI(l.CreatedBy),
-		UpdatedBy:  service.ConvertUserToAPI(l.UpdatedBy),
+		CreatedBy:  service.ConvertAuditUserToAPI(l.CreatedBy),
+		UpdatedBy:  service.ConvertAuditUserToAPI(l.UpdatedBy),
 		CreatedAt:  misc.StringPtr(l.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(l.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}

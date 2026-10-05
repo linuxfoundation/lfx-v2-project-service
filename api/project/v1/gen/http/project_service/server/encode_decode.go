@@ -630,6 +630,19 @@ func EncodeUpdateProjectBaseError(encoder func(context.Context, http.ResponseWri
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusConflict)
 			return enc.Encode(body)
+		case "Forbidden":
+			var res *projectservice.ForbiddenError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectBaseForbiddenResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusForbidden)
+			return enc.Encode(body)
 		case "InternalServerError":
 			var res *projectservice.InternalServerError
 			errors.As(v, &res)
@@ -2721,6 +2734,22 @@ func unmarshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoReque
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody builds a value
+// of type *AuditUserInfoResponseBody from a value of type
+// *projectservice.AuditUserInfo.
+func marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(v *projectservice.AuditUserInfo) *AuditUserInfoResponseBody {
+	if v == nil {
+		return nil
+	}
+	res := &AuditUserInfoResponseBody{
+		Name:     v.Name,
+		Username: v.Username,
+		Avatar:   v.Avatar,
 	}
 
 	return res

@@ -47,9 +47,9 @@ func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, h
 	data.CapabilityGroups = capabilityGroupsFor(data.Roles)
 
 	if data.InviterName != "" {
-		subject = data.InviterName + " added you as " + data.JoinedRoles + " on " + data.ProjectName
+		subject = sanitizeSubject(data.InviterName + " added you as " + data.JoinedRoles + " on " + data.ProjectName)
 	} else {
-		subject = "You have been added as " + data.JoinedRoles + " on " + data.ProjectName
+		subject = sanitizeSubject("You have been added as " + data.JoinedRoles + " on " + data.ProjectName)
 	}
 
 	var htmlBuf bytes.Buffer

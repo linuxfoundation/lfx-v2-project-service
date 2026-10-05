@@ -126,6 +126,32 @@ func TestRenderProjectDocumentUploaded(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "CRLF in project name is stripped from subject",
+			data: ProjectDocumentUploadedData{
+				RecipientName: "Alice",
+				ProjectName:   "Evil\r\nBcc: attacker@example.com\r\nProject",
+				DocumentName:  "Charter",
+				DocumentType:  "file",
+				FileName:      "charter.pdf",
+				UploaderName:  "Bob",
+				ProjectURL:    "https://app.dev.lfx.dev/projects/evil",
+			},
+			wantSubject: []string{"EvilBcc: attacker@example.comProject"},
+		},
+		{
+			name: "CRLF in uploader name is stripped from subject",
+			data: ProjectDocumentUploadedData{
+				RecipientName: "Alice",
+				ProjectName:   "Demo Project",
+				DocumentName:  "Charter",
+				DocumentType:  "file",
+				FileName:      "charter.pdf",
+				UploaderName:  "Bob\r\nX-Injected: yes",
+				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
+			},
+			wantSubject: []string{"BobX-Injected: yes", "Demo Project"},
+		},
 	}
 
 	for _, tt := range tests {

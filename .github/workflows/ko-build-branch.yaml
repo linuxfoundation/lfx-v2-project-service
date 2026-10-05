@@ -21,6 +21,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5
         with:
           go-version-file: go.mod
@@ -31,8 +33,10 @@ jobs:
         id: container_tag
         env:
           HEAD_REF: "${{ github.head_ref }}"
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
         run: |
-          container_tag=$(echo "$HEAD_REF" | sed 's/[^_0-9a-zA-Z]/-/g' | cut -c -127)
+          sanitized_ref=$(echo "$HEAD_REF" | sed 's/[^_0-9a-zA-Z]/-/g' | cut -c -$((124 - ${#PR_NUMBER})))
+          container_tag="pr-${PR_NUMBER}-${sanitized_ref}"
           echo tag="$container_tag" >> "$GITHUB_OUTPUT"
       - name: Build project-api for PR
         env:

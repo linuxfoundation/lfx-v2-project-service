@@ -249,10 +249,23 @@ func ProjectParentUIDAttribute() {
 }
 
 // ProjectLogoURLAttribute is the DSL attribute for a project logo URL.
+// Used on response types — no write-only constraints.
 func ProjectLogoURLAttribute() {
 	Attribute("logo_url", String, "The URL of the project logo", func() {
-		Example("https://example.com/logo.png")
+		Example("https://example.com/logo.svg")
 		Format(FormatURI)
+	})
+}
+
+// ProjectLogoURLWriteAttribute is the DSL attribute for a project logo URL on
+// create/update payloads. The https pattern rejects non-https scheme URIs;
+// full SSRF protection (IP blocklist, redirect policy) is applied by the logo
+// conversion script at fetch time, not here.
+func ProjectLogoURLWriteAttribute() {
+	Attribute("logo_url", String, "The URL of the project logo", func() {
+		Example("https://example.com/logo.svg")
+		Format(FormatURI)
+		Pattern(`^https://`)
 	})
 }
 
@@ -284,6 +297,23 @@ var InviteInfo = Type("InviteInfo", func() {
 	Attribute("expires_at", String, "RFC3339 expiry timestamp of the invite", func() {
 		Example("2026-06-18T00:00:00Z")
 		Format(FormatDateTime)
+	})
+})
+
+// AuditUserInfo is a display-only identity type for created_by/updated_by on viewer-readable
+// resources. It intentionally omits email to avoid exposing PII to anonymous callers.
+var AuditUserInfo = Type("AuditUserInfo", func() {
+	Description("Display-only user identity for audit attribution on viewer-readable resources.")
+
+	Attribute("name", String, "The full name of the user", func() {
+		Example("John Doe")
+	})
+	Attribute("username", String, "The username/LFID of the user", func() {
+		Example("johndoe123")
+	})
+	Attribute("avatar", String, "The avatar URL of the user", func() {
+		Example("https://example.com/avatar.jpg")
+		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
 	})
 })
 
@@ -591,6 +621,17 @@ var NotFoundError = Type("NotFoundError", func() {
 	Required("code", "message")
 })
 
+// ForbiddenError is the DSL type for a forbidden error.
+var ForbiddenError = Type("ForbiddenError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("403")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The caller lacks the required permission.")
+	})
+	Required("code", "message")
+})
+
 // ConflictError is the DSL type for a conflict error.
 var ConflictError = Type("ConflictError", func() {
 	Attribute("code", String, "HTTP status code", func() {
@@ -651,20 +692,20 @@ func ResourceDescriptionAttribute(field, description string) {
 	})
 }
 
-// ResourceAuditUserAttributes adds created_by and updated_by user profile objects.
+// ResourceAuditUserAttributes adds created_by and updated_by display-only identity objects.
+// Uses AuditUserInfo (no email) so viewer-level callers, including anonymous principals on
+// public projects, do not receive the writer's primary email address.
 func ResourceAuditUserAttributes() {
-	Attribute("created_by", UserInfo, "User who created this resource", func() {
+	Attribute("created_by", AuditUserInfo, "User who created this resource", func() {
 		Example(map[string]interface{}{
 			"name":     "John Doe",
-			"email":    "john.doe@example.com",
 			"username": "johndoe",
 			"avatar":   "https://example.com/avatar.jpg",
 		})
 	})
-	Attribute("updated_by", UserInfo, "User who last updated this resource", func() {
+	Attribute("updated_by", AuditUserInfo, "User who last updated this resource", func() {
 		Example(map[string]interface{}{
 			"name":     "John Doe",
-			"email":    "john.doe@example.com",
 			"username": "johndoe",
 			"avatar":   "https://example.com/avatar.jpg",
 		})

@@ -53,7 +53,6 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 			Name: "Alice Example",
 		}, nil)
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 		return mockUser
 	}
 
@@ -63,7 +62,6 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "bob").Return(&domain.UserMetadata{
 			Name: "Bob Example",
 		}, nil)
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "bob").Return("", nil)
 		return mockUser
 	}
 

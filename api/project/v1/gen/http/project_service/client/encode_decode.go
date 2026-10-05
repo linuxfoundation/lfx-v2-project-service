@@ -674,6 +674,7 @@ func EncodeUpdateProjectBaseRequest(encoder func(*http.Request) goahttp.Encoder)
 // DecodeUpdateProjectBaseResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
 //   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "Forbidden" (type *projectservice.ForbiddenError): http.StatusForbidden
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -736,6 +737,20 @@ func DecodeUpdateProjectBaseResponse(decoder func(*http.Response) goahttp.Decode
 				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
 			return nil, NewUpdateProjectBaseConflict(&body)
+		case http.StatusForbidden:
+			var (
+				body UpdateProjectBaseForbiddenResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
+			}
+			err = ValidateUpdateProjectBaseForbiddenResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
+			}
+			return nil, NewUpdateProjectBaseForbidden(&body)
 		case http.StatusInternalServerError:
 			var (
 				body UpdateProjectBaseInternalServerErrorResponseBody
@@ -3173,6 +3188,22 @@ func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequest
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo builds a
+// value of type *projectservice.AuditUserInfo from a value of type
+// *AuditUserInfoResponseBody.
+func unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(v *AuditUserInfoResponseBody) *projectservice.AuditUserInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.AuditUserInfo{
+		Name:     v.Name,
+		Username: v.Username,
+		Avatar:   v.Avatar,
 	}
 
 	return res

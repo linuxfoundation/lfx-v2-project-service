@@ -293,6 +293,16 @@ func (m *MockUserReader) PrimaryEmailByUsername(ctx context.Context, username st
 	return args.String(0), args.Error(1)
 }
 
+// MockAccessChecker implements domain.AccessChecker for testing.
+type MockAccessChecker struct {
+	mock.Mock
+}
+
+func (m *MockAccessChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
+	args := m.Called(ctx, user, relation, object)
+	return args.Bool(0), args.Error(1)
+}
+
 // MockMessage implements domain.Message for testing.
 type MockMessage struct {
 	mock.Mock

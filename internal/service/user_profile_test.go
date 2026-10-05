@@ -96,9 +96,20 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 }
 
 func TestUserResolver_EnrichAuditUser(t *testing.T) {
-	t.Run("skips when profile is complete", func(t *testing.T) {
+	t.Run("skips when profile is complete with email", func(t *testing.T) {
 		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png", Email: "a@example.com"}
+
+		got := resolver.EnrichAuditUser(context.Background(), user)
+
+		assert.Equal(t, user, got)
+	})
+
+	t.Run("skips when name and avatar present even without email", func(t *testing.T) {
+		// auditUserProfileComplete no longer requires email; a record with name+avatar
+		// must short-circuit without any reader call.
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
+		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png"}
 
 		got := resolver.EnrichAuditUser(context.Background(), user)
 
@@ -111,7 +122,6 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 			Name:    "Alice Example",
 			Picture: "https://cdn.example/avatar.png",
 		}, nil)
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@example.com", nil)
 
 		resolver := NewUserResolver(mockUser)
 		user := &models.UserInfo{Username: "alice"}
@@ -119,30 +129,15 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 
 		assert.Equal(t, "Alice Example", got.Name)
 		assert.Equal(t, "https://cdn.example/avatar.png", got.Avatar)
-		assert.Equal(t, "alice@example.com", got.Email)
+		assert.Empty(t, got.Email)
 		assert.Equal(t, &models.UserInfo{Username: "alice"}, user)
 		assert.NotSame(t, user, got)
 		mockUser.AssertExpectations(t)
 	})
 
-	t.Run("enriches email when metadata lookup fails", func(t *testing.T) {
+	t.Run("returns unchanged user when metadata lookup fails", func(t *testing.T) {
 		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@example.com", nil)
-
-		resolver := NewUserResolver(mockUser)
-		user := &models.UserInfo{Username: "alice"}
-		got := resolver.EnrichAuditUser(context.Background(), user)
-
-		assert.Equal(t, "alice@example.com", got.Email)
-		assert.NotSame(t, user, got)
-		mockUser.AssertExpectations(t)
-	})
-
-	t.Run("returns unchanged user on lookup failure", func(t *testing.T) {
-		mockUser := &domainmocks.MockUserReader{}
-		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
-		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
 		resolver := NewUserResolver(mockUser)
 		user := &models.UserInfo{Username: "alice"}
@@ -253,8 +248,6 @@ func TestProjectsService_normalizeAuditUsers(t *testing.T) {
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
 	}, nil)
-	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
-
 	createdBy, updatedBy := svc.normalizeAuditUsers(context.Background(), nil, nil, "alice", "")
 
 	assert.NotNil(t, createdBy)

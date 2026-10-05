@@ -257,6 +257,13 @@ paths:
                         required:
                             - code
                             - message
+                "403":
+                    description: Forbidden response.
+                    schema:
+                        $ref: '#/definitions/ForbiddenError'
+                        required:
+                            - code
+                            - message
                 "404":
                     description: Not Found response.
                     schema:
@@ -1329,6 +1336,28 @@ paths:
             security:
                 - jwt_header_Authorization: []
 definitions:
+    AuditUserInfo:
+        title: AuditUserInfo
+        type: object
+        properties:
+            avatar:
+                type: string
+                description: The avatar URL of the user
+                example: https://example.com/avatar.jpg
+                pattern: ^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$
+            name:
+                type: string
+                description: The full name of the user
+                example: John Doe
+            username:
+                type: string
+                description: The username/LFID of the user
+                example: johndoe123
+        description: Display-only user identity for audit attribution on viewer-readable resources.
+        example:
+            avatar: https://example.com/avatar.jpg
+            name: John Doe
+            username: johndoe123
     BadRequestError:
         title: BadRequestError
         type: object
@@ -1364,6 +1393,25 @@ definitions:
         example:
             code: "409"
             message: The resource already exists.
+        required:
+            - code
+            - message
+    ForbiddenError:
+        title: ForbiddenError
+        type: object
+        properties:
+            code:
+                type: string
+                description: HTTP status code
+                example: "403"
+            message:
+                type: string
+                description: Error message
+                example: The caller lacks the required permission.
+        description: Forbidden
+        example:
+            code: "403"
+            message: The caller lacks the required permission.
         required:
             - code
             - message
@@ -1537,7 +1585,7 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
             name:
                 type: string
@@ -1607,7 +1655,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public: true
@@ -1631,7 +1679,7 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             created_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
             description:
                 type: string
                 description: A description of the document
@@ -1671,13 +1719,12 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             updated_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
         example:
             content_type: application/pdf
             created_at: "2024-01-01T00:00:00Z"
             created_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
             description: A description of the resource
@@ -1690,7 +1737,6 @@ definitions:
             updated_at: "2024-01-01T00:00:00Z"
             updated_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
     ProjectFolder:
@@ -1703,7 +1749,7 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             created_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
             name:
                 type: string
                 description: Folder display name
@@ -1725,12 +1771,11 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             updated_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
         example:
             created_at: "2024-01-01T00:00:00Z"
             created_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
             name: My Resource
@@ -1739,7 +1784,6 @@ definitions:
             updated_at: "2024-01-01T00:00:00Z"
             updated_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
     ProjectFull:
@@ -1873,7 +1917,7 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
             meeting_coordinators:
                 type: array
@@ -2004,7 +2048,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -2058,7 +2102,7 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             created_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
             description:
                 type: string
                 description: A description of the link
@@ -2089,7 +2133,7 @@ definitions:
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
             updated_by:
-                $ref: '#/definitions/UserInfo'
+                $ref: '#/definitions/AuditUserInfo'
             url:
                 type: string
                 description: The URL of the link
@@ -2099,7 +2143,6 @@ definitions:
             created_at: "2024-01-01T00:00:00Z"
             created_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
             description: A description of the resource
@@ -2110,7 +2153,6 @@ definitions:
             updated_at: "2024-01-01T00:00:00Z"
             updated_by:
                 avatar: https://example.com/avatar.jpg
-                email: john.doe@example.com
                 name: John Doe
                 username: johndoe
             url: https://example.com
@@ -2284,8 +2326,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             meeting_coordinators:
                 type: array
                 items:
@@ -2404,7 +2447,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -2506,7 +2549,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2580,7 +2623,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2654,7 +2697,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2728,7 +2771,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2804,7 +2847,7 @@ definitions:
                   legal_entity_name: Example Foundation LLC
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
+                  logo_url: https://example.com/logo.svg
                   meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -2878,7 +2921,7 @@ definitions:
                   legal_entity_name: Example Foundation LLC
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
+                  logo_url: https://example.com/logo.svg
                   meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -3029,8 +3072,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             name:
                 type: string
                 description: The pretty name of the project
@@ -3088,7 +3132,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public: true

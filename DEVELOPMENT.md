@@ -574,4 +574,4 @@ The service follows Clean Architecture principles. For the complete file structu
 - [Goa Framework Documentation](https://goa.design/docs/)
 - [NATS Documentation](https://docs.nats.io/)
 - [Project README](README.md) - Quick start guide
-- [CLAUDE.md](CLAUDE.md) - AI assistant instructions and detailed technical documentation
+- [AGENTS.md](AGENTS.md) - AI assistant instructions and detailed technical documentation

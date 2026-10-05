@@ -96,6 +96,28 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 			wantHTML:    []string{"With the", "Mentorship Program Admin", "Manage project mentorship programs"},
 			wantText:    []string{"With the Mentorship Program Admin role, you can", "- Manage project mentorship programs"},
 		},
+		{
+			name: "CRLF in project name is stripped from subject",
+			data: ProjectRoleNotificationData{
+				RecipientName: "Alice",
+				ProjectName:   "Evil\r\nBcc: attacker@example.com\r\nProject",
+				Roles:         []string{"Writer"},
+				ProjectURL:    "https://app.dev.lfx.dev/projects/evil",
+				InviterName:   "Bob",
+			},
+			wantSubject: []string{"EvilBcc: attacker@example.comProject"},
+		},
+		{
+			name: "CRLF in inviter name is stripped from subject",
+			data: ProjectRoleNotificationData{
+				RecipientName: "Alice",
+				ProjectName:   "Demo Project",
+				Roles:         []string{"Writer"},
+				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
+				InviterName:   "Bob\r\nX-Injected: yes",
+			},
+			wantSubject: []string{"BobX-Injected: yes", "Demo Project"},
+		},
 	}
 
 	for _, tt := range tests {

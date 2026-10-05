@@ -17,8 +17,7 @@ they are orphaned / no longer visible in the UI / created in error).
 2. **Child report (non-blocking)**: scans `project-links`, `project-folders`,
    and `project-documents-metadata` for any record that references this project
    and reports them (logged + captured in the audit file). Children do **not**
-   block the delete: once the parent project is gone, any remaining children are
-   orphaned and inert, so they are intentionally left in place.
+   block the delete; they are left in place unless `--cascade-children` is passed.
 3. **Deletes `projects/<uid>`** with `LastRevision` CAS — this is the authoritative
    ownership check. If the revision has changed since the audit (concurrent update),
    the run aborts here before any external side-effects.
@@ -32,16 +31,19 @@ they are orphaned / no longer visible in the UI / created in error).
    publish fails, the base record is already deleted — re-run the script to
    retry the indexer publish (the KV entry is gone so the CAS step will be
    skipped cleanly).
-5. **Deletes remaining KV entries**:
+5. **Publishes `lfx.fga-sync.delete_access`** for `project:<uid>`, mirroring
+   the production `DeleteProject` path. This triggers revocation of all OpenFGA
+   authorization tuples for the project; delivery is asynchronous (fire-and-forget
+   via `conn.Publish`) and OpenFGA convergence is not waited for. Once fga-sync
+   has processed the message, any remaining child resources (links, folders,
+   documents) become unreachable to former members, even when `--cascade-children`
+   is not passed.
+6. **Deletes remaining KV entries**:
    - `projects/slug/<slug>` (no CAS — slug mapping is single-writer)
    - `project-settings/<uid>`
 
 ### What it does **not** do
 
-- **OpenFGA cleanup.** `lfx.fga-sync.delete_access` is intentionally skipped.
-  Per operator policy, FGA reconciliation is handled out-of-band by another
-  job; the messages are idempotent and the orphaned tuples are inert because
-  the corresponding `project:<uid>` objects no longer exist anywhere else.
 - **KV-CAS-first ordering.** The base KV record is deleted with CAS before any
   indexer publish. If the indexer is unhealthy, the base record will already
   be gone — re-run the script to retry the indexer publish (the missing KV
@@ -72,8 +74,10 @@ they are orphaned / no longer visible in the UI / created in error).
   The JetStream stream provides at-least-once delivery for messages it does
   accept (durable consumer, exponential-backoff NAK on handler failure).
 - **Children are non-blocking.** Any `project_link`, `project_folder`, or
-  `project_document` referencing the UID is reported but left in place; the
-  delete still proceeds.
+  `project_document` referencing the UID is reported but left in place (unless
+  `--cascade-children` is passed); the delete still proceeds. The
+  `lfx.fga-sync.delete_access` publish triggers revocation; once fga-sync
+  processes the message, those children are no longer reachable by former members.
 
 ## Usage
 
@@ -145,12 +149,13 @@ NATS_PASS='<password-from-nats-context>' \
 Watch the logs. Expected per UID:
 
 ```text
-published indexer delete   subject=lfx.index.project
-published indexer delete   subject=lfx.index.project_settings
-deleted projects/<uid>     revision=<n>
+deleted projects/<uid>      revision=<n>
+published indexer delete    subject=lfx.index.project
+published indexer delete    subject=lfx.index.project_settings
+published fga delete_access subject=lfx.fga-sync.delete_access
 deleted slug reverse-lookup slug_key=slug/<slug>
 deleted project-settings/<uid>
-project deleted            uid=<...> slug=<...>
+project deleted             uid=<...> slug=<...>
 ```
 
 ### 5. Verify
@@ -237,6 +242,22 @@ Repeat the same block with `UID=108c0a98-79d2-4406-902d-e6682b34cf97` for
 
 If the NATS server requires credentials add `--context nats_development` (or
 `NATS_USER` / `NATS_PASS` if using explicit flags).
+
+### FGA rollback
+
+After restoring the NATS KV records, republish the FGA access tuples using
+`project-cli`. This re-sends `update_access` for the restored project so
+fga-sync recreates the OpenFGA relationship tuples:
+
+```bash
+go run ./cmd/project-cli sync reindex-projects \
+  --project-uid <uid> --force --include-access --update
+```
+
+> **Note:** this command publishes `update_access` (re-creates tuples) and is
+> correct for restoring a project after a rollback. It is **not** the retry path
+> for a failed `delete_access` during a deletion run — use the `nats pub` command
+> logged by the script in that case.
 
 ### OpenSearch rollback
 

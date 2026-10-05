@@ -58,6 +58,7 @@ help:
 	@echo "  verify         - Verify API generation is up to date"
 	@echo "  docker-build   - Build Docker image"
 	@echo "  build-cli      - Build the project-cli binary"
+	@echo "  build-logo-conversion - Build the logo file conversion script binary"
 	@echo "  docker-build-cli - Build the project-cli Docker image"
 	@echo "  helm-install   - Install Helm chart"
 	@echo "  helm-install-local - Install Helm chart with local values"
@@ -207,6 +208,14 @@ build-cli:
 	@mkdir -p bin
 	go build $(LDFLAGS) -o bin/project-cli ./cmd/project-cli
 	@echo "==> Build complete: bin/project-cli"
+
+# Build the logo conversion script binary
+.PHONY: build-logo-conversion
+build-logo-conversion:
+	@echo "==> Building project-logo-file-conversion..."
+	@mkdir -p scripts/project-logo-file-conversion/bin
+	go build $(LDFLAGS) -o scripts/project-logo-file-conversion/bin/project-logo-file-conversion ./scripts/project-logo-file-conversion
+	@echo "==> Build complete: scripts/project-logo-file-conversion/bin/project-logo-file-conversion"
 
 # Build the project-cli Docker image
 .PHONY: docker-build-cli

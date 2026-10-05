@@ -27,7 +27,7 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 
 ### Delivery Semantics
 
-Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` no longer changes indexer behavior: `CreateProject`, both update methods, and `DeleteProject` always call `SendIndexerMessage` inside an `errgroup` and `g.Wait()` regardless of `X-Sync`, and `SendIndexerMessage` now ignores the sync flag (always `conn.Publish`). `X-Sync` does not wait for FGA processing or OpenFGA convergence.
+Project create and settings update always publish `lfx.fga-sync.update_access` asynchronously. Base update publishes it only when `Public` or `ParentUID` changed from the stored value; if neither changed, no FGA message is sent. For those operations, `X-Sync` no longer changes indexer behavior: `CreateProject`, both update methods, and `DeleteProject` always call `SendIndexerMessage` inside an `errgroup` and `g.Wait()` regardless of `X-Sync`, and `SendIndexerMessage` now ignores the sync flag (always `conn.Publish`). `X-Sync` does not wait for FGA processing or OpenFGA convergence.
 
 Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` has no effect on project indexer deletion behavior and does not wait for FGA deletion processing or OpenFGA convergence. (For link, folder, and document sub-resources, `X-Sync` still controls whether the publish error is surfaced inline or swallowed in a background goroutine — but the NATS delivery is always fire-and-forget either way.)
 
@@ -37,7 +37,7 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 
 **Source structs:** `internal/domain/models/project.go` — `ProjectBase` and `ProjectSettings`
 
-**Synced on:** create, update of project base, update of project settings, delete of a project.
+**Synced on:** create, update of project base (only when `Public` or `ParentUID` changed), update of project settings, delete of a project.
 
 ### Access Config
 
@@ -95,9 +95,44 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Operation | Object Type | Subject | Notes |
 |---|---|---|---|
 | Create project | `project` | `lfx.fga-sync.update_access` | Always sent |
-| Update project base | `project` | `lfx.fga-sync.update_access` | Always sent |
+| Update project base | `project` | `lfx.fga-sync.update_access` | Only when `Public` or `ParentUID` changed from stored value |
 | Update project settings | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Invite acceptance (`HandleInviteAccepted`) | `project` | `lfx.fga-sync.update_access` | After KV promotion of email-only entries to LFID; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Username scrub (`HandleUserDeleted`) | `project` | `lfx.fga-sync.update_access` | After KV username clear; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
+| Admin force-delete (`scripts/admin-delete-project`) | `project` | `lfx.fga-sync.delete_access` | Sent after indexer deletes, before slug/settings KV cleanup; fires regardless of `--cascade-children` |
 | `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |
+
+---
+
+## Access Check RPC
+
+The project service sends an **outbound request/reply** to fga-sync to verify caller authorization when a project's parent changes. This is distinct from the fire-and-forget update/delete messages above.
+
+**Subject:** `lfx.access_check.request`
+
+**Request payload:** a single UTF-8 string in the form:
+
+```
+object#relation@user
+```
+
+For parent-change checks the fields are:
+
+| Field | Example | Description |
+|---|---|---|
+| `object` | `project:00000000-0000-0000-0000-000000000001` | The parent project being checked (`project:<uid>`) |
+| `relation` | `writer` | The relation the caller must hold |
+| `user` | `user:alice` | The principal from the request JWT (`user:<username>`) |
+
+**Response payload:** newline-delimited lines, each in the form:
+
+```
+object#relation@user\tallowed
+```
+
+where `allowed` is the literal string `true` or `false`. The checker reads the line whose leading tuple matches the request and returns `true` when `allowed` is `true`. Unrecognised or malformed lines are ignored.
+
+**When it fires:** `UpdateProjectBase` — only when `parent_uid` in the request differs from the stored value. One request is sent for the old parent (detach) and one for the new parent (attach), each in sequence. When `parent_uid` changes to empty (detach to root), only the old-parent check runs.
+
+**Denial semantics:** a `false` response, or a response that contains no matching tuple, is treated as denied and the endpoint returns HTTP 403 `ForbiddenError`. A NATS error (timeout, no responders) returns HTTP 500. The check is skipped entirely when `FGAChecker` is nil (i.e., when `FGA_ENABLED=false`).
