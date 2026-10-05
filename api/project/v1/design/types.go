@@ -24,11 +24,9 @@ func EtagAttribute() {
 }
 
 // XSyncAttribute is a reusable X-Sync header attribute.
-// Deprecated: this header is accepted for backward compatibility but is a no-op.
-// All indexer publishes are unconditionally asynchronous; JetStream durable streams
-// provide at-least-once delivery guarantees (see lfx-v2-indexer-service#68).
+// Deprecated: this header is accepted for backward compatibility but has no effect.
 func XSyncAttribute() {
-	Attribute("x_sync", Boolean, "Deprecated: accepted for backward compatibility but has no effect. Indexer publishes are always asynchronous.", func() {
+	Attribute("x_sync", Boolean, "Deprecated: accepted for backward compatibility but has no effect.", func() {
 		Example(true)
 	})
 }
