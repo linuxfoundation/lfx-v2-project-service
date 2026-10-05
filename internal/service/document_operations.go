@@ -135,14 +135,14 @@ func (s *ProjectsService) UploadDocument(
 		IndexingConfig: doc.IndexingConfig(),
 	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, true); err != nil {
+		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg); err != nil {
 			slog.WarnContext(ctx, "error sending document indexer message", constants.ErrKey, err)
 			return nil, err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, msg); err != nil {
 				slog.WarnContext(bgCtx, "error sending document indexer message", constants.ErrKey, err)
 			}
 		}()
@@ -152,7 +152,7 @@ func (s *ProjectsService) UploadDocument(
 	go func() {
 		sendCtx, cancel := context.WithTimeout(bgCtx, notificationTimeout)
 		defer cancel()
-		if err := s.MessageBuilder.SendProjectEventMessage(sendCtx, constants.ProjectDocumentCreatedSubject, DomainDocumentToEvent(doc)); err != nil {
+		if err := s.Publisher.SendProjectEventMessage(sendCtx, constants.ProjectDocumentCreatedSubject, DomainDocumentToEvent(doc)); err != nil {
 			slog.WarnContext(sendCtx, "error sending document created event", constants.ErrKey, err)
 		}
 	}()
@@ -263,13 +263,13 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 		}).IndexingConfig(),
 	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, deleteMsg, true); err != nil {
+		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, deleteMsg); err != nil {
 			slog.WarnContext(ctx, "error sending document delete indexer message", constants.ErrKey, err)
 			return err
 		}
 	} else {
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, deleteMsg, false); err != nil {
+			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, deleteMsg); err != nil {
 				slog.WarnContext(bgCtx, "error sending document delete indexer message", constants.ErrKey, err)
 			}
 		}()

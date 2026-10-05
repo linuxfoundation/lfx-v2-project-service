@@ -85,14 +85,14 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		IndexingConfig: link.IndexingConfig(),
 	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, true); err != nil {
+		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg); err != nil {
 			slog.WarnContext(ctx, "error sending link indexer message", constants.ErrKey, err)
 			return nil, err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, msg, false); err != nil {
+			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, msg); err != nil {
 				slog.WarnContext(bgCtx, "error sending link indexer message", constants.ErrKey, err)
 			}
 		}()
@@ -102,7 +102,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 	go func() {
 		sendCtx, cancel := context.WithTimeout(bgCtx, notificationTimeout)
 		defer cancel()
-		if err := s.MessageBuilder.SendProjectEventMessage(sendCtx, constants.ProjectLinkCreatedSubject, DomainLinkToEvent(link)); err != nil {
+		if err := s.Publisher.SendProjectEventMessage(sendCtx, constants.ProjectLinkCreatedSubject, DomainLinkToEvent(link)); err != nil {
 			slog.WarnContext(sendCtx, "error sending link created event", constants.ErrKey, err)
 		}
 	}()
@@ -178,14 +178,14 @@ func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID st
 		}).IndexingConfig(),
 	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, deleteMsg, true); err != nil {
+		if err := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, deleteMsg); err != nil {
 			slog.WarnContext(ctx, "error sending link delete indexer message", constants.ErrKey, err)
 			return err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, deleteMsg, false); err != nil {
+			if err := s.Publisher.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, deleteMsg); err != nil {
 				slog.WarnContext(bgCtx, "error sending link delete indexer message", constants.ErrKey, err)
 			}
 		}()

@@ -283,10 +283,10 @@ func (s *ProjectsService) publishInvitePromotionSideEffects(ctx context.Context,
 			Data:           *settings,
 			IndexingConfig: settings.IndexingConfig(projectUID),
 		}
-		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+		indexErr := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg)
 
 		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-		accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
+		accessErr := s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
 
 		if indexErr == nil && accessErr == nil {
 			return
@@ -546,10 +546,10 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 			Data:           *settings,
 			IndexingConfig: settings.IndexingConfig(projectUID),
 		}
-		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+		indexErr := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg)
 
 		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-		accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
+		accessErr := s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
 
 		if indexErr == nil && accessErr == nil {
 			return

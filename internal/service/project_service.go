@@ -13,7 +13,8 @@ type ProjectsService struct {
 	DocumentRepository domain.DocumentRepository
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
-	MessageBuilder     domain.MessageBuilder
+	Publisher          domain.EventPublisher
+	Sender             domain.OutboundRPC
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
@@ -31,7 +32,8 @@ type ServiceDeps struct {
 	DocumentRepository domain.DocumentRepository
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
-	MessageBuilder     domain.MessageBuilder
+	Publisher          domain.EventPublisher
+	Sender             domain.OutboundRPC
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
@@ -49,7 +51,8 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps Se
 		DocumentRepository: deps.DocumentRepository,
 		LinkRepository:     deps.LinkRepository,
 		FolderRepository:   deps.FolderRepository,
-		MessageBuilder:     deps.MessageBuilder,
+		Publisher:          deps.Publisher,
+		Sender:             deps.Sender,
 		UserReader:         deps.UserReader,
 		Resolver:           deps.Resolver,
 		Dispatcher:         deps.Dispatcher,
@@ -59,7 +62,7 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps Se
 
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
-	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
+	return s.ProjectRepository != nil && s.Publisher != nil && s.Sender != nil &&
 		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
 		s.UserReader != nil && s.Resolver != nil && s.Dispatcher != nil
 }

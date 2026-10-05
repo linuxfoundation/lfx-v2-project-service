@@ -44,7 +44,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("UniqueDocumentName", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return("lookup/project-documents/abc", nil)
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectDocumentCreatedSubject,
 					mock.MatchedBy(func(m any) bool {
 						ev, ok := m.(events.ProjectDocumentCreatedMessage)
@@ -66,7 +66,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("UniqueDocumentName", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return("lookup/project-documents/abc", nil)
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectDocumentCreatedSubject,
 					mock.MatchedBy(func(m any) bool {
 						ev, ok := m.(events.ProjectDocumentCreatedMessage)
@@ -296,7 +296,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockDoc.On("DeleteDocumentMetadata", mock.Anything, "proj-1", "doc-1", uint64(4)).Return(nil)
 				mockDoc.On("DeleteDocumentFile", mock.Anything, "doc-1").Return(nil).Maybe()
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{

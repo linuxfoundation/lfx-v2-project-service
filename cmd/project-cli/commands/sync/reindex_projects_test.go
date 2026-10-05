@@ -369,7 +369,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing: osMissing{project: true},
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base))).
 					Return(nil).Once()
 			},
 		},
@@ -379,7 +379,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings))).
 					Return(nil).Once()
 			},
 		},
@@ -390,10 +390,10 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings:   true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base))).
 					Return(nil).Once()
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings))).
 					Return(nil).Once()
 				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).Once()
@@ -406,10 +406,10 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base))).
 					Return(nil).Once()
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings))).
 					Return(nil).Once()
 			},
 		},
@@ -420,10 +420,10 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base))).
 					Return(nil).Once()
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings))).
 					Return(nil).Once()
 			},
 		},
@@ -435,10 +435,10 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings:   true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base))).
 					Return(nil).Once()
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings))).
 					Return(nil).Once()
 				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).Once()
@@ -451,7 +451,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			settingsErr: fmt.Errorf("settings kv record not found"),
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base))).
 					Return(nil).Once()
 			},
 			wantErr: true,
@@ -767,7 +767,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				settingsErr:   tt.settingsErr,
 			}
 			publisher := &domainmocks.MockMessageBuilder{}
-			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil)
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			var requests []string
@@ -830,7 +830,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 
 			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
 			publisher := &domainmocks.MockMessageBuilder{}
-			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil)
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			r := &reindexProjectsRunner{
@@ -865,7 +865,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 
 			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
 			publisher := &domainmocks.MockMessageBuilder{}
-			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil)
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			var requests []string

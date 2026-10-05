@@ -122,7 +122,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
 				FolderRepository:  mockFolder,
-				MessageBuilder:    mockMsg,
+				Sender:            mockMsg,
 				UserReader:        mockUserReader,
 				Resolver:          NewUserResolver(mockUserReader),
 				Config: ServiceConfig{
@@ -168,7 +168,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
 			FolderRepository:  &domainmocks.MockFolderRepository{},
-			MessageBuilder:    mockMsg,
+			Sender:            mockMsg,
 			UserReader:        mockUserReader,
 			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
@@ -201,7 +201,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
 			FolderRepository:  &domainmocks.MockFolderRepository{},
-			MessageBuilder:    mockMsg,
+			Sender:            mockMsg,
 			UserReader:        mockUserReader,
 			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
@@ -275,7 +275,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
 				FolderRepository:  &domainmocks.MockFolderRepository{},
-				MessageBuilder:    mockMsg,
+				Sender:            mockMsg,
 				UserReader:        mockUserReader,
 				Resolver:          NewUserResolver(mockUserReader),
 				Config: ServiceConfig{

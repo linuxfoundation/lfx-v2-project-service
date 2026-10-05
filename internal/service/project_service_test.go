@@ -34,7 +34,7 @@ func TestNewProjectsService(t *testing.T) {
 
 			assert.NotNil(t, service)
 			assert.Equal(t, tt.auth, service.Auth)
-			assert.Nil(t, service.MessageBuilder) // nil because no deps provided
+			assert.Nil(t, service.Publisher) // nil because no deps provided
 		})
 	}
 }
@@ -56,7 +56,8 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					DocumentRepository: &domainmocks.MockDocumentRepository{},
 					LinkRepository:     &domainmocks.MockLinkRepository{},
 					FolderRepository:   &domainmocks.MockFolderRepository{},
-					MessageBuilder:     mockBuilder,
+					Publisher:          mockBuilder,
+					Sender:             mockBuilder,
 					Auth:               &auth.MockJWTAuth{},
 					UserReader:         mockUserReader,
 					Resolver:           resolver,
@@ -70,29 +71,32 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
 					ProjectRepository: nil,
-					MessageBuilder:    &domainmocks.MockMessageBuilder{},
+					Publisher:         &domainmocks.MockMessageBuilder{},
+					Sender:            &domainmocks.MockMessageBuilder{},
 					Auth:              &auth.MockJWTAuth{},
 				}
 			},
 			expectedReady: false,
 		},
 		{
-			name: "service not ready - missing message builder",
+			name: "service not ready - missing publisher",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
 					ProjectRepository: &domainmocks.MockProjectRepository{},
-					MessageBuilder:    nil,
+					Publisher:         nil,
+					Sender:            &domainmocks.MockMessageBuilder{},
 					Auth:              &auth.MockJWTAuth{},
 				}
 			},
 			expectedReady: false,
 		},
 		{
-			name: "service not ready - missing both critical dependencies",
+			name: "service not ready - missing both publisher and sender",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
 					ProjectRepository: nil,
-					MessageBuilder:    nil,
+					Publisher:         nil,
+					Sender:            nil,
 					Auth:              &auth.MockJWTAuth{},
 				}
 			},
@@ -109,7 +113,8 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					DocumentRepository: &domainmocks.MockDocumentRepository{},
 					LinkRepository:     &domainmocks.MockLinkRepository{},
 					FolderRepository:   &domainmocks.MockFolderRepository{},
-					MessageBuilder:     mockBuilder,
+					Publisher:          mockBuilder,
+					Sender:             mockBuilder,
 					UserReader:         mockUserReader,
 					Resolver:           resolver,
 					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
@@ -122,12 +127,14 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			name: "service not ready - missing dispatcher",
 			setupService: func() *ProjectsService {
 				mockUserReader := &domainmocks.MockUserReader{}
+				mockBuilder := &domainmocks.MockMessageBuilder{}
 				return &ProjectsService{
 					ProjectRepository:  &domainmocks.MockProjectRepository{},
 					DocumentRepository: &domainmocks.MockDocumentRepository{},
 					LinkRepository:     &domainmocks.MockLinkRepository{},
 					FolderRepository:   &domainmocks.MockFolderRepository{},
-					MessageBuilder:     &domainmocks.MockMessageBuilder{},
+					Publisher:          mockBuilder,
+					Sender:             mockBuilder,
 					UserReader:         mockUserReader,
 					Resolver:           NewUserResolver(mockUserReader),
 					Dispatcher:         nil,
@@ -139,12 +146,14 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service not ready - missing user reader",
 			setupService: func() *ProjectsService {
+				mockBuilder := &domainmocks.MockMessageBuilder{}
 				return &ProjectsService{
 					ProjectRepository:  &domainmocks.MockProjectRepository{},
 					DocumentRepository: &domainmocks.MockDocumentRepository{},
 					LinkRepository:     &domainmocks.MockLinkRepository{},
 					FolderRepository:   &domainmocks.MockFolderRepository{},
-					MessageBuilder:     &domainmocks.MockMessageBuilder{},
+					Publisher:          mockBuilder,
+					Sender:             mockBuilder,
 					UserReader:         nil,
 					Auth:               &auth.MockJWTAuth{},
 				}
@@ -170,13 +179,14 @@ func TestProjectsService_Dependencies(t *testing.T) {
 
 		service := NewProjectsService(mockAuth, ServiceConfig{}, ServiceDeps{
 			ProjectRepository: mockRepo,
-			MessageBuilder:    mockBuilder,
+			Publisher:         mockBuilder,
+			Sender:            mockBuilder,
 		})
 
 		// Verify dependencies are correctly set
 		assert.Same(t, mockRepo, service.ProjectRepository)
 		assert.Same(t, mockAuth, service.Auth)
-		assert.Same(t, mockBuilder, service.MessageBuilder)
+		assert.Same(t, mockBuilder, service.Publisher)
 	})
 }
 
@@ -200,7 +210,8 @@ func setupServiceForTesting() (*ProjectsService, *domainmocks.MockProjectReposit
 		DocumentRepository: &domainmocks.MockDocumentRepository{},
 		LinkRepository:     &domainmocks.MockLinkRepository{},
 		FolderRepository:   &domainmocks.MockFolderRepository{},
-		MessageBuilder:     mockBuilder,
+		Publisher:          mockBuilder,
+		Sender:             mockBuilder,
 		UserReader:         mockUserReader,
 		Resolver:           resolver,
 		Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),

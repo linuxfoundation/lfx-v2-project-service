@@ -40,7 +40,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject,
 					mock.MatchedBy(func(m any) bool {
 						ev, ok := m.(events.ProjectLinkCreatedMessage)
@@ -59,7 +59,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject,
 					mock.MatchedBy(func(m any) bool {
 						ev, ok := m.(events.ProjectLinkCreatedMessage)
@@ -234,7 +234,7 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 			ifMatch:    misc.StringPtr("3"),
 			setupMocks: func(mockLink *domainmocks.MockLinkRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockLink.On("DeleteLink", mock.Anything, "proj-1", "link-1", uint64(3)).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
