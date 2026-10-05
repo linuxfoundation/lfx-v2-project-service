@@ -291,8 +291,9 @@ verify_deployed_model() {
   fi
 }
 
-# read_root_tuples   -- prints one "user relation condition-flag" line per tuple
-# on the root object, where condition-flag is "conditioned" or "-".
+# read_root_tuples   -- prints one "user relation condition" line per tuple on
+# the root object, where condition is "-" or the condition as key-sorted JSON,
+# so a changed condition name or context changes the line.
 read_root_tuples() {
   local raw
   raw="$(run_fga_pod tuple read --object "$OBJECT" --max-pages 0 \
@@ -302,12 +303,19 @@ read_root_tuples() {
     return 1
   fi
   jq -r '.tuples[].key
-    | "\(.user) \(.relation) \(if .condition then "conditioned" else "-" end)"' <<<"$raw"
+    | "\(.user) \(.relation) \(if .condition then (.condition
+        | walk(if type == "object" then to_entries | sort_by(.key) | from_entries else . end)
+        | tojson) else "-" end)"' <<<"$raw"
 }
 
-# has KEY   -- KEY is "user relation"; reads TUPLES.
+# has KEY   -- KEY is "user relation"; true whatever the condition. Reads TUPLES.
 has() {
-  grep -qxF -e "$1 -" -e "$1 conditioned" <<<"$TUPLES"
+  awk -v key="$1" '$1 " " $2 == key { found = 1 } END { exit !found }' <<<"$TUPLES"
+}
+
+# has_unconditioned KEY   -- KEY is "user relation"; true only without a condition.
+has_unconditioned() {
+  grep -qxF -e "$1 -" <<<"$TUPLES"
 }
 
 user_tuple_count() {
@@ -347,7 +355,7 @@ preflight() {
     if ! is_allowlisted "${user} ${relation}"; then
       echo "refused: unrecognised team tuple on root: ${user} ${relation}" >&2
       problems=1
-    elif [[ "$flag" == "conditioned" ]]; then
+    elif [[ "$flag" != "-" ]]; then
       echo "refused: tuple carries a condition: ${user} ${relation}" >&2
       problems=1
     fi
@@ -428,8 +436,8 @@ verify_after_apply() {
     fi
   done
   for t in "${REPLACEMENT_TUPLES[@]}"; do
-    if ! has "$t"; then
-      echo "  replacement grant missing after apply: ${t}" >&2
+    if ! has_unconditioned "$t"; then
+      echo "  replacement grant missing or conditioned after apply: ${t}" >&2
       failed=1
     fi
   done

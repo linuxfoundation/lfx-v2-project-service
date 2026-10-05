@@ -106,6 +106,10 @@ case "$verb" in
             "$state" >"${state}.tmp" && mv "${state}.tmp" "$state"
           : >"${dir}/user-swapped"
         fi
+        if [[ -n "${FAKE_MUTATE_ON_DELETE:-}" && ! -e "${dir}/mutated" ]]; then
+          jq "$FAKE_MUTATE_ON_DELETE" "$state" >"${state}.tmp" && mv "${state}.tmp" "$state"
+          : >"${dir}/mutated"
+        fi
       fi
     fi
     printf '%s' "$out" >"${dir}/pods/${pod}.out"
@@ -350,6 +354,36 @@ test_refuses_conditioned_legacy_tuple() {
   run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
   check "conditioned legacy tuple refused" '[[ $STATUS -eq 3 && "$OUT" == *"condition"* ]]'
   check "no delete with condition" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_refuses_conditioned_replacement_grant() {
+  setup
+  write_state "$(full_state | jq '[.[] | if .user == "team:global-project-writers#member" and .relation == "global_writer" then . + {condition: {name: "c", context: {k: "ctx-secret-value"}}} else . end]')"
+  run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "conditioned replacement grant refused" '[[ $STATUS -eq 3 && "$OUT" == *"condition: team:global-project-writers#member global_writer"* ]]'
+  check "condition context is not printed" '[[ "$OUT" != *"ctx-secret-value"* ]]'
+  check "no delete with conditioned replacement" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_replacement_conditioned_during_apply_fails_verification() {
+  setup; write_state "$(full_state)"
+  FAKE_MUTATE_ON_DELETE='[.[] | if .user == "team:global-project-writers#member" and .relation == "global_writer" then . + {condition: {name: "c"}} else . end]' \
+    run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "replacement conditioned during apply exits 4" '[[ $STATUS -eq 4 ]]'
+  check "conditioned replacement is reported" '[[ "$OUT" == *"replacement grant missing or conditioned after apply: team:global-project-writers#member global_writer"* ]]'
+  teardown
+}
+
+test_user_condition_change_fails_verification() {
+  setup
+  write_state "$(full_state | jq '[.[] | if .user == "user:writer-one" then . + {condition: {name: "c", context: {k: "ctx-before-value"}}} else . end]')"
+  FAKE_MUTATE_ON_DELETE='[.[] | if .user == "user:writer-one" then .condition.context.k = "ctx-after-value" else . end]' \
+    run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "user condition change exits 4" '[[ $STATUS -eq 4 ]]'
+  check "user condition change is reported" '[[ "$OUT" == *"user tuple set changed"* ]]'
+  check "user condition context is not printed" '[[ "$OUT" != *"ctx-before-value"* && "$OUT" != *"ctx-after-value"* && "$OUT" != *"writer-one"* ]]'
   teardown
 }
 
