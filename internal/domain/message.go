@@ -32,8 +32,11 @@ type InviteResult struct {
 }
 
 // EventPublisher covers fire-and-forget NATS publishes: indexer fanout, FGA access
-// updates, and project-lifecycle events. All methods publish asynchronously; delivery
-// guarantees come from the JetStream stream, not from the caller.
+// updates, and project-lifecycle events. Each method is a synchronous publish call
+// (blocks until the message is enqueued on the connection); callers choose whether to
+// invoke it inline or in a goroutine. No request/reply acknowledgement is expected
+// from consumers. SendIndexerMessage benefits from JetStream durable-stream delivery
+// guarantees; the other methods publish to core NATS subjects.
 type EventPublisher interface {
 	SendIndexerMessage(ctx context.Context, subject string, message any) error
 	PublishAccessMessage(ctx context.Context, subject string, message fgatypes.GenericFGAMessage) error
