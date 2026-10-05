@@ -4,7 +4,10 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
@@ -195,6 +198,48 @@ func TestProjectsService_Interfaces(t *testing.T) {
 		service := &ProjectsService{}
 		assert.Implements(t, (*domain.MessageHandler)(nil), service)
 	})
+}
+
+func TestProjectsService_publishIndexer(t *testing.T) {
+	tests := []struct {
+		name    string
+		subject string
+		msg     any
+		mockErr error
+	}{
+		{
+			name:    "dispatches to publisher with correct subject and message",
+			subject: "test.subject",
+			msg:     "test-message",
+		},
+		{
+			name:    "swallows publisher error without panicking",
+			subject: "test.subject",
+			msg:     "test-message",
+			mockErr: errors.New("nats unavailable"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			done := make(chan struct{})
+			mockPub := &domainmocks.MockMessageBuilder{}
+			mockPub.On("SendIndexerMessage", mock.Anything, tt.subject, tt.msg).
+				Return(tt.mockErr).
+				Run(func(_ mock.Arguments) { close(done) })
+
+			svc := &ProjectsService{Publisher: mockPub}
+			svc.publishIndexer(context.Background(), tt.subject, tt.msg)
+
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("publishIndexer goroutine did not call SendIndexerMessage within timeout")
+			}
+
+			mockPub.AssertExpectations(t)
+		})
+	}
 }
 
 // Setup helper for common test scenarios
