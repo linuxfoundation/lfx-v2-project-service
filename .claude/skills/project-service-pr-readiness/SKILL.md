@@ -46,7 +46,7 @@ Use this repo-specific list. Do not import the central Angular list or generic
   `docs/fga-contract.md`.
 - **Charts and deployment contracts:** `charts/lfx-v2-project-service/**`.
 - **Dependency and build surfaces:** `go.mod`, `go.sum`, `Makefile`.
-- **Agent guidance and local skills:** `CLAUDE.md`, `.claude/skills/**`.
+- **Agent guidance and local skills:** `AGENTS.md`, `.claude/skills/**`.
 - **Contract docs:** `docs/*contract*.md`.
 
 Protected files may be legitimate in a PR, but the shape report must call them

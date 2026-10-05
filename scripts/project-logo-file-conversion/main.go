@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -62,6 +64,17 @@ type ProjectBase struct {
 const (
 	defaultHeight = 800
 	defaultWidth  = 1600
+
+	// maxLogoBytes caps the decompressed response body read from an external logo
+	// URL. Go's default Transport transparently decompresses gzip, so the limit
+	// applies to post-decompression bytes and prevents a gzip-bomb from exhausting
+	// operator memory regardless of wire size.
+	maxLogoBytes = 10 * 1024 * 1024 // 10 MiB
+
+	// maxExportDimension clamps SVG viewBox/width/height values and the derived
+	// Inkscape export dimensions to a safe range so attacker-controlled SVG
+	// attributes cannot produce arbitrarily large --export-width/--export-height args.
+	maxExportDimension = 8192
 )
 
 // createFile creates a file for a file path
@@ -80,11 +93,138 @@ type ImageDimensions struct {
 	Height int
 }
 
+// privateRanges lists reserved IP blocks not covered by net.IP classification
+// methods. These complement the stdlib classifiers in isPublicIP.
+var privateRanges = func() []net.IPNet {
+	cidrs := []string{
+		"0.0.0.0/8",       // "this network" (RFC1122 §3.2.1.3)
+		"100.64.0.0/10",   // RFC6598 shared address (CGNAT)
+		"192.0.0.0/24",    // IANA special-purpose
+		"192.0.2.0/24",    // TEST-NET-1 (RFC5737 / documentation)
+		"198.18.0.0/15",   // benchmark/testing (RFC2544)
+		"198.51.100.0/24", // TEST-NET-2 (RFC5737 / documentation)
+		"203.0.113.0/24",  // TEST-NET-3 (RFC5737 / documentation)
+		"240.0.0.0/4",     // reserved / future use
+		"2001::/32",       // Teredo (embeds IPv4 addresses, RFC4380)
+		"2001:db8::/32",   // IPv6 documentation (RFC3849)
+		"2002::/16",       // 6to4 (embeds IPv4 addresses, RFC3056)
+		"64:ff9b::/96",    // NAT64 well-known prefix (RFC6052)
+		"64:ff9b:1::/48",  // NAT64 local-use prefix (RFC8215)
+	}
+	nets := make([]net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipNet, err := net.ParseCIDR(c)
+		if err != nil {
+			// A bad CIDR here would silently weaken the blocklist; fail fast.
+			panic(fmt.Sprintf("privateRanges: invalid CIDR %q: %v", c, err))
+		}
+		nets = append(nets, *ipNet)
+	}
+	return nets
+}()
+
+// isPublicIP returns false for any IP that is not a publicly routable address.
+// It first uses stdlib classifiers (which catch loopback, unspecified/0.0.0.0,
+// link-local, multicast, RFC1918, and ULA) then falls through to privateRanges
+// for reserved blocks those methods do not cover.
+func isPublicIP(ip net.IP) bool {
+	if ip.IsUnspecified() || ip.IsLoopback() || ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() {
+		return false
+	}
+	for _, block := range privateRanges {
+		if block.Contains(ip) {
+			return false
+		}
+	}
+	return true
+}
+
+// safeDialContext resolves the address, rejects any IP that is not publicly
+// routable, then dials. This check runs for every TCP connection, including
+// each redirect hop, so a redirect from a public host to an internal one is
+// also blocked.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %q: %w", addr, err)
+	}
+	ips, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("DNS lookup failed for %q: %w", host, err)
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return nil, fmt.Errorf("invalid IP %q returned by DNS for %q", ipStr, host)
+		}
+		if !isPublicIP(ip) {
+			return nil, fmt.Errorf("logo URL %q resolves to non-public address %s — skipping (SSRF protection)", host, ip)
+		}
+	}
+	var d net.Dialer
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0], port))
+}
+
+// safeHTTPClient returns an http.Client hardened against SSRF:
+//   - custom DialContext rejects non-public IPs on connect (and on every
+//     redirect hop, because each hop opens a new connection)
+//   - CheckRedirect refuses any redirect to a non-https scheme
+//   - 30 s overall timeout
+func safeHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DialContext: safeDialContext,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			if req.URL.Scheme != "https" {
+				return fmt.Errorf("redirect to non-https scheme %q rejected (SSRF protection)", req.URL.Scheme)
+			}
+			return nil
+		},
+	}
+}
+
+// validateLogoURL returns an error if rawURL is not safe to fetch:
+//   - scheme must be https
+//   - host must not be an IP literal in a private/loopback/link-local range
+//     (hostname targets are checked at dial time by safeDialContext)
+func validateLogoURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid logo URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("logo URL scheme %q is not https", u.Scheme)
+	}
+	// Reject bare IP literals without waiting for DNS.
+	if ip := net.ParseIP(u.Hostname()); ip != nil && !isPublicIP(ip) {
+		return fmt.Errorf("logo URL host %s is a non-public IP address", ip)
+	}
+	return nil
+}
+
+// isSVGContentType reports whether ct is an image/svg+xml media type.
+// Comparison is case-insensitive per RFC 2045; parameters (e.g. charset=utf-8) are ignored.
+func isSVGContentType(ct string) bool {
+	mt, _, err := mime.ParseMediaType(ct)
+	return err == nil && mt == "image/svg+xml"
+}
+
 // downloadFile tries to download an image file from a url into a local file, and then returns
 // the image dimensions by parsing the original .svg file
 func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err error) {
+	if err := validateLogoURL(url); err != nil {
+		return nil, err
+	}
+
 	downloadImageTime := time.Now()
-	client := http.Client{Timeout: 30 * time.Second}
+	client := safeHTTPClient()
 	resp, err := client.Get(url)
 	if err != nil {
 		slog.Error("http bad status", "url", url, "error", err)
@@ -99,11 +239,34 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		return nil, err
 	}
 
-	// Duplicate io.ReadCloser so it can be used for writing to the file and for parsing the svg file content
-	var buf bytes.Buffer
-	respBody := io.TeeReader(resp.Body, &buf)
+	// Reject non-SVG content types before reading the body.
+	if ct := resp.Header.Get("Content-Type"); !isSVGContentType(ct) {
+		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, ct)
+	}
 
-	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over
+	// Cap the body to maxLogoBytes before buffering. Go's default Transport
+	// transparently decompresses gzip, so the limit applies to decompressed bytes
+	// and prevents a gzip-bomb from exhausting operator memory within the 30s window.
+	if resp.ContentLength > maxLogoBytes {
+		return nil, fmt.Errorf("logo at %s declares Content-Length %d exceeding %d-byte limit", url, resp.ContentLength, maxLogoBytes)
+	}
+	limited := io.LimitReader(resp.Body, maxLogoBytes+1)
+
+	// Drain the full (decompressed) body into buf before any further processing.
+	// Doing this first means the size check and the panic-recovery path both see
+	// the complete body, so neither can be bypassed by an early parser exit or panic.
+	var buf bytes.Buffer
+	if _, err = io.Copy(&buf, limited); err != nil {
+		return nil, fmt.Errorf("error reading logo body from %s: %w", url, err)
+	}
+
+	// Reject if the body hit or exceeded the cap (LimitReader stops at maxLogoBytes+1).
+	if buf.Len() > maxLogoBytes {
+		return nil, fmt.Errorf("logo at %s exceeds %d-byte limit after decompression", url, maxLogoBytes)
+	}
+
+	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over.
+	// buf is fully populated at this point so the recover path can safely write it and return defaults.
 	defer func() {
 		if r := recover(); r != nil {
 			// Write the body to file
@@ -124,11 +287,10 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 			imgDimensions = &ImageDimensions{Width: imgWidth, Height: imgHeight}
 			err = nil
 		}
-
 	}()
 
-	// Get the file (image) dimensions
-	svgImg, err := svg.ParseSvgFromReader(respBody, "project logo", 1)
+	// Get the file (image) dimensions by parsing from the already-buffered body.
+	svgImg, err := svg.ParseSvgFromReader(bytes.NewReader(buf.Bytes()), "project logo", 1)
 	if err != nil {
 		// Don't return on error but instead just continue and use the default image width and height
 		slog.Warn("unable to parse svg image", "url", url, "error", err)
@@ -152,6 +314,15 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		// know what the ratio of the width:height should be.
 		if imgWidth == 0 || imgHeight == 0 {
 			slog.Warn("one of the image dimensions is set to zero, so using default height and width", "url", url, "img_width", imgWidth, "img_height", imgHeight)
+			imgWidth = defaultWidth
+			imgHeight = defaultHeight
+		}
+
+		// Clamp dimensions to a safe range so attacker-controlled SVG attributes
+		// cannot produce arbitrarily large Inkscape export arguments.
+		// Both are reset together to preserve the aspect ratio used by the caller.
+		if imgWidth < 0 || imgWidth > maxExportDimension || imgHeight < 0 || imgHeight > maxExportDimension {
+			slog.Warn("svg dimensions out of safe range, using defaults", "url", url, "img_width", imgWidth, "img_height", imgHeight)
 			imgWidth = defaultWidth
 			imgHeight = defaultHeight
 		}
@@ -267,6 +438,10 @@ func runSingleFile(s3Client *s3.Client, url string, imageWidth int, imageHeight 
 		// If there is no specified width for the new image file, use the proportions of the original image
 		imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 		imageWidth = int(float64(imageHeight) * imgRatio)
+		if imageWidth < 1 || imageWidth > maxExportDimension {
+			slog.Warn("calculated image width out of safe range, clamping to default", "url", url, "image_width", imageWidth)
+			imageWidth = defaultWidth
+		}
 		slog.Debug("calculated adjusted png image width from original image height",
 			"orig_image_height", origImgDimensions.Height,
 			"orig_image_width", origImgDimensions.Width,
@@ -347,6 +522,7 @@ func runSelectProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, proje
 		// Download the remote file into the local file
 		origImgDimensions, err := downloadFile(project.LogoURL, out)
 		if err != nil {
+			_ = out.Close()
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
@@ -356,6 +532,10 @@ func runSelectProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, proje
 			// If there is no specified width for the new image file, use the proportions of the original image
 			imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 			imageWidth = int(float64(imageHeight) * imgRatio)
+			if imageWidth < 1 || imageWidth > maxExportDimension {
+				slog.Warn("calculated image width out of safe range, clamping to default", "project_id", project.UID, "image_width", imageWidth)
+				imageWidth = defaultWidth
+			}
 			slog.Debug("calculated adjusted png image width from original image height",
 				"orig_image_height", origImgDimensions.Height,
 				"orig_image_width", origImgDimensions.Width,
@@ -435,6 +615,7 @@ func runAllProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, imageWid
 		// Download the remote file into the local file
 		origImgDimensions, err := downloadFile(project.LogoURL, out)
 		if err != nil {
+			_ = out.Close()
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
@@ -444,6 +625,10 @@ func runAllProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, imageWid
 			// If there is no specified width for the new image file, use the proportions of the original image
 			imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 			imageWidth = int(float64(imageHeight) * imgRatio)
+			if imageWidth < 1 || imageWidth > maxExportDimension {
+				slog.Warn("calculated image width out of safe range, clamping to default", "project_id", project.UID, "image_width", imageWidth)
+				imageWidth = defaultWidth
+			}
 			slog.Debug("calculated adjusted png image width from original image height",
 				"orig_image_height", origImgDimensions.Height,
 				"orig_image_width", origImgDimensions.Width,

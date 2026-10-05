@@ -216,15 +216,6 @@ func (s *NatsRepository) ListAllProjects(ctx context.Context) ([]*models.Project
 	return projectsBase, projectsSettings, nil
 }
 
-func (s *NatsRepository) putProjectSlugMapping(ctx context.Context, projectBase *models.ProjectBase) (uint64, error) {
-	revision, err := s.Projects.Put(ctx, fmt.Sprintf("slug/%s", projectBase.Slug), []byte(projectBase.UID))
-	if err != nil {
-		return 0, err
-	}
-
-	return revision, nil
-}
-
 func (s *NatsRepository) putProjectBase(ctx context.Context, projectBase *models.ProjectBase) (uint64, error) {
 	projectBaseBytes, err := json.Marshal(projectBase)
 	if err != nil {
@@ -259,28 +250,50 @@ func (s *NatsRepository) putProjectSettings(ctx context.Context, projectSettings
 
 // CreateProject creates a new project in the NATS KV stores.
 func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.ProjectBase, projectSettings *models.ProjectSettings) error {
-
-	// Create slug mapping first
-	_, err := s.putProjectSlugMapping(ctx, projectBase)
+	// Reserve the slug atomically. Create fails with ErrKeyExists when the key is
+	// already present, so concurrent creates for the same slug yield exactly one
+	// winner rather than silently overwriting each other.
+	slugKey := fmt.Sprintf("slug/%s", projectBase.Slug)
+	_, err := s.Projects.Create(ctx, slugKey, []byte(projectBase.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
 			slog.WarnContext(ctx, "project slug already exists", constants.ErrKey, err)
 			return domain.ErrProjectSlugExists
 		}
-		slog.ErrorContext(ctx, "error putting project UID mapping into NATS KV store", constants.ErrKey, err)
-		return err
-	}
-
-	// Store the project base data
-	_, err = s.putProjectBase(ctx, projectBase)
-	if err != nil {
+		slog.ErrorContext(ctx, "error creating project slug mapping in NATS KV store", constants.ErrKey, err)
 		return domain.ErrInternal
 	}
 
-	// Store the project settings if provided
+	// Store the project base data. A Put can fail with a lost acknowledgement:
+	// the write may already be committed server-side. Re-read before releasing
+	// the slug reservation so we only roll back when non-commit is confirmed.
+	_, err = s.putProjectBase(ctx, projectBase)
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if _, gErr := s.GetProjectBase(cleanupCtx, projectBase.UID); errors.Is(gErr, domain.ErrProjectNotFound) {
+			// Base confirmed not committed — safe to release the slug reservation.
+			if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
+				slog.ErrorContext(cleanupCtx, "error rolling back slug mapping after base write failure",
+					constants.ErrKey, delErr, "slug", projectBase.Slug, "project_uid", projectBase.UID)
+			}
+		} else {
+			// Base may be committed or the read itself failed — keep the slug
+			// reservation so the project remains reachable; log for investigation.
+			slog.ErrorContext(cleanupCtx, "base write failed; slug reservation kept pending retry or manual cleanup",
+				constants.ErrKey, err, "slug", projectBase.Slug, "project_uid", projectBase.UID)
+		}
+		return domain.ErrInternal
+	}
+
+	// Store the project settings if provided. The base is now confirmed committed;
+	// do not roll back the base or slug on settings failure — they belong to a
+	// real project. Return ErrInternal so the caller can retry the settings write.
 	if projectSettings != nil {
 		_, err = s.putProjectSettings(ctx, projectSettings)
 		if err != nil {
+			slog.ErrorContext(ctx, "error writing project settings; base committed, retrying settings is safe",
+				constants.ErrKey, err, "project_uid", projectBase.UID)
 			return domain.ErrInternal
 		}
 	}

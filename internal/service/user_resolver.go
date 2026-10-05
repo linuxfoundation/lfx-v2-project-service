@@ -76,6 +76,8 @@ func (r *UserResolver) ResolveRequestingUser(ctx context.Context) *models.UserIn
 // KV entries that carry only a username). Returns the original pointer when the profile is
 // already complete or when enrichment cannot be performed; otherwise returns a new cloned and
 // populated UserInfo so the original is never mutated.
+// Email is not fetched here: audit attribution is returned via AuditUserInfo (no email field)
+// so there is no need to make a PrimaryEmailByUsername call on viewer-gated read paths.
 func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInfo) *models.UserInfo {
 	if user == nil || strings.TrimSpace(user.Username) == "" || r.reader == nil {
 		return user
@@ -87,13 +89,6 @@ func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInf
 	defer cancel()
 	meta, err := r.reader.UserMetadataByPrincipal(lookupCtx, user.Username)
 	if err != nil || meta == nil {
-		enriched := models.CloneUserInfo(user)
-		if enriched.Email == "" {
-			if resolvedEmail, emailErr := r.reader.PrimaryEmailByUsername(lookupCtx, user.Username); emailErr == nil && resolvedEmail != "" {
-				enriched.Email = resolvedEmail
-				return enriched
-			}
-		}
 		return user
 	}
 	enriched := models.CloneUserInfo(user)
@@ -106,11 +101,6 @@ func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInf
 	}
 	if enriched.Avatar == "" {
 		enriched.Avatar = meta.Picture
-	}
-	if enriched.Email == "" {
-		if resolvedEmail, emailErr := r.reader.PrimaryEmailByUsername(lookupCtx, user.Username); emailErr == nil {
-			enriched.Email = resolvedEmail
-		}
 	}
 	return enriched
 }
@@ -147,9 +137,9 @@ func (r *UserResolver) ResolveDisplayName(ctx context.Context, actor events.Acto
 }
 
 // auditUserProfileComplete reports whether a UserInfo record is already fully enriched
-// (name, avatar, and email are all non-empty).
+// for audit attribution purposes (name and avatar; email is not required since audit
+// responses use AuditUserInfo which omits email).
 func auditUserProfileComplete(u *models.UserInfo) bool {
 	return strings.TrimSpace(u.Name) != "" &&
-		strings.TrimSpace(u.Avatar) != "" &&
-		strings.TrimSpace(u.Email) != ""
+		strings.TrimSpace(u.Avatar) != ""
 }

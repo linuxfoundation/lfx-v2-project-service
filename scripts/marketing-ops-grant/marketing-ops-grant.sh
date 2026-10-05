@@ -112,7 +112,7 @@ case "$ENV_NAME" in
     ;;
   prod)
     CTX="lfx-v2-prod"
-    # Prod store ID is production config and must not be committed (CLAUDE.md
+    # Prod store ID is production config and must not be committed (AGENTS.md
     # "No PII in Source" / no production data in committed files) — export it.
     STORE_ID="${FGA_STORE_ID:?Set FGA_STORE_ID to the prod OpenFGA store ID before running --env prod (see README)}"
     ;;

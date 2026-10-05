@@ -55,9 +55,9 @@ func RenderProjectDocumentUploaded(data ProjectDocumentUploadedData) (subject, h
 		docType = "link"
 	}
 	if data.UploaderName != "" {
-		subject = data.UploaderName + " added a " + docType + " to " + data.ProjectName
+		subject = sanitizeSubject(data.UploaderName + " added a " + docType + " to " + data.ProjectName)
 	} else {
-		subject = "A new " + docType + " was added to " + data.ProjectName
+		subject = sanitizeSubject("A new " + docType + " was added to " + data.ProjectName)
 	}
 
 	var htmlBuf bytes.Buffer

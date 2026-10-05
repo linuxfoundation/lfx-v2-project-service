@@ -898,7 +898,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		validate    func(*testing.T, *projsvc.ProjectBase)
 	}{
 		{
-			name: "successful update — publishes FGA update_access message",
+			// Public changes false→true: FGA update_access must be published.
+			name: "successful update — Public changed — publishes FGA update_access message",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
@@ -912,7 +913,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					UID:    "project-uid-1",
 					Slug:   "test-project",
 					Name:   "Test Project",
-					Public: true,
+					Public: false, // existing is false; payload sets true → FGA-relevant change
 				}
 				settingsDB := &models.ProjectSettings{
 					UID: "project-uid-1",
@@ -943,7 +944,9 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 		},
 		{
-			name: "successful update — FGA message includes parent reference",
+			// ParentUID changes ""→"11111111-...": FGA update_access must be published
+			// and the parent reference must appear in the message.
+			name: "successful update — ParentUID added — publishes FGA message with parent reference",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
 				IfMatch:   misc.StringPtr("5"),
@@ -957,7 +960,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 					Slug:      "child-project",
 					Name:      "Child Project",
-					ParentUID: "11111111-2222-3333-4444-555555555555",
+					ParentUID: "", // existing has no parent; payload adds one → FGA-relevant change
 				}
 				settingsDB := &models.ProjectSettings{UID: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}
 				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
@@ -1041,12 +1044,10 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}
-				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
+				// Public and ParentUID unchanged — FGA publish must NOT happen.
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
-				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectBase) {
@@ -1065,12 +1066,10 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}
-				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
+				// Public and ParentUID unchanged — FGA publish must NOT happen.
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -1125,6 +1124,60 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				return m
 			}(),
 			wantErr: false,
+		},
+		{
+			// Neither Public nor ParentUID changes: FGA must NOT be published.
+			name: "successful update — no FGA-relevant fields changed — skips FGA publish",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Renamed Project",
+				Public:  misc.BoolPtr(false),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:    "project-uid-1",
+					Slug:   "test-project",
+					Name:   "Test Project",
+					Public: false,
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				// GetProjectSettings and PublishAccessMessage must NOT be called.
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectBase) {
+				require.NotNil(t, result)
+			},
+		},
+		{
+			// Public changes false→true and the FGA publish fails: must return ErrInternal.
+			name: "FGA publish error when Public changes — returns ErrInternal",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Public:  misc.BoolPtr(true),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:    "project-uid-1",
+					Slug:   "test-project",
+					Name:   "Test Project",
+					Public: false,
+				}
+				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(domain.ErrInternal).Once()
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
 		},
 		{
 			name: "parent change blocked — caller lacks writer on current parent",
@@ -1972,6 +2025,36 @@ func TestValidateProjectName(t *testing.T) {
 		{
 			name:    "name starting with brace but otherwise valid chars is still rejected",
 			input:   "{project}",
+			wantErr: true,
+		},
+		{
+			name:    "name with CR is rejected",
+			input:   "Evil\rProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with LF is rejected",
+			input:   "Evil\nProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with CRLF is rejected",
+			input:   "Evil\r\nBcc: attacker@example.com\r\nProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with NUL is rejected",
+			input:   "Evil\x00Project",
+			wantErr: true,
+		},
+		{
+			name:    "name with trailing LF is rejected",
+			input:   "Project\n",
+			wantErr: true,
+		},
+		{
+			name:    "name with leading CR is rejected",
+			input:   "\rProject",
 			wantErr: true,
 		},
 	}
