@@ -21,7 +21,7 @@ import (
 )
 
 // CreateLink creates a new project link.
-func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, name, url, description string, folderUID *string, xSync bool) (*models.ProjectLink, error) {
+func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, name, url, description string, folderUID *string) (*models.ProjectLink, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return nil, domain.ErrServiceUnavailable
@@ -84,9 +84,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		Data:           *link,
 		IndexingConfig: link.IndexingConfig(),
 	}
-	if err := s.publishIndexer(ctx, constants.IndexProjectLinkSubject, msg, xSync); err != nil {
-		return nil, err
-	}
+	s.publishIndexer(ctx, constants.IndexProjectLinkSubject, msg)
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
@@ -126,7 +124,7 @@ func (s *ProjectsService) GetLink(ctx context.Context, projectUID, linkUID strin
 }
 
 // DeleteLink deletes a project link with optimistic concurrency.
-func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID string, ifMatch *string, xSync bool) error {
+func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return domain.ErrServiceUnavailable
@@ -167,5 +165,6 @@ func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID st
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	return s.publishIndexer(ctx, constants.IndexProjectLinkSubject, deleteMsg, xSync)
+	s.publishIndexer(ctx, constants.IndexProjectLinkSubject, deleteMsg)
+	return nil
 }

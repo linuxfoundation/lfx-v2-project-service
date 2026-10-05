@@ -144,7 +144,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockLink, mockFolder, mockMsg)
 
-			result, err := svc.CreateLink(context.Background(), tt.projectUID, tt.linkName, tt.url, tt.description, tt.folderUID, false)
+			result, err := svc.CreateLink(context.Background(), tt.projectUID, tt.linkName, tt.url, tt.description, tt.folderUID)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -271,7 +271,7 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			tt.setupMocks(mockLink, mockMsg)
 
-			err := svc.DeleteLink(context.Background(), tt.projectUID, tt.linkUID, tt.ifMatch, false)
+			err := svc.DeleteLink(context.Background(), tt.projectUID, tt.linkUID, tt.ifMatch)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

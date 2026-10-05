@@ -83,7 +83,7 @@ func TestProjectsService_CreateFolder(t *testing.T) {
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockFolder, mockMsg)
 
-			result, err := svc.CreateFolder(context.Background(), tt.projectUID, tt.folderName, false)
+			result, err := svc.CreateFolder(context.Background(), tt.projectUID, tt.folderName)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -265,7 +265,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockFolder, mockLink, mockDoc, mockMsg)
 
-			err := svc.DeleteFolder(context.Background(), tt.projectUID, tt.folderUID, tt.ifMatch, false)
+			err := svc.DeleteFolder(context.Background(), tt.projectUID, tt.folderUID, tt.ifMatch)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

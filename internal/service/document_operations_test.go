@@ -146,7 +146,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockDoc, mockFolder, mockMsg)
 
-			result, err := svc.UploadDocument(context.Background(), tt.projectUID, tt.docName, "", "spec.pdf", tt.contentType, tt.folderUID, tt.fileData, false)
+			result, err := svc.UploadDocument(context.Background(), tt.projectUID, tt.docName, "", "spec.pdf", tt.contentType, tt.folderUID, tt.fileData)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -345,7 +345,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			_ = now
 			tt.setupMocks(mockDoc, mockMsg)
 
-			err := svc.DeleteDocument(context.Background(), tt.projectUID, tt.documentUID, tt.ifMatch, false)
+			err := svc.DeleteDocument(context.Background(), tt.projectUID, tt.documentUID, tt.ifMatch)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

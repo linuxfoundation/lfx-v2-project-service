@@ -20,7 +20,7 @@ import (
 )
 
 // CreateFolder creates a new project folder, enforcing per-project name uniqueness.
-func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name string, xSync bool) (*models.ProjectFolder, error) {
+func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name string) (*models.ProjectFolder, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return nil, domain.ErrServiceUnavailable
@@ -72,9 +72,7 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		Data:           *folder,
 		IndexingConfig: folder.IndexingConfig(),
 	}
-	if err := s.publishIndexer(ctx, constants.IndexProjectFolderSubject, msg, xSync); err != nil {
-		return nil, err
-	}
+	s.publishIndexer(ctx, constants.IndexProjectFolderSubject, msg)
 
 	return folder, nil
 }
@@ -106,7 +104,7 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 
 // DeleteFolder deletes a project folder with optimistic concurrency.
 // Returns ErrFolderNotEmpty if the folder still has links or documents.
-func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string, xSync bool) error {
+func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return domain.ErrServiceUnavailable
@@ -169,5 +167,6 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	return s.publishIndexer(ctx, constants.IndexProjectFolderSubject, deleteMsg, xSync)
+	s.publishIndexer(ctx, constants.IndexProjectFolderSubject, deleteMsg)
+	return nil
 }

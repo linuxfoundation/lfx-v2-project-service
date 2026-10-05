@@ -28,7 +28,6 @@ func (s *ProjectsService) UploadDocument(
 	name, description, fileName, contentType string,
 	folderUID *string,
 	fileData []byte,
-	xSync bool,
 ) (*models.ProjectDocument, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
@@ -134,9 +133,7 @@ func (s *ProjectsService) UploadDocument(
 		Data:           *doc,
 		IndexingConfig: doc.IndexingConfig(),
 	}
-	if err := s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, msg, xSync); err != nil {
-		return nil, err
-	}
+	s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, msg)
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
@@ -203,7 +200,7 @@ func (s *ProjectsService) GetDocumentFile(ctx context.Context, projectUID, docum
 }
 
 // DeleteDocument deletes document metadata and its binary file.
-func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, documentUID string, ifMatch *string, xSync bool) error {
+func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, documentUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return domain.ErrServiceUnavailable
@@ -252,5 +249,6 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	return s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, deleteMsg, xSync)
+	s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, deleteMsg)
+	return nil
 }

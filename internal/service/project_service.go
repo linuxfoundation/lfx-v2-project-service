@@ -71,25 +71,16 @@ func (s *ProjectsService) ServiceReady() bool {
 		s.UserReader != nil && s.Resolver != nil && s.Dispatcher != nil
 }
 
-// publishIndexer sends msg to the NATS indexer subject. When sync is true the
-// call blocks and the error (if any) is returned. When sync is false the publish
-// runs in a background goroutine with a detached context and this method always
-// returns nil immediately.
-func (s *ProjectsService) publishIndexer(ctx context.Context, subject string, msg any, sync bool) error {
-	if sync {
-		if err := s.Publisher.SendIndexerMessage(ctx, subject, msg); err != nil {
-			slog.WarnContext(ctx, "error sending indexer message", constants.ErrKey, err)
-			return err
-		}
-		return nil
-	}
+// publishIndexer sends msg to the NATS indexer subject in a background goroutine
+// using a detached context, so the publish does not block the caller and is not
+// cancelled when the request context ends.
+func (s *ProjectsService) publishIndexer(ctx context.Context, subject string, msg any) {
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
 		if err := s.Publisher.SendIndexerMessage(bgCtx, subject, msg); err != nil {
 			slog.WarnContext(bgCtx, "error sending indexer message", constants.ErrKey, err)
 		}
 	}()
-	return nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.
