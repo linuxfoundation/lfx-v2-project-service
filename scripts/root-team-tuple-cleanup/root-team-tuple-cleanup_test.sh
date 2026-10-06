@@ -71,11 +71,19 @@ case "$verb" in
     if [[ "$command" == "nats" && "$sub" == "kv" ]]; then
       out="${FAKE_CANONICAL_ROOT_UID:?}"
     elif [[ "$command" == "model" && "$sub" == "get" ]]; then
+      auditor_line='    define auditor: [user, team#member] or executive_director or writer or auditor from parent'
+      marketing_line='    define marketing_ops: [team#member] or marketing_ops from parent'
+      owner_line='    define owner: [team#member] or global_owner'
       if [[ -n "${FAKE_MODEL_HAS_OWNER_PARENT:-}" ]]; then
-        out=$'model\n  schema 1.1\ntype project\n  relations\n    define owner: global_owner or owner from parent\ntype team\n  relations\n    define member: [user]'
-      else
-        out=$'model\n  schema 1.1\ntype project\n  relations\n    define owner: global_owner\ntype team\n  relations\n    define member: [user]'
+        owner_line='    define owner: [team#member] or global_owner or owner from parent'
+      elif [[ -n "${FAKE_MODEL_RELEASE_3:-}" ]]; then
+        owner_line='    define owner: global_owner'
+        auditor_line='    define auditor: [user] or executive_director or writer or auditor from parent'
+        marketing_line=''
+      elif [[ -n "${FAKE_MODEL_NO_MARKETING_OPS:-}" ]]; then
+        marketing_line=''
       fi
+      out="$(printf '%s\n' 'model' '  schema 1.1' 'type project' '  relations' "$owner_line" "$auditor_line" "$marketing_line" 'type team' '  relations' '    define member: [user]')"
     elif [[ "$sub" == "read" && -n "${FAKE_READ_GARBAGE:-}" ]]; then
       out="Error: simulated store outage"
     elif [[ "$sub" == "read" ]]; then
@@ -324,6 +332,31 @@ test_dry_run_warns_but_reports_plan_before_model_release() {
   check "pre-release dry run succeeds with warning" '[[ $STATUS -eq 0 && "$OUT" == *"warning:"* ]]'
   check "pre-release dry run still reports five deletes" '[[ $(grep -c "^  delete " <<<"$OUT") -eq 5 ]]'
   check "pre-release dry run issues no delete" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_refuses_model_without_team_restrictions() {
+  setup; write_state "$(full_state)"
+  FAKE_MODEL_RELEASE_3=1 run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "release-3 model refused" '[[ $STATUS -eq 3 && "$OUT" == *"no longer accepts team#member on project owner auditor marketing_ops"* ]]'
+  check "no tuple read after the restrictions are gone" '! grep -q "args=tuple read" "${WORK}/calls"'
+  check "no delete after the restrictions are gone" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_refuses_model_without_marketing_ops() {
+  setup; write_state "$(full_state)"
+  FAKE_MODEL_NO_MARKETING_OPS=1 run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "model without marketing_ops refused" '[[ $STATUS -eq 3 && "$OUT" == *"team#member on project marketing_ops;"* ]]'
+  check "no delete without marketing_ops" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_dry_run_warns_on_release_3_model() {
+  setup; write_state "$(full_state)"
+  FAKE_MODEL_RELEASE_3=1 run_script --env dev --root-uid "$ROOT_UID"
+  check "release-3 dry run warns" '[[ $STATUS -eq 0 && "$OUT" == *"warning: deployed model no longer accepts team#member"* ]]'
+  check "release-3 dry run issues no delete" '[[ $(delete_calls) -eq 0 ]]'
   teardown
 }
 

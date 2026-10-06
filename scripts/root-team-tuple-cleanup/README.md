@@ -52,6 +52,9 @@ The script refuses to delete anything (exit 3) when the object:
 - has a `parent` tuple, so it is not the root project;
 - is served by a Heimdall-pinned authorization model whose project `owner`
   still includes `owner from parent`;
+- is served by a model whose project `owner`, `auditor` or `marketing_ops` no
+  longer accepts `team#member` subjects, because the printed rollback
+  commands could not be written back;
 - is missing any replacement grant: `global_owner` for `formation` and
   `product-support`, `global_writer` for `global-project-writers`,
   `global_auditor` for `lf-staff` and `global-project-auditors`, and
@@ -59,9 +62,10 @@ The script refuses to delete anything (exit 3) when the object:
 - carries a team tuple outside the legacy and replacement lists;
 - has a legacy tuple with a condition.
 
-A dry run performed before the fallback-removal model is deployed prints a
-warning and continues through tuple validation, so operators can prepare the
-plan early. `--apply` keeps the model check as a hard refusal.
+A dry run performed before the fallback-removal model is deployed, or after
+the `team#member` restrictions are dropped, prints a warning and continues
+through tuple validation, so operators can prepare the plan early. `--apply`
+keeps both model checks as hard refusals.
 
 After the confirmation prompt, `--apply` re-reads Heimdall's store and model
 IDs, the root identity, the model, and the tuples, and exits 3 without

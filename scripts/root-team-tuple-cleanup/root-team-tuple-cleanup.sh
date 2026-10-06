@@ -273,21 +273,40 @@ resolve_heimdall_openfga_config() {
   GATEWAY_MODEL_ID="$model_ids"
 }
 
-verify_deployed_model() {
-  local model owner_definition
-  model="$(run_fga_pod model get --model-id "$GATEWAY_MODEL_ID" --format fga)" ||
-    die 1 "could not read Heimdall's deployed authorization model"
-  owner_definition="$(awk '
+# project_definition RELATION   -- prints the "define RELATION:" line of type
+# project from the model on stdin, or nothing.
+project_definition() {
+  awk -v rel="$1" '
     /^type project$/ { in_project=1; next }
     /^type / { in_project=0 }
-    in_project && /^[[:space:]]*define owner:/ { print; exit }
-  ' <<<"$model")"
+    in_project && $1 == "define" && $2 == rel ":" { print; exit }
+  '
+}
+
+verify_deployed_model() {
+  local model owner_definition relation definition missing=()
+  local team_restriction='^[[:space:]]*define [a-z_]+: \[[^]]*team#member[^]]*\]'
+  model="$(run_fga_pod model get --model-id "$GATEWAY_MODEL_ID" --format fga)" ||
+    die 1 "could not read Heimdall's deployed authorization model"
+  owner_definition="$(project_definition owner <<<"$model")"
   [[ -n "$owner_definition" ]] || die 1 "deployed model has no project owner definition"
   if [[ "$owner_definition" == *"owner from parent"* ]]; then
     if [[ "$APPLY" == true ]]; then
       die 3 "deployed model still has owner from parent; complete the fallback-removal release first"
     fi
     echo "warning: deployed model still has owner from parent; --apply will refuse until the fallback-removal release completes" >&2
+  fi
+  # The rollback commands re-write the deleted tuples, which only validates
+  # while each relation still accepts team#member subjects.
+  for relation in owner auditor marketing_ops; do
+    definition="$(project_definition "$relation" <<<"$model")"
+    [[ "$definition" =~ $team_restriction ]] || missing+=("$relation")
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    if [[ "$APPLY" == true ]]; then
+      die 3 "deployed model no longer accepts team#member on project ${missing[*]}; the rollback could not be written, so nothing is deleted"
+    fi
+    echo "warning: deployed model no longer accepts team#member on project ${missing[*]}; --apply will refuse because the rollback could not be written" >&2
   fi
 }
 
