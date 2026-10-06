@@ -20,6 +20,7 @@ Use this script only for:
 - Granting access across **all** projects at once (`--global`). The API intentionally does not
   expose this — a single self-serve call granting org-wide access has a much bigger blast radius
   than a per-project grant, so it stays gated behind whoever already has prod cluster access.
+  Not after the root team tuple cleanup — see [How it works](#how-it-works).
 - Ad-hoc verification of what a given FGA store actually contains for a user (`check` mode).
 
 ## Requirements
@@ -42,6 +43,11 @@ itself, is what's granted or revoked per user.
 project UID. Because `marketing_ops` also resolves `from parent`, a grant on the root project
 cascades down to every project in the hierarchy — the same mechanism a project-scoped grant uses,
 just applied one level higher.
+
+**Do not use `--global` after the [root team tuple cleanup](../root-team-tuple-cleanup/README.md)
+has run.** It writes a `marketing_ops` tuple on the root project, which is one of the legacy tuples
+that cleanup removes. Org-wide access then comes from membership in the `marketing-ops` team, which
+holds `global_marketing_ops` on each project; project-scoped grants are unaffected.
 
 **`ROOT` is only the root project's slug, not its OpenFGA object ID** — the object ID is a
 generated UUID (`scripts/root-project-setup/main.go` assigns `Slug: "ROOT"` separately from a
