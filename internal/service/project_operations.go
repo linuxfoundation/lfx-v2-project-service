@@ -172,11 +172,6 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		}
 	}
 
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
-	}
-
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
 		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
@@ -254,7 +249,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:           *projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 
 	g.Go(func() error {
@@ -263,12 +258,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:           *projectSettingsDB,
 			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	g.Go(func() error {
@@ -280,7 +275,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Actor:             events.Actor{Username: principal},
 			NotificationRoles: []string{roleMentorshipAdmin},
 		}
-		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -506,11 +501,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
-	}
-
 	// Prepare the updated project
 	currentTime := time.Now().UTC()
 	project := &projsvc.ProjectBase{
@@ -593,11 +583,11 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			Data:           *projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 	if fgaProj != nil {
 		g.Go(func() error {
-			return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaProj.ToFGAMessage())
+			return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaProj.ToFGAMessage())
 		})
 	}
 
@@ -662,11 +652,6 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		}
 		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
-	}
-
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
 	}
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
@@ -736,12 +721,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			Data:           *projectSettingsDB,
 			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	g.Go(func() error {
@@ -752,7 +737,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			NewSettings: proj.ToEventSettings(),
 			Actor:       events.Actor{Username: principal},
 		}
-		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -823,11 +808,6 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		return domain.ErrCannotDeleteNonCrowdfundingProject
 	}
 
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
-	}
-
 	// Delete the project using the store
 	err = s.ProjectRepository.DeleteProject(ctx, *payload.UID, revision)
 	if err != nil {
@@ -848,11 +828,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
@@ -863,7 +843,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 				UID: *payload.UID,
 			},
 		}
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {

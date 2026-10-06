@@ -153,7 +153,7 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 			sendCtx, cancel := context.WithTimeout(gctx, notificationTimeout)
 			defer cancel()
 
-			if sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
+			if sendErr := s.Sender.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
 				To:      r.Email,
 				Subject: subj,
 				HTML:    html,

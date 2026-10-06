@@ -237,13 +237,13 @@ func (m *MockFolderRepository) DeleteUniqueFolderName(ctx context.Context, uniqu
 	return args.Error(0)
 }
 
-// MockMessageBuilder implements domain.MessageBuilder for testing.
+// MockMessageBuilder implements domain.EventPublisher and domain.OutboundRPC for testing.
 type MockMessageBuilder struct {
 	mock.Mock
 }
 
-func (m *MockMessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error {
-	args := m.Called(ctx, subject, message, sync)
+func (m *MockMessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message any) error {
+	args := m.Called(ctx, subject, message)
 	return args.Error(0)
 }
 

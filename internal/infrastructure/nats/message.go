@@ -133,15 +133,10 @@ func (m *MessageBuilder) sendIndexerMessage(
 }
 
 // SendIndexerMessage sends indexer messages to NATS for search indexing.
-// The sync flag is intentionally ignored: the indexer now consumes messages
-// from a JetStream durable stream (lfx-v2-indexer-service#68). Under JetStream
-// with AckExplicitPolicy, msg.Ack() sends to the internal $JS.ACK... address —
-// not the original publisher reply inbox — so conn.RequestMsgWithContext callers
-// would receive a PubAck JSON (not "OK") and then fail with "indexer did not
-// acknowledge message". Messages are always published fire-and-forget; delivery
-// guarantees are provided by the JetStream stream (durable, at-least-once,
-// exponential-backoff NAK on handler failure).
-func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, _ bool) error {
+// Messages are always published fire-and-forget; delivery guarantees are
+// provided by the JetStream stream (durable, at-least-once, exponential-backoff
+// NAK on handler failure). See lfx-v2-indexer-service#68.
+func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}) error {
 	switch msg := message.(type) {
 	case indexerTypes.IndexerMessageEnvelope:
 		var dataBytes []byte

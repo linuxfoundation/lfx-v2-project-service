@@ -33,7 +33,7 @@ func TestProjectsService_CreateFolder(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockFolder.On("UniqueFolderName", mock.Anything, mock.AnythingOfType("*models.ProjectFolder")).Return("lookup/project-folders/abc", nil)
 				mockFolder.On("CreateFolder", mock.Anything, mock.AnythingOfType("*models.ProjectFolder")).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
@@ -83,7 +83,7 @@ func TestProjectsService_CreateFolder(t *testing.T) {
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockFolder, mockMsg)
 
-			result, err := svc.CreateFolder(context.Background(), tt.projectUID, tt.folderName, false)
+			result, err := svc.CreateFolder(context.Background(), tt.projectUID, tt.folderName)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -206,7 +206,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{}, nil)
 				mockDoc.On("ListDocuments", mock.Anything, "proj-1").Return([]*models.ProjectDocument{}, nil)
 				mockFolder.On("DeleteFolder", mock.Anything, "proj-1", "folder-1", uint64(2)).Return(nil)
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
@@ -265,7 +265,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockFolder, mockLink, mockDoc, mockMsg)
 
-			err := svc.DeleteFolder(context.Background(), tt.projectUID, tt.folderUID, tt.ifMatch, false)
+			err := svc.DeleteFolder(context.Background(), tt.projectUID, tt.folderUID, tt.ifMatch)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

@@ -4,7 +4,11 @@
 package service
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 // ProjectsService implements the projsvc.Service interface and domain.MessageHandler
@@ -13,7 +17,8 @@ type ProjectsService struct {
 	DocumentRepository domain.DocumentRepository
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
-	MessageBuilder     domain.MessageBuilder
+	Publisher          domain.EventPublisher
+	Sender             domain.OutboundRPC
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
@@ -31,7 +36,8 @@ type ServiceDeps struct {
 	DocumentRepository domain.DocumentRepository
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
-	MessageBuilder     domain.MessageBuilder
+	Publisher          domain.EventPublisher
+	Sender             domain.OutboundRPC
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
@@ -49,7 +55,8 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps Se
 		DocumentRepository: deps.DocumentRepository,
 		LinkRepository:     deps.LinkRepository,
 		FolderRepository:   deps.FolderRepository,
-		MessageBuilder:     deps.MessageBuilder,
+		Publisher:          deps.Publisher,
+		Sender:             deps.Sender,
 		UserReader:         deps.UserReader,
 		Resolver:           deps.Resolver,
 		Dispatcher:         deps.Dispatcher,
@@ -59,9 +66,21 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps Se
 
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
-	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
+	return s.ProjectRepository != nil && s.Publisher != nil && s.Sender != nil &&
 		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
 		s.UserReader != nil && s.Resolver != nil && s.Dispatcher != nil
+}
+
+// publishIndexer sends msg to the NATS indexer subject in a background goroutine
+// using a detached context, so the publish does not block the caller and is not
+// cancelled when the request context ends.
+func (s *ProjectsService) publishIndexer(ctx context.Context, subject string, msg any) {
+	bgCtx := context.WithoutCancel(ctx)
+	go func() {
+		if err := s.Publisher.SendIndexerMessage(bgCtx, subject, msg); err != nil {
+			slog.WarnContext(bgCtx, "error sending indexer message", constants.ErrKey, err)
+		}
+	}()
 }
 
 // ServiceConfig is the configuration for the ProjectsService.

@@ -53,7 +53,7 @@ type projectRecordRepo interface {
 type reindexProjectsRunner struct {
 	repo          projectRecordRepo
 	openSearch    *opensearchgo.Client
-	publisher     domain.MessageBuilder
+	publisher     domain.EventPublisher
 	dryRun        bool
 	all           bool
 	force         bool
@@ -284,7 +284,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 				Data:           *base,
 				IndexingConfig: base.IndexingConfig(),
 			}
-			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, false)
+			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 		})
 	}
 
@@ -310,7 +310,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 						Data:           *settings,
 						IndexingConfig: settings.IndexingConfig(base.UID),
 					}
-					return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, false)
+					return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 				})
 			}
 

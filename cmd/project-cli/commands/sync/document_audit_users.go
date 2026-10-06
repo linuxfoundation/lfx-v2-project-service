@@ -100,7 +100,7 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 type documentAuditUsersRunner struct {
 	repo        *natsinfra.NatsRepository
 	userReader  domain.UserReader
-	publisher   domain.MessageBuilder
+	publisher   domain.EventPublisher
 	dryRun      bool
 	reindexOnly bool
 	sleep       time.Duration
@@ -175,7 +175,7 @@ func (r *documentAuditUsersRunner) migrateFolder(ctx context.Context, folder *mo
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg)
 	})
 }
 
@@ -198,7 +198,7 @@ func (r *documentAuditUsersRunner) reindexFolder(ctx context.Context, folder *mo
 		Data:           *fresh,
 		IndexingConfig: fresh.IndexingConfig(),
 	}
-	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg); err != nil {
 		slog.WarnContext(ctx, "failed to reindex folder",
 			"folder_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
 		r.stats.Failed++
@@ -257,7 +257,7 @@ func (r *documentAuditUsersRunner) migrateLink(ctx context.Context, link *models
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg)
 	})
 }
 
@@ -280,7 +280,7 @@ func (r *documentAuditUsersRunner) reindexLink(ctx context.Context, link *models
 		Data:           *fresh,
 		IndexingConfig: fresh.IndexingConfig(),
 	}
-	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg); err != nil {
 		slog.WarnContext(ctx, "failed to reindex link",
 			"link_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
 		r.stats.Failed++
@@ -339,7 +339,7 @@ func (r *documentAuditUsersRunner) migrateDocument(ctx context.Context, doc *mod
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg)
 	})
 }
 
@@ -362,7 +362,7 @@ func (r *documentAuditUsersRunner) reindexDocument(ctx context.Context, doc *mod
 		Data:           *fresh,
 		IndexingConfig: fresh.IndexingConfig(),
 	}
-	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg); err != nil {
 		slog.WarnContext(ctx, "failed to reindex document",
 			"document_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
 		r.stats.Failed++

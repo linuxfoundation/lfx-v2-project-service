@@ -35,12 +35,7 @@ func toServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
 
 // CreateProjectLink creates a new project link.
 func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.CreateProjectLinkPayload) (*projsvc.ProjectLink, error) {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
-	link, err := s.service.CreateLink(ctx, payload.UID, payload.Name, payload.URL, nilStr(payload.Description), payload.FolderUID, xSync)
+	link, err := s.service.CreateLink(ctx, payload.UID, payload.Name, payload.URL, nilStr(payload.Description), payload.FolderUID)
 	if err != nil {
 		return nil, handleError(ctx, err)
 	}
@@ -63,12 +58,7 @@ func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetPr
 
 // DeleteProjectLink deletes a project link.
 func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.DeleteProjectLinkPayload) error {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
-	if err := s.service.DeleteLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch, xSync); err != nil {
+	if err := s.service.DeleteLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch); err != nil {
 		return handleError(ctx, err)
 	}
 
