@@ -108,7 +108,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `access_check_object` | `project:{uid}` |
 | `access_check_relation` | `viewer` |
 | `history_check_object` | `project:{uid}` |
-| `history_check_relation` | `writer` |
+| `history_check_relation` | `writer_guard` |
 
 ### Search Behavior
 
@@ -180,9 +180,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | Field | Value |
 |---|---|
 | `access_check_object` | `project:{project_uid}` (the parent project UID, not the settings UID) |
-| `access_check_relation` | `auditor` |
+| `access_check_relation` | `auditor_guard` |
 | `history_check_object` | `project:{project_uid}` (the parent project UID, not the settings UID) |
-| `history_check_relation` | `writer` |
+| `history_check_relation` | `writer_guard` |
 
 ### Search Behavior
 
@@ -245,7 +245,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `access_check_object` | `project:{project_uid}` |
 | `access_check_relation` | `viewer` |
 | `history_check_object` | `project:{project_uid}` |
-| `history_check_relation` | `auditor` |
+| `history_check_relation` | `auditor_guard` |
 
 ### Search Behavior
 
@@ -303,7 +303,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `access_check_object` | `project:{project_uid}` |
 | `access_check_relation` | `viewer` |
 | `history_check_object` | `project:{project_uid}` |
-| `history_check_relation` | `auditor` |
+| `history_check_relation` | `auditor_guard` |
 
 ### Search Behavior
 
@@ -368,7 +368,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `access_check_object` | `project:{project_uid}` |
 | `access_check_relation` | `viewer` |
 | `history_check_object` | `project:{project_uid}` |
-| `history_check_relation` | `auditor` |
+| `history_check_relation` | `auditor_guard` |
 
 ### Search Behavior
 

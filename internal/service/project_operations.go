@@ -53,14 +53,16 @@ func (s *ProjectsService) resolveRevision(ctx context.Context, ifMatch *string, 
 	return fetchFn()
 }
 
-// requireParentWriter checks that the calling user holds the writer relation on
-// the given parent project via fga-sync. role is a human-readable label for
-// log context ("current" or "new"). It returns ErrForbidden on denial and
-// ErrInternal on a fga-sync or NATS failure.
+// requireParentWriter checks that the calling user holds the writer_guard
+// relation on the given parent project via fga-sync. writer_guard covers both
+// direct writers and the global writer team, matching the relation Heimdall
+// checks on create. role is a human-readable label for log context ("current"
+// or "new"). It returns ErrForbidden on denial and ErrInternal on a fga-sync or
+// NATS failure.
 func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentUID, role string) error {
-	allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+parentUID)
+	allowed, err := s.FGAChecker.Check(ctx, user, "writer_guard", fgaconstants.ObjectTypeProject+parentUID)
 	if err != nil {
-		slog.ErrorContext(ctx, "fga writer check on parent failed",
+		slog.ErrorContext(ctx, "fga writer_guard check on parent failed",
 			constants.ErrKey, err,
 			slog.String("parent_uid", parentUID),
 			slog.String("parent_role", role),
@@ -68,7 +70,7 @@ func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentU
 		return domain.ErrInternal
 	}
 	if !allowed {
-		slog.WarnContext(ctx, "caller lacks writer on parent project",
+		slog.WarnContext(ctx, "caller lacks writer_guard on parent project",
 			slog.String("parent_uid", parentUID),
 			slog.String("parent_role", role),
 		)
@@ -461,9 +463,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
-	// When the parent is changing, require the caller to hold writer on both the
-	// old parent (detaching from its hierarchy) and the new parent (attaching to
-	// a new one). This mirrors the authorization that Heimdall enforces on create.
+	// When the parent is changing, require the caller to hold writer_guard on both
+	// the old parent (detaching from its hierarchy) and the new parent (attaching
+	// to a new one). This mirrors the authorization that Heimdall enforces on create.
 	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
 	// Authorization runs before ProjectExists so unauthorized requests are rejected
 	// without incurring an extra KV read.

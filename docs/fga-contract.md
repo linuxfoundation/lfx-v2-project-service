@@ -122,7 +122,7 @@ For parent-change checks the fields are:
 | Field | Example | Description |
 |---|---|---|
 | `object` | `project:00000000-0000-0000-0000-000000000001` | The parent project being checked (`project:<uid>`) |
-| `relation` | `writer` | The relation the caller must hold |
+| `relation` | `writer_guard` | The relation the caller must hold: a direct writer or a member of the global writer team |
 | `user` | `user:alice` | The principal from the request JWT (`user:<username>`) |
 
 **Response payload:** newline-delimited lines, each in the form:
