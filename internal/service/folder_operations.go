@@ -20,7 +20,7 @@ import (
 )
 
 // CreateFolder creates a new project folder, enforcing per-project name uniqueness.
-func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name string, xSync bool) (*models.ProjectFolder, error) {
+func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name string) (*models.ProjectFolder, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return nil, domain.ErrServiceUnavailable
@@ -72,19 +72,7 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		Data:           *folder,
 		IndexingConfig: folder.IndexingConfig(),
 	}
-	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, true); err != nil {
-			slog.WarnContext(ctx, "error sending folder indexer message", constants.ErrKey, err)
-			return nil, err
-		}
-	} else {
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectFolderSubject, msg, false); err != nil {
-				slog.WarnContext(bgCtx, "error sending folder indexer message", constants.ErrKey, err)
-			}
-		}()
-	}
+	s.publishIndexer(ctx, constants.IndexProjectFolderSubject, msg)
 
 	return folder, nil
 }
@@ -116,7 +104,7 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 
 // DeleteFolder deletes a project folder with optimistic concurrency.
 // Returns ErrFolderNotEmpty if the folder still has links or documents.
-func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string, xSync bool) error {
+func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return domain.ErrServiceUnavailable
@@ -179,19 +167,6 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, deleteMsg, true); err != nil {
-			slog.WarnContext(ctx, "error sending folder delete indexer message", constants.ErrKey, err)
-			return err
-		}
-	} else {
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectFolderSubject, deleteMsg, false); err != nil {
-				slog.WarnContext(bgCtx, "error sending folder delete indexer message", constants.ErrKey, err)
-			}
-		}()
-	}
-
+	s.publishIndexer(ctx, constants.IndexProjectFolderSubject, deleteMsg)
 	return nil
 }

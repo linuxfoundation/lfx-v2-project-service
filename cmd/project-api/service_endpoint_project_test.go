@@ -44,7 +44,8 @@ func setupAPI() (*ProjectsAPI, *domainmocks.MockProjectRepository, *domainmocks.
 		DocumentRepository: &domainmocks.MockDocumentRepository{},
 		LinkRepository:     &domainmocks.MockLinkRepository{},
 		FolderRepository:   &domainmocks.MockFolderRepository{},
-		MessageBuilder:     mockMessageBuilder,
+		Publisher:          mockMessageBuilder,
+		Sender:             mockMessageBuilder,
 		Auth:               mockJwtAuth,
 		UserReader:         mockUserReader,
 		Resolver:           service.NewUserResolver(mockUserReader),
@@ -182,7 +183,7 @@ func TestCreateProject(t *testing.T) {
 							len(s.Auditors) == 2 && s.Auditors[0].Username == "user3" && s.Auditors[1].Username == "user4"
 					})).Return(nil)
 				// Mock message sending
-				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil).Times(2)
 				mockMsg.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil)
 			},

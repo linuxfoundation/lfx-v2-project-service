@@ -28,9 +28,10 @@ func TestReadyz(t *testing.T) {
 		{
 			name: "service ready",
 			setupMocks: func(projectService *service.ProjectsService) {
-				// Mock repository and message builder as ready
+				// Mock repository and publisher as ready
 				projectService.ProjectRepository = &domainmocks.MockProjectRepository{}
-				projectService.MessageBuilder = &domainmocks.MockMessageBuilder{}
+				projectService.Publisher = &domainmocks.MockMessageBuilder{}
+				projectService.Sender = &domainmocks.MockMessageBuilder{}
 			},
 			expectedError: false,
 			expectedBody:  "OK\n",
@@ -39,15 +40,17 @@ func TestReadyz(t *testing.T) {
 			name: "repository not initialized",
 			setupMocks: func(projectService *service.ProjectsService) {
 				projectService.ProjectRepository = nil
-				projectService.MessageBuilder = &domainmocks.MockMessageBuilder{}
+				projectService.Publisher = &domainmocks.MockMessageBuilder{}
+				projectService.Sender = &domainmocks.MockMessageBuilder{}
 			},
 			expectedError: true,
 		},
 		{
-			name: "message builder not initialized",
+			name: "publisher not initialized",
 			setupMocks: func(projectService *service.ProjectsService) {
 				projectService.ProjectRepository = &domainmocks.MockProjectRepository{}
-				projectService.MessageBuilder = nil
+				projectService.Publisher = nil
+				projectService.Sender = nil
 			},
 			expectedError: true,
 		},

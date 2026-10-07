@@ -53,14 +53,16 @@ func (s *ProjectsService) resolveRevision(ctx context.Context, ifMatch *string, 
 	return fetchFn()
 }
 
-// requireParentWriter checks that the calling user holds the writer relation on
-// the given parent project via fga-sync. role is a human-readable label for
-// log context ("current" or "new"). It returns ErrForbidden on denial and
-// ErrInternal on a fga-sync or NATS failure.
+// requireParentWriter checks that the calling user holds the writer_guard
+// relation on the given parent project via fga-sync. writer_guard covers both
+// direct writers and the global writer team, matching the relation Heimdall
+// checks on create. role is a human-readable label for log context ("current"
+// or "new"). It returns ErrForbidden on denial and ErrInternal on a fga-sync or
+// NATS failure.
 func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentUID, role string) error {
-	allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+parentUID)
+	allowed, err := s.FGAChecker.Check(ctx, user, "writer_guard", fgaconstants.ObjectTypeProject+parentUID)
 	if err != nil {
-		slog.ErrorContext(ctx, "fga writer check on parent failed",
+		slog.ErrorContext(ctx, "fga writer_guard check on parent failed",
 			constants.ErrKey, err,
 			slog.String("parent_uid", parentUID),
 			slog.String("parent_role", role),
@@ -68,7 +70,7 @@ func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentU
 		return domain.ErrInternal
 	}
 	if !allowed {
-		slog.WarnContext(ctx, "caller lacks writer on parent project",
+		slog.WarnContext(ctx, "caller lacks writer_guard on parent project",
 			slog.String("parent_uid", parentUID),
 			slog.String("parent_role", role),
 		)
@@ -170,11 +172,6 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		}
 	}
 
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
-	}
-
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
 		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
@@ -252,7 +249,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:           *projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 
 	g.Go(func() error {
@@ -261,12 +258,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:           *projectSettingsDB,
 			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	g.Go(func() error {
@@ -278,7 +275,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Actor:             events.Actor{Username: principal},
 			NotificationRoles: []string{roleMentorshipAdmin},
 		}
-		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -466,9 +463,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
-	// When the parent is changing, require the caller to hold writer on both the
-	// old parent (detaching from its hierarchy) and the new parent (attaching to
-	// a new one). This mirrors the authorization that Heimdall enforces on create.
+	// When the parent is changing, require the caller to hold writer_guard on both
+	// the old parent (detaching from its hierarchy) and the new parent (attaching
+	// to a new one). This mirrors the authorization that Heimdall enforces on create.
 	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
 	// Authorization runs before ProjectExists so unauthorized requests are rejected
 	// without incurring an extra KV read.
@@ -502,11 +499,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			)
 			return nil, domain.ErrInvalidParentProject
 		}
-	}
-
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
 	}
 
 	// Prepare the updated project
@@ -593,11 +585,11 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			Data:           *projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 	if fgaProj != nil {
 		g.Go(func() error {
-			return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaProj.ToFGAMessage())
+			return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaProj.ToFGAMessage())
 		})
 	}
 
@@ -662,11 +654,6 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		}
 		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
-	}
-
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
 	}
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
@@ -736,12 +723,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			Data:           *projectSettingsDB,
 			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	g.Go(func() error {
@@ -752,7 +739,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			NewSettings: proj.ToEventSettings(),
 			Actor:       events.Actor{Username: principal},
 		}
-		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -823,11 +810,6 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		return domain.ErrCannotDeleteNonCrowdfundingProject
 	}
 
-	runSync := false
-	if payload.XSync != nil {
-		runSync = *payload.XSync
-	}
-
 	// Delete the project using the store
 	err = s.ProjectRepository.DeleteProject(ctx, *payload.UID, revision)
 	if err != nil {
@@ -848,11 +830,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID, runSync)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
@@ -863,7 +845,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 				UID: *payload.UID,
 			},
 		}
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
+		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {

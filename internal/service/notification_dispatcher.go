@@ -31,7 +31,7 @@ const notificationTimeout = 5 * time.Second
 // change list; all outbound RPC complexity is internal. Dispatch is best-effort —
 // individual send failures are logged and swallowed.
 type NotificationDispatcher struct {
-	builder  domain.MessageBuilder
+	builder  domain.OutboundRPC
 	resolver *UserResolver
 	emails   bool
 	invites  bool
@@ -39,7 +39,7 @@ type NotificationDispatcher struct {
 
 // NewNotificationDispatcher returns a dispatcher backed by builder and resolver.
 // emailsEnabled and invitesEnabled mirror the EMAILS_ENABLED / INVITES_ENABLED flags.
-func NewNotificationDispatcher(builder domain.MessageBuilder, resolver *UserResolver, emailsEnabled, invitesEnabled bool) *NotificationDispatcher {
+func NewNotificationDispatcher(builder domain.OutboundRPC, resolver *UserResolver, emailsEnabled, invitesEnabled bool) *NotificationDispatcher {
 	return &NotificationDispatcher{
 		builder:  builder,
 		resolver: resolver,

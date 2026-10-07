@@ -164,11 +164,6 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 
 // UploadProjectDocument handles multipart document upload.
 func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsvc.UploadProjectDocumentPayload) (*projsvc.ProjectDocument, error) {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
 	description := ""
 	if payload.Description != nil {
 		description = *payload.Description
@@ -183,7 +178,6 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 		payload.ContentType,
 		payload.FolderUID,
 		payload.File,
-		xSync,
 	)
 	if err != nil {
 		return nil, handleError(ctx, err)
@@ -271,12 +265,7 @@ func (b *documentDownloadBody) WriteTo(w io.Writer) (int64, error) {
 
 // DeleteProjectDocument deletes a project document.
 func (s *ProjectsAPI) DeleteProjectDocument(ctx context.Context, payload *projsvc.DeleteProjectDocumentPayload) error {
-	xSync := false
-	if payload.XSync != nil {
-		xSync = *payload.XSync
-	}
-
-	if err := s.service.DeleteDocument(ctx, payload.UID, payload.DocumentUID, payload.IfMatch, xSync); err != nil {
+	if err := s.service.DeleteDocument(ctx, payload.UID, payload.DocumentUID, payload.IfMatch); err != nil {
 		return handleError(ctx, err)
 	}
 

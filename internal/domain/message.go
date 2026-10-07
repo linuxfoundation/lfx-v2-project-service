@@ -31,11 +31,21 @@ type InviteResult struct {
 	ExpiresAt      time.Time
 }
 
-// MessageBuilder is a generic interface for sending messages to NATS.
-type MessageBuilder interface {
-	SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error
+// EventPublisher covers fire-and-forget NATS publishes: indexer fanout, FGA access
+// updates, and project-lifecycle events. Each method is a synchronous publish call
+// (blocks until the message is enqueued on the connection); callers choose whether to
+// invoke it inline or in a goroutine. No request/reply acknowledgement is expected
+// from consumers. SendIndexerMessage benefits from JetStream durable-stream delivery
+// guarantees; the other methods publish to core NATS subjects.
+type EventPublisher interface {
+	SendIndexerMessage(ctx context.Context, subject string, message any) error
 	PublishAccessMessage(ctx context.Context, subject string, message fgatypes.GenericFGAMessage) error
 	SendProjectEventMessage(ctx context.Context, subject string, message any) error
+}
+
+// OutboundRPC covers blocking request/reply calls to peer services. Each method sends
+// a NATS request and waits for the reply, returning the parsed response or an error.
+type OutboundRPC interface {
 	SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error
 	SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (InviteResult, error)
 }

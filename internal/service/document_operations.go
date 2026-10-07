@@ -28,7 +28,6 @@ func (s *ProjectsService) UploadDocument(
 	name, description, fileName, contentType string,
 	folderUID *string,
 	fileData []byte,
-	xSync bool,
 ) (*models.ProjectDocument, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
@@ -134,25 +133,13 @@ func (s *ProjectsService) UploadDocument(
 		Data:           *doc,
 		IndexingConfig: doc.IndexingConfig(),
 	}
-	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, true); err != nil {
-			slog.WarnContext(ctx, "error sending document indexer message", constants.ErrKey, err)
-			return nil, err
-		}
-	} else {
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
-				slog.WarnContext(bgCtx, "error sending document indexer message", constants.ErrKey, err)
-			}
-		}()
-	}
+	s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, msg)
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
 		sendCtx, cancel := context.WithTimeout(bgCtx, notificationTimeout)
 		defer cancel()
-		if err := s.MessageBuilder.SendProjectEventMessage(sendCtx, constants.ProjectDocumentCreatedSubject, DomainDocumentToEvent(doc)); err != nil {
+		if err := s.Publisher.SendProjectEventMessage(sendCtx, constants.ProjectDocumentCreatedSubject, DomainDocumentToEvent(doc)); err != nil {
 			slog.WarnContext(sendCtx, "error sending document created event", constants.ErrKey, err)
 		}
 	}()
@@ -213,7 +200,7 @@ func (s *ProjectsService) GetDocumentFile(ctx context.Context, projectUID, docum
 }
 
 // DeleteDocument deletes document metadata and its binary file.
-func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, documentUID string, ifMatch *string, xSync bool) error {
+func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, documentUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")
 		return domain.ErrServiceUnavailable
@@ -262,18 +249,6 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 			ProjectUID: projectUID,
 		}).IndexingConfig(),
 	}
-	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, deleteMsg, true); err != nil {
-			slog.WarnContext(ctx, "error sending document delete indexer message", constants.ErrKey, err)
-			return err
-		}
-	} else {
-		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, deleteMsg, false); err != nil {
-				slog.WarnContext(bgCtx, "error sending document delete indexer message", constants.ErrKey, err)
-			}
-		}()
-	}
-
+	s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, deleteMsg)
 	return nil
 }

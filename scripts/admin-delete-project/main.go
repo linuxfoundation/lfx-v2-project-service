@@ -692,12 +692,12 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	// absent from OpenSearch but still present in NATS KV.
 	// Passing the UID as a string tells SendIndexerMessage to construct an
 	// ActionDeleted envelope (see internal/infrastructure/nats/message.go).
-	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSubject, uid, false); err != nil {
+	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSubject, uid); err != nil {
 		return fmt.Errorf("publish %s deleted: %w", constants.IndexProjectSubject, err)
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSubject).Info("published indexer delete")
 
-	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, uid, false); err != nil {
+	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, uid); err != nil {
 		return fmt.Errorf("publish %s deleted: %w", constants.IndexProjectSettingsSubject, err)
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSettingsSubject).Info("published indexer delete")
@@ -765,7 +765,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           l.UID,
 			IndexingConfig: l.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg); err != nil {
 			return fmt.Errorf("publish link %s deleted: %w", l.UID, err)
 		}
 		if kv.Links != nil {
@@ -788,7 +788,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           f.UID,
 			IndexingConfig: f.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg); err != nil {
 			return fmt.Errorf("publish folder %s deleted: %w", f.UID, err)
 		}
 		if kv.Folders != nil {
@@ -811,7 +811,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           d.UID,
 			IndexingConfig: d.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg); err != nil {
 			return fmt.Errorf("publish document %s deleted: %w", d.UID, err)
 		}
 		if kv.Documents != nil {

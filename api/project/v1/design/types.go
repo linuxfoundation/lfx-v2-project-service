@@ -24,8 +24,9 @@ func EtagAttribute() {
 }
 
 // XSyncAttribute is a reusable X-Sync header attribute.
+// Deprecated: this header is accepted for backward compatibility but has no effect.
 func XSyncAttribute() {
-	Attribute("x_sync", Boolean, "X-Sync header value for performing operations synchronously", func() {
+	Attribute("x_sync", Boolean, "Deprecated: accepted for backward compatibility but has no effect.", func() {
 		Example(true)
 	})
 }
@@ -189,7 +190,6 @@ func ProjectStageAttribute() {
 			"Archived",
 			"Formation - On Hold",
 			"Formation - Disengaged",
-			"Formation - Confidential",
 			"Prospect",
 		)
 	})

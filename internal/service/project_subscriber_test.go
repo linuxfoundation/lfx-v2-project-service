@@ -670,7 +670,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
-				MessageBuilder:    mockMsg,
+				Publisher:         mockMsg,
 				Resolver:          NewUserResolver(nil),
 				Dispatcher:        NewNotificationDispatcher(mockMsg, NewUserResolver(userReaderForDispatcher), true, true),
 				Config: ServiceConfig{
@@ -723,7 +723,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
-			MessageBuilder:    mockMsg,
+			Publisher:         mockMsg,
 			Resolver:          NewUserResolver(nil),
 			Dispatcher:        NewNotificationDispatcher(mockMsg, NewUserResolver(nil), false, true),
 			Config: ServiceConfig{
@@ -757,7 +757,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
-			MessageBuilder:    mockMsg,
+			Publisher:         mockMsg,
 			Resolver:          NewUserResolver(nil),
 			Dispatcher:        NewNotificationDispatcher(mockMsg, NewUserResolver(nil), true, false),
 			Config: ServiceConfig{
@@ -1160,7 +1160,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID, project2UID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil).Times(2)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher).Return(nil).Times(2)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Times(2)
 			},
 		},
@@ -1184,7 +1184,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1207,7 +1207,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1227,7 +1227,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
 					data, ok := msg.Data.(fgatypes.GenericAccessData)
 					if !ok {
@@ -1269,7 +1269,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1319,7 +1319,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil).Once()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
 			},
 		},
@@ -1339,7 +1339,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 					Return(&models.ProjectBase{UID: projectUID}, nil).Once()
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Maybe()
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
 			},
 		},
@@ -1355,7 +1355,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Maybe()
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
 					Return(errors.New("transient nats failure")).Once()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
@@ -1377,7 +1377,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
-				MessageBuilder:    mockMsg,
+				Publisher:         mockMsg,
 			}
 
 			var data []byte
@@ -1454,7 +1454,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1474,7 +1474,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1513,7 +1513,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1561,7 +1561,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1583,7 +1583,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1604,7 +1604,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Return(&models.ProjectBase{UID: projectUID}, nil).Once()
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil).Maybe()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
 			},
 		},
@@ -1622,7 +1622,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil).Maybe()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
 					Return(errors.New("transient nats failure")).Once()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
@@ -1647,7 +1647,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
@@ -1667,7 +1667,7 @@ func TestHandleUserDeleted(t *testing.T) {
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
-				MessageBuilder:    mockMsg,
+				Publisher:         mockMsg,
 			}
 			if tt.setupUserReader != nil {
 				mockUserReader = &domainmocks.MockUserReader{}

@@ -90,7 +90,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: Create-ProjectRequestBody
@@ -227,7 +227,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -323,7 +323,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -403,7 +403,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: Upload-Project-DocumentRequestBody
@@ -559,7 +559,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -697,7 +697,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: Create-Project-FolderRequestBody
@@ -850,7 +850,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -928,7 +928,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: Create-Project-LinkRequestBody
@@ -1075,7 +1075,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -1212,7 +1212,7 @@ paths:
                   type: string
                 - name: X-Sync
                   in: header
-                  description: X-Sync header value for performing operations synchronously
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
                   required: false
                   type: boolean
                 - name: If-Match
@@ -1621,7 +1621,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             uid:
                 type: string
@@ -1985,7 +1984,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             uid:
                 type: string
@@ -2396,7 +2394,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             website_url:
                 type: string
@@ -3110,7 +3107,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             website_url:
                 type: string
