@@ -104,8 +104,11 @@ reads OpenFGA with higher consistency. Its JSON report contains aggregate
 counts by project class and relation only; it never includes people or tuple
 subjects. Existing NATS repository diagnostics can name a failing project key,
 so retain Job logs in the access-controlled cluster logging system. A nonzero
-exit means the report contains a read error, missing tuple, unexpected tuple,
-or conditioned global grant.
+exit after the report is written means it contains a read error, missing tuple,
+unexpected tuple, or conditioned global grant. Invalid flags or environment, a
+failed OpenFGA store check, a failed NATS connection, or a failure to read the
+project list exits nonzero before any report is written; treat that as a setup
+failure, not a grant finding.
 
 ## Tests
 

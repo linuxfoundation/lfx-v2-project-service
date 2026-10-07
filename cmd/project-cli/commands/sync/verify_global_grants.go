@@ -349,6 +349,10 @@ func (r *globalGrantVerificationReport) add(class string, expected, actual []glo
 		r.Classes[class] = classReport
 	}
 	classReport.Projects++
+	for _, tuple := range expected {
+		counts := relationCounts(classReport, tuple.Relation)
+		counts.Expected++
+	}
 	if readErr != nil {
 		r.ReadErrors++
 		r.ReadErrorKinds[globalGrantReadErrorKind(readErr)]++
@@ -358,10 +362,6 @@ func (r *globalGrantVerificationReport) add(class string, expected, actual []glo
 
 	expectedSet := tupleSet(expected)
 	actualSet := tupleSet(actual)
-	for _, tuple := range expected {
-		counts := relationCounts(classReport, tuple.Relation)
-		counts.Expected++
-	}
 	for _, tuple := range actual {
 		counts := relationCounts(classReport, tuple.Relation)
 		counts.Actual++

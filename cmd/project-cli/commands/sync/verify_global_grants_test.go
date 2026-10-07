@@ -6,6 +6,7 @@ package sync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -57,6 +58,19 @@ func TestGlobalGrantVerificationReport(t *testing.T) {
 	assert.Equal(t, 1, report.Classes[classProspect].Relations["global_owner"].Missing)
 	assert.Equal(t, 1, report.Classes[classProspect].Relations["global_owner"].Unexpected)
 	assert.Equal(t, 1, report.Classes[classProspect].Relations["global_writer"].Unexpected)
+}
+
+func TestGlobalGrantVerificationReportCountsExpectedOnReadError(t *testing.T) {
+	report := newGlobalGrantVerificationReport()
+	report.add(classOrdinary, expectedGlobalGrantTuples("Active"), nil, errors.New("read failed"))
+
+	assert.Equal(t, 1, report.ReadErrors)
+	assert.Equal(t, 1, report.Classes[classOrdinary].ReadErrors)
+	assert.Equal(t, 2, report.Classes[classOrdinary].Relations["global_owner"].Expected)
+	assert.Equal(t, 1, report.Classes[classOrdinary].Relations["global_writer"].Expected)
+	assert.Equal(t, 2, report.Classes[classOrdinary].Relations["global_auditor"].Expected)
+	assert.Equal(t, 0, report.Missing)
+	assert.Equal(t, 0, report.Unexpected)
 }
 
 func TestReadProjectGlobalTuplesPaginatesAndFilters(t *testing.T) {
