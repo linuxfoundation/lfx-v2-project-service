@@ -100,7 +100,10 @@ Run the independent read-only comparison with the same immutable image:
 ```
 
 The verifier derives expected counts from the complete NATS project set and
-reads OpenFGA with higher consistency. Its JSON report contains aggregate
+reads OpenFGA with higher consistency. It compares each project's expected and
+actual tuples, so one project wrongly granted and another wrongly skipped are
+reported as a missing and an unexpected tuple rather than cancelling out in the
+totals. Its JSON report contains aggregate
 counts by project class and relation only; it never includes people or tuple
 subjects. Existing NATS repository diagnostics can name a failing project key,
 so retain Job logs in the access-controlled cluster logging system. A nonzero

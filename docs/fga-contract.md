@@ -90,6 +90,8 @@ roster. Send an explicit empty list to clear it.
 
 The four `global_*` relations are typed `[team#member]` in the model, so they are sent as references (full subjects), not as username relations. Omitting a withheld relation is what withdraws it: fga-sync deletes `team:` tuples on `global_*` relations that an `update_access` message no longer carries, so a project moving into `Prospect` or `Formation - Confidential` loses those grants and regains them when it moves out. `global_owner` is never withheld, because `owner` composes into `writer` and a direct `writer` grant cascades to child projects, so withholding it would not withhold anything. The deployed OpenFGA model must define all four relations on `project`.
 
+Withdrawing a tuple is not the same as withdrawing every access it feeds. No access that `global_writer` or `global_auditor` grants is inherited by a child project, so withholding them on a project removes that access there. `global_marketing_ops` feeds two relations that behave differently. `campaign_manager` does not inherit from the parent, so withholding the tuple removes campaign management on the project once the legacy `marketing_ops` relation, which still cascades from the root, has been removed. `marketing_auditor` does inherit from the parent, so a withheld project still receives marketing read from any ancestor that holds the grant. That read gap is accepted (lfx-self-serve#2577): `marketing_auditor` confers no way to discover a project. The verifier checks the tuples, not the resulting access.
+
 ### Delete
 
 On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed by the fga-sync service.

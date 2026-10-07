@@ -119,7 +119,7 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 	if err := encoder.Encode(report); err != nil {
 		return fmt.Errorf("encode verification report: %w", err)
 	}
-	if report.ReadErrors > 0 || report.Missing > 0 || report.Unexpected > 0 || report.Conditioned > 0 {
+	if report.failed() {
 		return fmt.Errorf("global grant verification failed; see aggregate report")
 	}
 	return nil
@@ -214,6 +214,11 @@ func (c *globalGrantFGAClient) readProjectGlobalTuples(ctx context.Context, proj
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := c.http.Do(req)
 		if err != nil {
+			// *url.Error embeds the request URL, which carries the store ID.
+			var urlErr *url.Error
+			if errors.As(err, &urlErr) {
+				err = urlErr.Err
+			}
 			return nil, fmt.Errorf("OpenFGA read failed: %w", err)
 		}
 		page, err := decodeGlobalGrantPage(resp)
@@ -339,6 +344,12 @@ func newGlobalGrantVerificationReport() *globalGrantVerificationReport {
 		ReadErrorKinds: map[string]int{},
 		Classes:        classes,
 	}
+}
+
+// failed reports whether the run must exit nonzero. A clean run is the gate for removing the
+// legacy root grants, so every finding kind has to fail it.
+func (r *globalGrantVerificationReport) failed() bool {
+	return r.ReadErrors > 0 || r.Missing > 0 || r.Unexpected > 0 || r.Conditioned > 0
 }
 
 func (r *globalGrantVerificationReport) add(class string, expected, actual []globalGrantTuple, readErr error) {

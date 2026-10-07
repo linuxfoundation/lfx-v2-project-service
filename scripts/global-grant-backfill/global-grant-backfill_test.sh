@@ -113,7 +113,7 @@ manifest() {
 }
 
 no_job_created() {
-  [[ ! -e "${WORK}/manifest.json" ]] && ! grep -q '^create' "${WORK}/calls"
+  [[ ! -e "${WORK}/manifest.json" ]] && ! grep -qE '(^| )create( |$)' "${WORK}/calls"
 }
 
 no_kubectl_calls() {

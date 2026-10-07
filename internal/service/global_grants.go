@@ -33,6 +33,12 @@ var globalOwnerTeams = []string{teamFormation, teamProductSupport}
 // stageGatedGrants are withheld while a project is a prospect or confidential. Omitting a
 // relation from the message is what withdraws it: fga-sync removes team tuples on global_*
 // relations that the message no longer carries.
+//
+// global_marketing_ops is gated even though withholding it does not withhold marketing read:
+// marketing_auditor inherits from the parent, so a withheld project still receives it from an
+// ancestor, and that gap is accepted (lfx-self-serve#2577). What withholding removes is
+// campaign_manager, which does not inherit, once the legacy marketing_ops relation is gone.
+// Sending it unconditionally would keep campaign management on these projects.
 var stageGatedGrants = map[string][]string{
 	relationGlobalWriter:       {teamGlobalProjectWriters},
 	relationGlobalAuditor:      {teamLFStaff, teamGlobalProjectAuditors},

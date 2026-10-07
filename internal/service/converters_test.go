@@ -1080,13 +1080,14 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		inside := build("Formation - Confidential")
 		after := build("Formation - Engaged")
 
+		assert.Equal(t, wantAllGrants, before.References)
 		for _, relation := range []string{"global_writer", "global_auditor", "global_marketing_ops"} {
 			_, present := inside.References[relation]
 			assert.False(t, present, "%s still sent while confidential", relation)
 			assert.NotContains(t, inside.ExcludeRelations, relation)
 		}
-		assert.Equal(t, wantOwnerGrants, inside.References["global_owner"])
-		assert.Equal(t, before.References, after.References)
+		assert.Equal(t, wantOwnerOnlyGrants, inside.References)
+		assert.Equal(t, wantAllGrants, after.References)
 	})
 }
 
