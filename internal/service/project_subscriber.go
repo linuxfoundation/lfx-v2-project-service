@@ -27,6 +27,11 @@ import (
 // many sequential KV reads under load.
 const settingsScanTimeout = 2 * time.Minute
 
+// systemRootProjectSlug identifies the hidden project whose settings maintain
+// platform-wide access. Roster maintenance there is an operational migration,
+// not a user-facing project membership change.
+const systemRootProjectSlug = "ROOT"
+
 // scrubMaxRetries is the number of attempts for settings KV writes and indexer/FGA publishes
 // after a successful scrub. Retries are independent of the username match so a transient
 // conflict or NATS failure does not leave access tuples stale after settings were scrubbed.
@@ -98,6 +103,10 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, event.ProjectUID)
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to load project", constants.ErrKey, err, "project_uid", event.ProjectUID)
+		return nil
+	}
+	if projectBase.Slug == systemRootProjectSlug {
+		slog.InfoContext(ctx, "project_subscriber: skipping role notifications for system root project")
 		return nil
 	}
 

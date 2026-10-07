@@ -14,7 +14,7 @@
 #   - ad-hoc verification of what's actually in a given FGA store
 #
 # Requires: kubectl pointed at the target cluster context, permission to
-# `kubectl run`/`get`/`logs`/`delete` pods in namespace `lfx`.
+# list deployments and to `run`/`get`/`logs`/`delete` pods in namespace `lfx`.
 #
 # --global writes/reads against the root project, not a synthetic "ROOT"
 # object — the root project's real OpenFGA object ID is a generated UUID
@@ -32,8 +32,8 @@
 # real project after the root write, confirming the cascade actually reached
 # it rather than just resolving on the root object.
 #
-# For --env prod, the store ID is not committed here — export FGA_STORE_ID
-# first (see README's "Configuring environments" section).
+# The store ID is resolved from the selected environment's Heimdall deployment;
+# environment-specific identifiers are not committed or accepted from callers.
 #
 # Examples:
 #   marketing-ops-grant.sh grant  --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
@@ -105,17 +105,14 @@ if [[ "$GLOBAL" == false && -n "$ROOT_UID" && "$PROJECT_UID" == "$ROOT_UID" ]]; 
   exit 1
 fi
 
+[[ -z "${FGA_STORE_ID:-}" ]] || {
+  echo "FGA_STORE_ID is resolved from Heimdall; unset it to avoid an ambiguous target" >&2
+  exit 1
+}
+
 case "$ENV_NAME" in
-  dev)
-    CTX="lfx-v2-dev"
-    STORE_ID="${FGA_STORE_ID:-01K1XF6SXV7JY5HZ25EZGCDNXE}"
-    ;;
-  prod)
-    CTX="lfx-v2-prod"
-    # Prod store ID is production config and must not be committed (AGENTS.md
-    # "No PII in Source" / no production data in committed files) — export it.
-    STORE_ID="${FGA_STORE_ID:?Set FGA_STORE_ID to the prod OpenFGA store ID before running --env prod (see README)}"
-    ;;
+  dev) CTX="lfx-v2-dev" ;;
+  prod) CTX="lfx-v2-prod" ;;
   *)
     echo "Unknown --env '$ENV_NAME' (expected dev or prod)" >&2; exit 1 ;;
 esac
@@ -131,6 +128,42 @@ PROJECT_OBJECT="project:${TARGET_UID}"
 
 NS="lfx"
 FGA_API_URL="http://lfx-platform-openfga:8080"
+FGA_CLI_IMAGE="openfga/cli:v0.7.20@sha256:26acde96d90420e53fe361a740dcceba4b67f1c49e4f35117cd0c19c83ac5068"
+
+resolve_heimdall_store_id() {
+  local deployments store_ids store_count
+  command -v jq >/dev/null || {
+    echo "jq is required" >&2
+    return 1
+  }
+  deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$NS" \
+    -l app.kubernetes.io/name=heimdall -o json)" || return 1
+  store_ids="$(jq -r '
+    [.items[].spec.template.spec.containers[].env[]?
+      | select(.name == "OPENFGA_STORE_ID") | .value]
+    | map(select(type == "string" and length > 0))
+    | unique[]
+  ' <<<"$deployments")" || return 1
+  store_count="$(grep -c . <<<"$store_ids" || true)"
+  [[ "$store_count" -eq 1 ]] || {
+    echo "expected one store ID on the Heimdall deployment, found ${store_count}" >&2
+    return 1
+  }
+  [[ "$store_ids" =~ ^[0-9A-HJKMNP-TV-Z]{26}$ ]] || {
+    echo "Heimdall OPENFGA_STORE_ID is not a ULID" >&2
+    return 1
+  }
+  STORE_ID="$store_ids"
+}
+
+masked_store_id() {
+  printf '%s...%s' "${STORE_ID:0:4}" "${STORE_ID: -4}"
+}
+
+resolve_heimdall_store_id || {
+  echo "could not resolve Heimdall's OpenFGA store ID" >&2
+  exit 1
+}
 
 json_escape() {
   local s="$1"
@@ -162,10 +195,10 @@ run_fga_pod() {
   # everything evaluated as part of an `if` condition — a failed `kubectl run`
   # (bad RBAC, API error) would otherwise fall through into the 120s poll below
   # instead of failing immediately.
-  if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image=openfga/cli:v0.7.20 --restart=Never --overrides='{
+  if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image="$FGA_CLI_IMAGE" --restart=Never --overrides='{
     "spec": {"containers": [{
       "name": "'"$pod"'",
-      "image": "openfga/cli:v0.7.20",
+      "image": "'"$FGA_CLI_IMAGE"'",
       "args": '"$args_json"',
       "env": [
         {"name": "FGA_API_URL", "value": "'"$FGA_API_URL"'"},
@@ -199,6 +232,7 @@ run_fga_pod() {
   local out rc=0
   out=$(kubectl --context "$CTX" --request-timeout=10s logs "$pod" -n "$NS" 2>&1) || rc=1
   kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1
+  out="${out//$STORE_ID/$(masked_store_id)}"
   echo "$out"
 
   if [[ "$phase" != "Succeeded" ]]; then
@@ -236,7 +270,7 @@ fga_check() {
 # a grant has no other path that would make this assertion a false failure.
 verify_grant() {
   echo ""
-  echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store ${STORE_ID}, env ${ENV_NAME})..."
+  echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME})..."
   local ok=true
   for relation in marketing_ops marketing_auditor campaign_manager; do
     local result
@@ -299,7 +333,7 @@ verify_grant() {
 # Report those three instead of asserting them.
 verify_revoke() {
   echo ""
-  echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store ${STORE_ID}, env ${ENV_NAME})..."
+  echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME})..."
   local member_result
   if ! member_result=$(fga_check member "$TEAM_OBJECT"); then
     echo "  ERROR checking member of ${TEAM_OBJECT} — fga-cli command failed, not a real allow/deny result" >&2
@@ -359,7 +393,7 @@ case "$ACTION" in
     verify_revoke
     ;;
   check)
-    echo "Current access for user:${USERNAME} on ${PROJECT_OBJECT} (store ${STORE_ID}, env ${ENV_NAME}):"
+    echo "Current access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME}):"
     for relation in marketing_ops marketing_auditor campaign_manager; do
       if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
         echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2

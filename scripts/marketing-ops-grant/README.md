@@ -20,13 +20,14 @@ Use this script only for:
 - Granting access across **all** projects at once (`--global`). The API intentionally does not
   expose this — a single self-serve call granting org-wide access has a much bigger blast radius
   than a per-project grant, so it stays gated behind whoever already has prod cluster access.
+  Not after the root team tuple cleanup — see [How it works](#how-it-works).
 - Ad-hoc verification of what a given FGA store actually contains for a user (`check` mode).
 
 ## Requirements
 
-- `kubectl` pointed at the target cluster context, with permission to `run`/`get`/`logs`/`delete`
-  pods in namespace `lfx`.
-- The environment's OpenFGA store ID (see below) — the script does not discover it for you.
+- `kubectl` pointed at the target cluster context, with permission to list
+  deployments and to `run`/`get`/`logs`/`delete` pods in namespace `lfx`.
+- `jq`.
 - For `--global`, the environment's root project UID (see below) — the script does not discover it
   for you.
 
@@ -42,6 +43,11 @@ itself, is what's granted or revoked per user.
 project UID. Because `marketing_ops` also resolves `from parent`, a grant on the root project
 cascades down to every project in the hierarchy — the same mechanism a project-scoped grant uses,
 just applied one level higher.
+
+**Do not use `--global` after the [root team tuple cleanup](../root-team-tuple-cleanup/README.md)
+has run.** It writes a `marketing_ops` tuple on the root project, which is one of the legacy tuples
+that cleanup removes. Org-wide access then comes from membership in the `marketing-ops` team, which
+holds `global_marketing_ops` on each project; project-scoped grants are unaffected.
 
 **`ROOT` is only the root project's slug, not its OpenFGA object ID** — the object ID is a
 generated UUID (`scripts/root-project-setup/main.go` assigns `Slug: "ROOT"` separately from a
@@ -117,16 +123,9 @@ alias `marketing-ops-grant.sh` expects for `--env prod`:
 aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <your-prod-profile> --alias lfx-v2-prod
 ```
 
-The dev OpenFGA store ID has a hardcoded default in the script. **The prod store ID is not
-committed** (per this repo's no-production-data-in-source rule) — export it before running against
-prod:
-
-```bash
-export FGA_STORE_ID=<prod-store-id>   # ask a teammate with existing access, or check the FGA admin console
-```
-
-`FGA_STORE_ID` also overrides the dev default if you ever need to point `--env dev` at a different
-store.
+The script reads the OpenFGA store ID from the selected environment's Heimdall
+deployment. No environment-specific store ID is committed or accepted through
+`FGA_STORE_ID`.
 
 Dev and prod are separate AWS accounts and EKS clusters (both happen to be named `lfx-v2`) with
 independently seeded FGA stores — a `kubectl` context pointed at the wrong one will silently read
