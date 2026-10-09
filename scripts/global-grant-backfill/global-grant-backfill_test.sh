@@ -171,6 +171,9 @@ test_backfill_dev_dry_run() {
   check "backfill env carries resolved NATS_URL only" \
     '[[ "$(manifest ".spec.template.spec.containers[0].env")" == "[{\"name\":\"NATS_URL\",\"value\":\"${FAKE_NATS}\"},{\"name\":\"LOG_LEVEL\",\"value\":\"info\"}]" ]]'
   check "backfill output hides NATS_URL" 'output_hides "$FAKE_NATS"'
+  check "backfill reads the project-service deployment in its own namespace" \
+    'grep -qE "get deployments -n project-service -l app.kubernetes.io/name=lfx-v2-project-service" "${WORK}/calls"'
+  check "backfill Job is created in the lfx namespace" '[[ "$(manifest ".metadata.namespace")" == "\"lfx\"" ]]'
   teardown
 }
 
@@ -191,6 +194,42 @@ test_backfill_dev_apply_with_confirmation() {
   check "apply args end with --update" \
     '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--include-access\",\"--concurrency\",\"50\",\"--update\"]" ]]'
   check "apply Job name says apply" '[[ "$(manifest ".metadata.name")" == "\"project-global-grants-apply-"* ]]'
+  teardown
+}
+
+test_backfill_documents_only() {
+  setup
+  run "$BACKFILL" "" --env dev --image "$IMAGE" --documents-only
+  check "documents-only dry-run succeeds" '[[ $RC -eq 0 ]]'
+  check "documents-only args carry neither --include-access nor --update" \
+    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--concurrency\",\"50\"]" ]]'
+  check "documents-only manifest never mentions access" '! grep -q -- "--include-access" "${WORK}/manifest.json"'
+  check "documents-only Job name says documents" '[[ "$(manifest ".metadata.name")" == "\"project-documents-dry-run-"* ]]'
+  check "documents-only manifest is hardened" 'hardened_manifest'
+  teardown
+
+  setup
+  run "$BACKFILL" $'republish project documents to dev\n' --env dev --image "$IMAGE" --documents-only --apply
+  check "documents-only apply succeeds with its own phrase" '[[ $RC -eq 0 ]]'
+  check "documents-only apply args end with --update and carry no --include-access" \
+    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--concurrency\",\"50\",\"--update\"]" ]]'
+  check "documents-only apply Job name says apply" '[[ "$(manifest ".metadata.name")" == "\"project-documents-apply-"* ]]'
+  teardown
+
+  # Each mode accepts only its own phrase, so one cannot be typed by habit for the other.
+  setup
+  run "$BACKFILL" $'apply global grants to dev\n' --env dev --image "$IMAGE" --documents-only --apply
+  check "documents-only apply refuses the grants phrase" '[[ $RC -eq 2 ]] && no_job_created'
+  teardown
+
+  setup
+  run "$BACKFILL" $'republish project documents to dev\n' --env dev --image "$IMAGE" --apply
+  check "grants apply refuses the documents phrase" '[[ $RC -eq 2 ]] && no_job_created'
+  teardown
+
+  setup
+  run "$BACKFILL" $'republish project documents to prod\n' --env prod --image "$IMAGE" --documents-only --apply
+  check "documents-only prod apply without a terminal is refused" '[[ $RC -eq 2 ]] && no_job_created'
   teardown
 }
 
@@ -279,6 +318,8 @@ test_verify_creates_read_only_job() {
   check "verify env carries resolved values" \
     '[[ "$(manifest ".spec.template.spec.containers[0].env")" == "[{\"name\":\"NATS_URL\",\"value\":\"${FAKE_NATS}\"},{\"name\":\"OPENFGA_API_URL\",\"value\":\"http://lfx-platform-openfga:8080\"},{\"name\":\"OPENFGA_STORE_ID\",\"value\":\"${FAKE_STORE}\"},{\"name\":\"LOG_LEVEL\",\"value\":\"info\"}]" ]]'
   check "verify output hides store ID and NATS_URL" 'output_hides "$FAKE_STORE" && output_hides "$FAKE_NATS"'
+  check "verify reads project-service in its namespace and heimdall in lfx" \
+    'grep -qE "get deployments -n project-service -l app.kubernetes.io/name=lfx-v2-project-service" "${WORK}/calls" && grep -qE "get deployments -n lfx -l app.kubernetes.io/name=heimdall" "${WORK}/calls"'
   teardown
 }
 
@@ -297,6 +338,7 @@ main() {
   test_backfill_dev_dry_run
   test_backfill_prod_dry_run_needs_no_tty
   test_backfill_dev_apply_with_confirmation
+  test_backfill_documents_only
   test_backfill_apply_wrong_phrase
   test_backfill_prod_apply_requires_tty
   test_backfill_nats_url_resolution_failures
