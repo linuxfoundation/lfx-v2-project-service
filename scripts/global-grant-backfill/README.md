@@ -76,7 +76,7 @@ status and logs can be reviewed.
 
 ## Documents-only republish
 
-Add `--documents-only` to republish every project's base and settings
+Add `--documents-only` to republish every non-ROOT project's base and settings
 documents without the access message:
 
 ```sh
