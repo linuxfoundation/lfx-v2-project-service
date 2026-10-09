@@ -6,14 +6,21 @@
 # Kubernetes Job. This wrapper does not compute or write tuples itself.
 #
 # Dry-run by default. Add --apply to pass --update to project-cli.
+#
+# --documents-only republishes the project and settings documents without the
+# access message: no OpenFGA tuple is written or deleted, so it is the run to
+# use before the grants run.
 
 set -euo pipefail
 
 PROJECT_CLI_REPOSITORY="ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli"
 NS="lfx"
+# The project-service deployment runs in its own namespace; the Job runs in $NS so that the
+# NATS address it reads from that deployment resolves the same way for the Job.
+PS_NS="project-service"
 
 usage() {
-  echo "usage: $(basename "$0") --env dev|prod --image <project-cli@sha256:digest> [--concurrency N] [--apply]" >&2
+  echo "usage: $(basename "$0") --env dev|prod --image <project-cli@sha256:digest> [--concurrency N] [--documents-only] [--apply]" >&2
   exit 2
 }
 
@@ -27,12 +34,14 @@ ENV_NAME=""
 IMAGE=""
 CONCURRENCY=50
 APPLY=false
+DOCUMENTS_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env) [[ $# -ge 2 ]] || usage; ENV_NAME="$2"; shift 2 ;;
     --image) [[ $# -ge 2 ]] || usage; IMAGE="$2"; shift 2 ;;
     --concurrency) [[ $# -ge 2 ]] || usage; CONCURRENCY="$2"; shift 2 ;;
+    --documents-only) DOCUMENTS_ONLY=true; shift ;;
     --apply) APPLY=true; shift ;;
     -h|--help) usage ;;
     *) echo "unknown argument: $1" >&2; usage ;;
@@ -55,7 +64,7 @@ IMAGE_PREFIX="${PROJECT_CLI_REPOSITORY}@sha256:"
 
 resolve_nats_url() {
   local deployments urls count
-  deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$NS" \
+  deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$PS_NS" \
     -l app.kubernetes.io/name=lfx-v2-project-service -o json)" ||
     die 1 "could not read the project-service deployment"
   urls="$(jq -r '
@@ -76,6 +85,7 @@ confirm_apply() {
     die 2 "--env prod --apply requires an interactive terminal"
   fi
   local expected="apply global grants to ${ENV_NAME}" answer=""
+  [[ "$DOCUMENTS_ONLY" == true ]] && expected="republish project documents to ${ENV_NAME}"
   printf 'Type "%s" to start the write-enabled Job: ' "$expected" >&2
   read -r answer || true
   [[ "$answer" == "$expected" ]] || die 2 "confirmation did not match; no Job created"
@@ -83,7 +93,9 @@ confirm_apply() {
 
 job_manifest() {
   local name="$1" args_json
-  local args=(sync reindex-projects --all --include-access --concurrency "$CONCURRENCY")
+  local args=(sync reindex-projects --all)
+  [[ "$DOCUMENTS_ONLY" == true ]] || args+=(--include-access)
+  args+=(--concurrency "$CONCURRENCY")
   [[ "$APPLY" == true ]] && args+=(--update)
   args_json="$(printf '%s\n' "${args[@]}" | jq -R . | jq -cs .)"
 
@@ -142,9 +154,10 @@ main() {
   resolve_nats_url
   confirm_apply
 
-  local mode="dry-run" name manifest
+  local mode="dry-run" prefix="project-global-grants" name manifest
   [[ "$APPLY" == true ]] && mode="apply"
-  name="project-global-grants-${mode}-$(date -u +%Y%m%d%H%M%S)-$$"
+  [[ "$DOCUMENTS_ONLY" == true ]] && prefix="project-documents"
+  name="${prefix}-${mode}-$(date -u +%Y%m%d%H%M%S)-$$"
   manifest="$(job_manifest "$name")"
 
   echo "Creating ${mode} Job ${name} in ${ENV_NAME}; image digest is pinned."
