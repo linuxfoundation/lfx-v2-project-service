@@ -155,11 +155,17 @@ This service uses the generic FGA sync handlers for managing fine-grained access
         "executive_director": ["username5"]
       },
       "references": {
-        "parent": ["project:parent-uid"]
+        "parent": ["project:parent-uid"],
+        "global_owner": ["team:formation#member", "team:product-support#member"],
+        "global_writer": ["team:global-project-writers#member"],
+        "global_auditor": ["team:lf-staff#member", "team:global-project-auditors#member"],
+        "global_marketing_ops": ["team:marketing-ops#member"]
       }
     }
   }
   ```
+
+  A project whose stage is `Prospect` or `Formation - Confidential` sends only `global_owner` of the four `global_*` references, which withdraws the other three tuples. For marketing that removes campaign management only, and only once the legacy `marketing_ops` relation is removed; marketing read still reaches the project from its ancestors (see [docs/fga-contract.md](docs/fga-contract.md)).
 
 - `lfx.fga-sync.delete_access`: Published when a project is deleted. Removes all access control tuples for the project. Message format:
 

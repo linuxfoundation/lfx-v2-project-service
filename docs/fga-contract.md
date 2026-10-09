@@ -27,7 +27,7 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 
 ### Delivery Semantics
 
-Project create and settings update always publish `lfx.fga-sync.update_access` asynchronously. Base update publishes it only when `Public` or `ParentUID` changed from the stored value; if neither changed, no FGA message is sent. For those operations, `X-Sync` no longer changes indexer behavior: `CreateProject`, both update methods, and `DeleteProject` always call `SendIndexerMessage` inside an `errgroup` and `g.Wait()` regardless of `X-Sync`, and `SendIndexerMessage` now ignores the sync flag (always `conn.Publish`). `X-Sync` does not wait for FGA processing or OpenFGA convergence.
+Project create and settings update always publish `lfx.fga-sync.update_access` asynchronously. Base update publishes it only when `Public` or `ParentUID` changed from the stored value, or when the stage moved into or out of `Prospect` or `Formation - Confidential` (which withholds or restores the gated global team grants); otherwise no FGA message is sent. For those operations, `X-Sync` no longer changes indexer behavior: `CreateProject`, both update methods, and `DeleteProject` always call `SendIndexerMessage` inside an `errgroup` and `g.Wait()` regardless of `X-Sync`, and `SendIndexerMessage` now ignores the sync flag (always `conn.Publish`). `X-Sync` does not wait for FGA processing or OpenFGA convergence.
 
 Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` has no effect on project indexer deletion behavior and does not wait for FGA deletion processing or OpenFGA convergence. (For link, folder, and document sub-resources, `X-Sync` still controls whether the publish error is surfaced inline or swallowed in a background goroutine — but the NATS delivery is always fire-and-forget either way.)
 
@@ -37,7 +37,7 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 
 **Source structs:** `internal/domain/models/project.go` — `ProjectBase` and `ProjectSettings`
 
-**Synced on:** create, update of project base (only when `Public` or `ParentUID` changed), update of project settings, delete of a project.
+**Synced on:** create, update of project base (only when `Public` or `ParentUID` changed, or the stage crossed the withheld-stage boundary), update of project settings, delete of a project.
 
 ### Access Config
 
@@ -83,6 +83,14 @@ roster. Send an explicit empty list to clear it.
 | Reference | Value | Condition |
 |---|---|---|
 | `parent` | `"project:{ParentUID}"` | Only when `ProjectBase.ParentUID` is non-empty |
+| `global_owner` | `"team:formation#member"`, `"team:product-support#member"` | Always, whatever the stage |
+| `global_writer` | `"team:global-project-writers#member"` | Unless `ProjectBase.Stage` is exactly `Prospect` or `Formation - Confidential` |
+| `global_auditor` | `"team:lf-staff#member"`, `"team:global-project-auditors#member"` | Same condition as `global_writer` |
+| `global_marketing_ops` | `"team:marketing-ops#member"` | Same condition as `global_writer` |
+
+The four `global_*` relations are typed `[team#member]` in the model, so they are sent as references (full subjects), not as username relations. Omitting a withheld relation is what withdraws it: fga-sync deletes `team:` tuples on `global_*` relations that an `update_access` message no longer carries, so a project moving into `Prospect` or `Formation - Confidential` loses those grants and regains them when it moves out. `global_owner` is never withheld, because `owner` composes into `writer` and a direct `writer` grant cascades to child projects, so withholding it would not withhold anything. The deployed OpenFGA model must define all four relations on `project`.
+
+Withdrawing a tuple is not the same as withdrawing every access it feeds. No access that `global_writer` or `global_auditor` grants is inherited by a child project, so withholding them on a project removes that access there. `global_marketing_ops` feeds two relations that behave differently. `campaign_manager` does not inherit from the parent, so withholding the tuple removes campaign management on the project once the legacy `marketing_ops` relation, which still cascades from the root, has been removed. `marketing_auditor` does inherit from the parent, so a withheld project still receives marketing read from any ancestor that holds the grant. That read gap is accepted (lfx-self-serve#2577): `marketing_auditor` confers no way to discover a project. The verifier checks the tuples, not the resulting access.
 
 ### Delete
 
@@ -95,7 +103,7 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Operation | Object Type | Subject | Notes |
 |---|---|---|---|
 | Create project | `project` | `lfx.fga-sync.update_access` | Always sent |
-| Update project base | `project` | `lfx.fga-sync.update_access` | Only when `Public` or `ParentUID` changed from stored value |
+| Update project base | `project` | `lfx.fga-sync.update_access` | Only when `Public` or `ParentUID` changed from stored value, or the stage moved into or out of `Prospect` or `Formation - Confidential` |
 | Update project settings | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Invite acceptance (`HandleInviteAccepted`) | `project` | `lfx.fga-sync.update_access` | After KV promotion of email-only entries to LFID; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Username scrub (`HandleUserDeleted`) | `project` | `lfx.fga-sync.update_access` | After KV username clear; indexer is also refreshed. `project_settings.updated` is not emitted. |

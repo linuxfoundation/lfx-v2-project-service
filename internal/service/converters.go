@@ -600,7 +600,8 @@ func extractUsernames(users []models.UserInfo) []string {
 }
 
 // buildFGAUpdateAccessMessage builds a GenericFGAMessage for update_access operations.
-// It constructs the relations map from project settings and references map from project base.
+// It constructs the relations map from project settings, and the references map from the
+// project's parent and the global team grants its stage allows.
 func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings) fgatypes.GenericFGAMessage {
 	// Build relations map for FGA sync
 	relations := make(map[string][]string)
@@ -620,8 +621,8 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 		relations["mentorship_program_admin"] = admins
 	}
 
-	// Build references map for parent relationship
-	references := make(map[string][]string)
+	// Build references map for the global team grants and the parent relationship
+	references := globalTeamGrants(projectDB.Stage)
 	if projectDB.ParentUID != "" {
 		references[fgaconstants.RelationParent] = []string{fgaconstants.ObjectTypeProject + projectDB.ParentUID}
 	}

@@ -466,6 +466,10 @@ GenericFGAMessage{
         },
         References: map[string][]string{
             "parent": []string{"project:parent-uid"},
+            "global_owner": []string{"team:formation#member", "team:product-support#member"},
+            "global_writer": []string{"team:global-project-writers#member"},
+            "global_auditor": []string{"team:lf-staff#member", "team:global-project-auditors#member"},
+            "global_marketing_ops": []string{"team:marketing-ops#member"},
         },
     },
 }
@@ -484,6 +488,7 @@ GenericFGAMessage{
 
 - Relations map user roles to usernames (e.g., `"writer": ["user1", "user2"]`)
 - References map object relationships with formatted UIDs (e.g., `"parent": ["project:parent-uid"]`)
+- Global team grants travel as `team:<name>#member` references; a `Prospect` or `Formation - Confidential` project sends only `global_owner`, which withdraws the other three tuples; withholding `global_marketing_ops` removes campaign management once the legacy `marketing_ops` relation is removed, but never marketing read, which inherits from ancestors (see [docs/fga-contract.md](docs/fga-contract.md))
 - Update operations are full sync - any relations not included will be removed
 - Delete operations remove all access control tuples for the resource
 
