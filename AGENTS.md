@@ -550,7 +550,7 @@ func TestEndpoint(t *testing.T) {
 When deployed, the service uses OpenFGA for authorization:
 
 - **GET /projects** - Denied in deployed environments (local development only)
-- **POST /projects** - Requires `writer_guard` on parent (if specified)
+- **POST /projects** - Requires `writer` (not `writer_guard`) on parent (if specified): `global_writer` does not cascade, so a global-only writer could otherwise create a child project it cannot read
 - **GET /projects/:id** - Requires `viewer` on project
 - **GET /projects/:id/settings** - Requires `auditor_guard` on project
 - **PUT /projects/:id** - Requires `writer_guard` on project; when `parent_uid` changes, also requires `writer_guard` on both the old parent (detach) and new parent (attach)

@@ -73,10 +73,17 @@ spec:
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: json_content_type
+        {{- /*
+          Deliberately `writer`, not `writer_guard`. A global_writer grant does not
+          cascade, and a new Prospect child is written no global_writer, so a
+          caller authorized only by global_writer on the parent could create a
+          project it then cannot read. A direct `writer` cascades to the child, so
+          the creator can always see what it created.
+        */}}
         - authorizer: openfga_check
           config:
             values:
-              relation: writer_guard
+              relation: writer
               object: "project:{{ "{{- .Request.Body.parent_uid -}}" }}"
         {{- else }}
         {{/*
