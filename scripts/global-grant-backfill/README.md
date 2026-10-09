@@ -1,0 +1,124 @@
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
+# Global project grant backfill
+
+This directory provides an operator wrapper for the existing project-service
+full republish command. It does not contain a second tuple-assignment
+implementation: the selected `project-cli` image computes the grants and
+publishes the normal project, project-settings, and project-access events.
+
+No environment identifiers, project identifiers, people, or credentials are
+committed here. The wrapper reads the NATS endpoint from the project-service
+deployment in the selected cluster and does not print it.
+
+## Prerequisites
+
+- `kubectl` access to the selected cluster context
+- `jq`
+- A `project-cli` image built from a revision that includes the global team
+  grant behavior
+- The image supplied by immutable SHA-256 digest
+- fga-sync v0.3.12 or later deployed in the target environment. Earlier
+  releases add `global_*` team grants but never withdraw a grant that an
+  access message omits.
+- The global team membership migration complete: `global-project-writers` and
+  `global-project-auditors` hold only their intended members. The backfill
+  grants whatever membership the teams hold.
+- Every project migrated into the v2 project set
+  ([lfx-self-serve#1953](https://github.com/linuxfoundation/lfx-self-serve/issues/1953)).
+  The backfill and the verifier both enumerate the NATS project set, so a
+  project that is not there is neither granted nor reported.
+
+Review the dry-run logs before authorizing the write-enabled run. The command
+must be run in development and validated there before production.
+
+## Preview
+
+```sh
+./scripts/global-grant-backfill/global-grant-backfill.sh \
+  --env dev \
+  --image ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli@sha256:<digest>
+```
+
+The default Job runs:
+
+```text
+project-cli sync reindex-projects --all --include-access --concurrency 50
+```
+
+Without `--update`, `project-cli` scans all projects but publishes nothing.
+
+The dry-run log names each project UID it would republish. Job logs therefore
+contain internal identifiers: keep them in the access-controlled cluster
+logging system and share only aggregate counts outside it.
+
+## Apply
+
+After reviewing the dry-run result, add `--apply`:
+
+```sh
+./scripts/global-grant-backfill/global-grant-backfill.sh \
+  --env dev \
+  --image ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli@sha256:<digest> \
+  --apply
+```
+
+This adds `--update` to the exact command above. It republishes every project's
+base and settings documents as well as its access event. Production apply
+requires an interactive terminal and an environment-specific confirmation
+phrase.
+
+The wrapper creates the Job and exits. It does not wait, retry, or perform any
+follow-up mutation. The Job has no service-account token, has no retry, is
+stopped after two hours, and is retained for seven days so its completion
+status and logs can be reviewed.
+
+## Verification and rollback boundary
+
+Do not remove legacy ROOT-derived access until the write-enabled backfill Job
+has completed successfully and an independent read-only comparison confirms:
+
+- every project has the expected `global_owner` team;
+- ordinary projects have the expected writer, auditor, and marketing teams;
+- restricted projects have only the grants permitted by policy;
+- there are no missing, unexpected, or conditioned global-team tuples.
+
+A clean comparison does not prove the team membership or project migration
+prerequisites above; confirm both separately before removing the legacy path.
+
+Re-running the apply command is the supported repair path because the
+downstream synchronizer reconciles the desired project access tuples. Retain
+the legacy ROOT path until this comparison passes in production.
+
+Run the independent read-only comparison with the same immutable image:
+
+```sh
+./scripts/global-grant-backfill/verify-global-grants.sh \
+  --env dev \
+  --image ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli@sha256:<digest>
+```
+
+The verifier derives expected counts from the complete NATS project set and
+reads OpenFGA with higher consistency. It compares each project's expected and
+actual tuples, so one project wrongly granted and another wrongly skipped are
+reported as a missing and an unexpected tuple rather than cancelling out in the
+totals. Its JSON report contains aggregate
+counts by project class and relation only; it never includes people or tuple
+subjects. Existing NATS repository diagnostics can name a failing project key,
+so retain Job logs in the access-controlled cluster logging system. A nonzero
+exit after the report is written means it contains a read error, missing tuple,
+unexpected tuple, or conditioned global grant. Invalid flags or environment, a
+failed OpenFGA store check, a failed NATS connection, or a failure to read the
+project list exits nonzero before any report is written; treat that as a setup
+failure, not a grant finding.
+
+## Tests
+
+```sh
+bash scripts/global-grant-backfill/global-grant-backfill_test.sh
+```
+
+The tests put a fake `kubectl` first on `PATH` and refuse to run otherwise. They
+cover argument rejection, the rendered Job manifests, apply confirmation, and
+deployment-value resolution without contacting a cluster.

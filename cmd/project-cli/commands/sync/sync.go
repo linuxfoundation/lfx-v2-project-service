@@ -18,6 +18,7 @@ func (c *command) Subcommands() map[string]commands.Subcommand {
 		"rename-project-slug":  &renameProjectSlugSubcommand{},
 		"document-audit-users": &documentAuditUsersSubcommand{},
 		"reindex-projects":     &reindexProjectsSubcommand{},
+		"verify-global-grants": &verifyGlobalGrantsSubcommand{},
 	}
 }
 

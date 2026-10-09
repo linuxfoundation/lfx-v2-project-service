@@ -933,7 +933,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							UID:        "project-uid-1",
 							Public:     true,
 							Relations:  make(map[string][]string),
-							References: make(map[string][]string),
+							References: wantAllGrants,
 						},
 					},
 				).Return(nil)
@@ -979,7 +979,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							UID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 							Public:     false,
 							Relations:  make(map[string][]string),
-							References: map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
+							References: wantAllGrantsWithParent("11111111-2222-3333-4444-555555555555"),
 						},
 					},
 				).Return(nil)
@@ -1124,6 +1124,72 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				m.On("Check", mock.Anything, "user:alice", "writer_guard", "project:22222222-3333-4444-5555-666666666666").Return(true, nil)
 				return m
 			}(),
+			wantErr: false,
+		},
+		{
+			name: "stage moves into Prospect — publishes owner-only global grants",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Prospect"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Active"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access",
+					mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+						data, ok := msg.Data.(fgatypes.GenericAccessData)
+						return ok && assert.ObjectsAreEqual(wantOwnerOnlyGrants, data.References)
+					}),
+				).Return(nil).Once()
+			},
+			wantErr: false,
+		},
+		{
+			name: "stage moves out of Formation - Confidential — publishes every global grant",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Active"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Formation - Confidential"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access",
+					mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+						data, ok := msg.Data.(fgatypes.GenericAccessData)
+						return ok && assert.ObjectsAreEqual(wantAllGrants, data.References)
+					}),
+				).Return(nil).Once()
+			},
+			wantErr: false,
+		},
+		{
+			name: "stage moves between withheld stages — skips FGA publish",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Formation - Confidential"),
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", Stage: "Prospect"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil)
+				// GetProjectSettings and PublishAccessMessage must NOT be called.
+			},
 			wantErr: false,
 		},
 		{

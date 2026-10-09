@@ -1027,6 +1027,68 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, []string{"admin1"}, data.Relations["mentorship_program_admin"])
 	})
+
+	// Foundations are created under the root project, so once root-inherited grants are removed
+	// the root must carry the ordinary global grants itself.
+	t.Run("root project carries every global grant", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(&models.ProjectBase{UID: "root"}, &models.ProjectSettings{UID: "root"})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, wantAllGrants, data.References)
+	})
+
+	t.Run("carries global grants as team references next to the parent, never as user relations", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(
+			&models.ProjectBase{UID: "project-1", ParentUID: "parent-1", Stage: "Active"},
+			&models.ProjectSettings{UID: "project-1", Writers: []models.UserInfo{{Username: "alice"}}},
+		)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, wantAllGrantsWithParent("parent-1"), data.References)
+		assert.Equal(t, map[string][]string{"writer": {"alice"}}, data.Relations)
+	})
+
+	t.Run("ordinary stage grants auditor, writer and marketing plus both owners", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(&models.ProjectBase{UID: "project-1", Stage: "Active"}, &models.ProjectSettings{UID: "project-1"})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, wantAllGrants, data.References)
+	})
+
+	t.Run("confidential stage grants the owners only", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(
+			&models.ProjectBase{UID: "project-1", Stage: "Formation - Confidential"},
+			&models.ProjectSettings{UID: "project-1"},
+		)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, wantOwnerOnlyGrants, data.References)
+	})
+
+	// fga-sync deletes team tuples on global_* relations the message no longer carries, unless the
+	// relation is excluded. So withdrawal needs the key absent and the relation not excluded.
+	t.Run("moving into confidential withdraws the gated grants and moving out restores them", func(t *testing.T) {
+		settings := &models.ProjectSettings{UID: "project-1"}
+		build := func(stage string) fgatypes.GenericAccessData {
+			msg := buildFGAUpdateAccessMessage(&models.ProjectBase{UID: "project-1", Stage: stage}, settings)
+			data, ok := msg.Data.(fgatypes.GenericAccessData)
+			require.True(t, ok)
+			return data
+		}
+
+		before := build("Formation - Engaged")
+		inside := build("Formation - Confidential")
+		after := build("Formation - Engaged")
+
+		assert.Equal(t, wantAllGrants, before.References)
+		for _, relation := range []string{"global_writer", "global_auditor", "global_marketing_ops"} {
+			_, present := inside.References[relation]
+			assert.False(t, present, "%s still sent while confidential", relation)
+			assert.NotContains(t, inside.ExcludeRelations, relation)
+		}
+		assert.Equal(t, wantOwnerOnlyGrants, inside.References)
+		assert.Equal(t, wantAllGrants, after.References)
+	})
 }
 
 func TestConvertAuditUserToAPI(t *testing.T) {

@@ -202,6 +202,33 @@ Republish FGA access for every project (full FGA repair):
 go run ./cmd/project-cli sync reindex-projects --all --include-access --update
 ```
 
+#### `sync verify-global-grants`
+
+Performs a read-only comparison of the expected global team grants derived
+from the complete NATS project set with the `global_*` tuples stored in
+OpenFGA. Expected policy is defined independently from the production grant
+builder so a builder regression cannot change both sides of the comparison.
+
+The JSON report contains aggregate counts by project class and relation only
+and does not print tuple subjects. Existing NATS repository diagnostics can
+name a failing project key, so retain logs in an access-controlled system. The
+command exits nonzero for any OpenFGA read error, missing tuple, unexpected
+tuple, or conditioned global grant. A conditioned tuple cannot satisfy the
+unconditioned contract, so it is counted as conditioned, missing, and
+unexpected.
+
+Required environment variables are `NATS_URL`, `OPENFGA_API_URL`, and
+`OPENFGA_STORE_ID`. OpenFGA reads request higher consistency. Before reading
+projects, the command confirms that `OPENFGA_STORE_ID` names an existing store,
+because OpenFGA answers reads against an unknown store with an empty result.
+
+```sh
+go run ./cmd/project-cli sync verify-global-grants --concurrency=20
+```
+
+For cluster execution, use the digest-pinned wrapper documented in
+`scripts/global-grant-backfill/README.md`.
+
 ## Building
 
 ### Local binary
