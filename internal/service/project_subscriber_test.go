@@ -77,6 +77,17 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:  0,
 			wantInviteCount: 0,
 		},
+		{
+			name: "system root roster removed — no notifications",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "root-project",
+				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
+				NewSettings: events.ProjectSettings{},
+			},
+			projectBase:     makeProjectBase("root-project", "System Root", systemRootProjectSlug),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
 		// ── Addition cases (Phase 1 regression) ──────────────────────────────────────
 		{
 			name: "LFID writer added — direct email sent",
