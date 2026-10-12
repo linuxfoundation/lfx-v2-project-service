@@ -58,6 +58,12 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 
 > Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before persisting a create or settings update, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`. Unknown emails (`ErrUserNotFound`) clear the request username so a caller-supplied value cannot become an FGA principal. `convertUsersFromAPI` / `convertUserFromAPI` then **preserve any already-stored LFID** matched by email (slice roles and singleton roles such as `executive_director`), so a lookup miss cannot omit the relation key and cause fga-sync to delete existing tuples. Account deletion still scrubs usernames via `HandleUserDeleted`. Entries with a username but no email are left untouched. Empty usernames are omitted from the published relation lists (pending invites are not FGA principals). When a role slice is empty, the relation key is omitted so fga-sync deletes that relation — that is intentional empty-list semantics, not a lookup failure.
 
+### Backfill variant: `exclude_relations`
+
+Only `project-cli sync reindex-projects --include-access --keep-direct-users` sets `exclude_relations` on the project `update_access` message, listing the five relations in the table above: `writer`, `auditor`, `meeting_coordinator`, `executive_director` and `mentorship_program_admin`. fga-sync then skips deleting existing tuples on those relations, so a direct user tuple that project settings do not list survives. It still writes every tuple the message carries, and the `global_*` references are not excluded, so stage-gated grants stay removable. This applies to the ROOT access message as well.
+
+Every service-path message (create, update, settings update) leaves `exclude_relations` unset and stays full-state: a user removed from settings loses the tuple, and an omitted relation key deletes that relation. Do not rely on the backfill variant for role removal.
+
 ### Project role ownership
 
 Project service is the authoritative owner of project-scoped role storage, assignment, and FGA emission. That includes all project-level roles emitted to `project` tuples, including the project-wide mentorship admin role (`project#mentorship_program_admin`).
@@ -110,6 +116,7 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
 | Admin force-delete (`scripts/admin-delete-project`) | `project` | `lfx.fga-sync.delete_access` | Sent after indexer deletes, before slug/settings KV cleanup; fires regardless of `--cascade-children` |
 | `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |
+| `project-cli sync reindex-projects --include-access --keep-direct-users` | `project` | `lfx.fga-sync.update_access` | Backfill path: same message plus `exclude_relations`, see below |
 
 ---
 
