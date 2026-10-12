@@ -100,7 +100,11 @@ must also confirm that:
 - all project-scoped application checks use the replacement guard relations;
 - project search documents have been republished with the guard relations;
 - the per-project global-grant backfill has been reconciled by relation and
-  project class;
+  project class, and a fresh run of
+  `scripts/global-grant-backfill/verify-global-grants.sh` for this environment
+  reports `missing = 0`, `unexpected = 0` and `read_errors = 0`. This script
+  checks only the replacement grants on the root object, never the child
+  projects, so it will not catch a project the backfill missed;
 - the contractor access-removal announcement lead time has elapsed;
 - organization-auditor reconciliation no longer derives its team set from the
   legacy root tuples.

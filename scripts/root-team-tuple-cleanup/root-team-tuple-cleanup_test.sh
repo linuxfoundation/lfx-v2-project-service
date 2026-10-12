@@ -624,6 +624,37 @@ test_term_trap_exits_instead_of_continuing() {
   teardown
 }
 
+# signal_with_current_pod TOKEN_FILE_CONTENT   -- TERM arrives while CURRENT_POD names a
+# pod, as it does during a create that collided with someone else's pod.
+signal_with_current_pod() {
+  mkdir -p "${WORK}/pods"
+  printf '%s' "$1" >"${WORK}/pods/target-pod.token"
+  # Sourced from a file, not a process substitution, so the functions are
+  # defined even where /dev/fd is unavailable.
+  sed '$d' "$SCRIPT" >"${WORK}/lib.sh"
+  set +e
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" TMPDIR="${WORK}/tmp" \
+    bash -c 'source "$1"; CTX=ctx; POD_TOKEN=aaaaaaaaaaaaaaaa; CURRENT_POD=target-pod; kill -TERM $$' _ "${WORK}/lib.sh" 2>&1)"
+  STATUS=$?
+  set -e
+}
+
+test_signal_does_not_delete_a_pod_without_our_label() {
+  setup
+  signal_with_current_pod "someone-else"
+  check "TERM still exits 143" '[[ $STATUS -eq 143 ]]'
+  check "a foreign pod survives the signal path" '[[ -e "${WORK}/pods/target-pod.token" ]]'
+  check "the skipped delete is reported by pod name" '[[ "$OUT" == *"target-pod"* ]]'
+  teardown
+}
+
+test_signal_deletes_a_pod_with_our_label() {
+  setup
+  signal_with_current_pod "aaaaaaaaaaaaaaaa"
+  check "our own pod is deleted on the signal path" '[[ ! -e "${WORK}/pods/target-pod.token" ]]'
+  teardown
+}
+
 test_rerun_after_cleanup_is_a_no_op() {
   setup
   write_state "$(full_state | jq '[.[] | select((.relation == "auditor" or .relation == "owner" or .relation == "marketing_ops") and (.user | startswith("team:")) and .object != "project:00000000-0000-4000-8000-000000000099" | not)]')"

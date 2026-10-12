@@ -7,6 +7,9 @@
 #
 # Run: bash scripts/marketing-ops-grant/marketing-ops-grant_test.sh
 
+# check() evaluates its condition after the run, so the single quotes are intended.
+# shellcheck disable=SC2016
+
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

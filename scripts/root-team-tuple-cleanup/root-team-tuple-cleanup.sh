@@ -137,7 +137,13 @@ cleanup_pod() {
     pod="$(cat "$POD_STATE_FILE")"
   fi
   if [[ -n "$pod" && -n "${CTX:-}" ]]; then
-    kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+    # A signal can land between naming the pod and a failed create, while the
+    # name may belong to another operator, so every delete path checks the label.
+    if pod_is_ours "$pod"; then
+      kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+    else
+      echo "not deleting pod ${pod}: it does not carry this run's ownership label" >&2
+    fi
   fi
   CURRENT_POD=""
   # Truncate rather than remove: the private file made by mktemp must survive
