@@ -125,7 +125,8 @@ aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <you
 
 The script reads the OpenFGA store ID from the selected environment's Heimdall
 deployment. No environment-specific store ID is committed or accepted through
-`FGA_STORE_ID`.
+`FGA_STORE_ID`. For a prod `--global` grant or revoke it reads the store ID again
+after the username confirmation and exits without writing if it changed.
 
 Dev and prod are separate AWS accounts and EKS clusters (both happen to be named `lfx-v2`) with
 independently seeded FGA stores — a `kubectl` context pointed at the wrong one will silently read

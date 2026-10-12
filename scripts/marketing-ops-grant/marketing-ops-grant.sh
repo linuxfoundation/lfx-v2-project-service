@@ -374,6 +374,17 @@ if [[ ( "$ACTION" == "grant" || "$ACTION" == "revoke" ) && "$ENV_NAME" == "prod"
     echo "Confirmation did not match. Aborting." >&2
     exit 1
   fi
+  # The prompt can stay open for minutes; a store switch in that window would
+  # leave every write and check below aimed at the old store.
+  CONFIRMED_STORE_ID="$STORE_ID"
+  resolve_heimdall_store_id || {
+    echo "could not re-resolve Heimdall's OpenFGA store ID after confirmation. Aborting." >&2
+    exit 1
+  }
+  if [[ "$STORE_ID" != "$CONFIRMED_STORE_ID" ]]; then
+    echo "Heimdall's OpenFGA store changed during confirmation. Aborting; re-run to target the new store." >&2
+    exit 1
+  fi
 fi
 
 case "$ACTION" in
