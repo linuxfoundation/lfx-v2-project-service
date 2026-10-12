@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	natsgo "github.com/nats-io/nats.go"
@@ -18,6 +19,10 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
+
+// validLFIDUsername is the accepted shape of an LFID username returned by the auth service:
+// ASCII letters, digits, '.', '_' and '-', starting with an alphanumeric, at most 128 characters.
+var validLFIDUsername = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 // userMetadataNATSResponse is the response envelope from lfx.auth-service.user_metadata.read.
 type userMetadataNATSResponse struct {
@@ -164,6 +169,15 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 			return "", domain.ErrUserNotFound
 		}
 		err := fmt.Errorf("unexpected email_to_username success envelope")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", err
+	}
+
+	// The reply travels over an unauthenticated core-NATS inbox, so reject anything that is
+	// not shaped like an LFID before it can be persisted or published as an FGA principal.
+	if !validLFIDUsername.MatchString(body) {
+		err := fmt.Errorf("email_to_username response is not a valid username")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return "", err

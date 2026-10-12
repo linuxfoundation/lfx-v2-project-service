@@ -1127,8 +1127,51 @@ func TestHandleInviteAccepted(t *testing.T) {
 		payload   any
 		setupRepo func(*domainmocks.MockProjectRepository)
 		setupMsg  func(*domainmocks.MockMessageBuilder)
-		wantErr   bool
+		// setupUser overrides the default auth-service lookup, which resolves writerEmail to username.
+		setupUser    func(*domainmocks.MockUserReader)
+		noUserReader bool
+		wantErr      bool
 	}{
+		{
+			name:    "accepted_by does not own recipient email — discarded, settings and FGA untouched",
+			payload: makeEvent(inviteUID, "attacker", string(inviteapi.InviteRoleManage)),
+			// No repo or publisher expectations: any scan, write or publish fails the test.
+		},
+		{
+			name:    "recipient email not registered with auth service — discarded",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupUser: func(u *domainmocks.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, writerEmail).Return("", domain.ErrUserNotFound).Once()
+			},
+		},
+		{
+			name:    "auth service lookup fails — discarded, fails closed",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupUser: func(u *domainmocks.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, writerEmail).Return("", errors.New("auth unavailable")).Once()
+			},
+		},
+		{
+			name:         "no user reader configured — discarded, fails closed",
+			payload:      makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			noUserReader: true,
+		},
+		{
+			name:    "accepted_by matches auth lookup case-insensitively — promoted",
+			payload: makeEvent(inviteUID, "NewUser", string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == "NewUser"
+				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID)
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+			},
+		},
 		{
 			name:    "malformed payload — returns nil without crashing",
 			payload: []byte("not json"),
@@ -1379,6 +1422,16 @@ func TestHandleInviteAccepted(t *testing.T) {
 				ProjectRepository: mockRepo,
 				Publisher:         mockMsg,
 			}
+			mockUser := &domainmocks.MockUserReader{}
+			switch {
+			case tt.noUserReader:
+			case tt.setupUser != nil:
+				tt.setupUser(mockUser)
+				svc.UserReader = mockUser
+			default:
+				mockUser.On("UsernameByEmail", mock.Anything, writerEmail).Return(username, nil).Maybe()
+				svc.UserReader = mockUser
+			}
 
 			var data []byte
 			if raw, ok := tt.payload.([]byte); ok {
@@ -1392,6 +1445,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
+			mockUser.AssertExpectations(t)
 		})
 	}
 }
