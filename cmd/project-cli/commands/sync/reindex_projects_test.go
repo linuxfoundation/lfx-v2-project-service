@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -359,6 +360,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		all           bool
 		force         bool
 		includeAccess bool
+		keepDirect    bool
 		setupMock     func(*domainmocks.MockMessageBuilder)
 		getSettings   bool
 		settingsErr   error
@@ -445,6 +447,19 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			},
 		},
 		{
+			name:          "keep-direct-users publishes the access message with the user-relation exclusions",
+			missing:       osMissing{project: true, projectSettings: true},
+			force:         true,
+			includeAccess: true,
+			keepDirect:    true,
+			getSettings:   true,
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.MatchedBy(hasAllUserRelationExclusions)).
+					Return(nil).Once()
+			},
+		},
+		{
 			name:        "settings read failure still publishes an independently missing project doc",
 			missing:     osMissing{project: true, projectSettings: true},
 			getSettings: true,
@@ -468,10 +483,11 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 					settingsByUID: map[string]*models.ProjectSettings{base.UID: settings},
 					settingsErr:   tt.settingsErr,
 				},
-				publisher:     publisher,
-				all:           tt.all,
-				force:         tt.force,
-				includeAccess: tt.includeAccess,
+				publisher:       publisher,
+				all:             tt.all,
+				force:           tt.force,
+				includeAccess:   tt.includeAccess,
+				keepDirectUsers: tt.keepDirect,
 			}
 			err := r.reindexProject(context.Background(), base, tt.missing)
 			if tt.wantErr {
@@ -549,6 +565,37 @@ func publishedProjectUIDs(t *testing.T, publisher *domainmocks.MockMessageBuilde
 	return uids
 }
 
+// hasAllUserRelationExclusions reports whether an access message excludes exactly the five
+// settings-derived user relations from fga-sync's delete pass, by name and regardless of order.
+func hasAllUserRelationExclusions(m fgatypes.GenericFGAMessage) bool {
+	data, ok := m.Data.(fgatypes.GenericAccessData)
+	if !ok {
+		return false
+	}
+	got, want := slices.Clone(data.ExcludeRelations), slices.Clone(directUserRelationNames)
+	slices.Sort(got)
+	slices.Sort(want)
+	return slices.Equal(got, want)
+}
+
+// publishedExclusionUIDs extracts the project UIDs whose published access message carries the
+// full set of user-relation exclusions.
+func publishedExclusionUIDs(t *testing.T, publisher *domainmocks.MockMessageBuilder) map[string]bool {
+	t.Helper()
+	uids := map[string]bool{}
+	for _, call := range publisher.Calls {
+		if call.Method != "PublishAccessMessage" {
+			continue
+		}
+		msg, ok := call.Arguments.Get(2).(fgatypes.GenericFGAMessage)
+		require.True(t, ok)
+		if hasAllUserRelationExclusions(msg) {
+			uids[msg.Data.(fgatypes.GenericAccessData).UID] = true
+		}
+	}
+	return uids
+}
+
 // publishedFGAUIDs extracts the project UIDs the publisher's
 // PublishAccessMessage was called with, so tests can assert exactly which
 // projects had their FGA access republished.
@@ -594,6 +641,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		force            bool
 		dryRun           bool
 		includeAccess    bool
+		keepDirectUsers  bool
 		openSearchHitIDs []string
 		wantErr          string
 		wantUIDs         map[string]bool
@@ -601,6 +649,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		wantUpdated      int
 		wantFailed       int
 		wantFGAUIDs      map[string]bool
+		wantExcludedUIDs map[string]bool
 		wantQueriedHas   []string
 		wantQueriedNot   []string
 	}{
@@ -691,6 +740,25 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			wantTotal:   2,
 			wantUpdated: 2,
 			wantFGAUIDs: map[string]bool{alphaUID: true, rootUID: true},
+			// Without the flag no message carries exclusions, so the full sync is kept.
+			wantExcludedUIDs: map[string]bool{},
+		},
+		{
+			// reindexRootAccess builds its own message; a change back to ToFGAMessage() there
+			// would delete unlisted direct ROOT users during a backfill.
+			name:            "all scan with include-access and keep-direct-users excludes the user relations on ROOT too",
+			all:             true,
+			includeAccess:   true,
+			keepDirectUsers: true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:         map[string]bool{alphaUID: true},
+			wantTotal:        2,
+			wantUpdated:      2,
+			wantFGAUIDs:      map[string]bool{alphaUID: true, rootUID: true},
+			wantExcludedUIDs: map[string]bool{alphaUID: true, rootUID: true},
 		},
 		{
 			name:          "failed ROOT access repair is recorded, not returned",
@@ -777,15 +845,16 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			}
 
 			r := &reindexProjectsRunner{
-				repo:          repo,
-				openSearch:    osClient,
-				publisher:     publisher,
-				all:           tt.all,
-				force:         tt.force,
-				dryRun:        tt.dryRun,
-				includeAccess: tt.includeAccess,
-				concurrency:   1,
-				stats:         commands.NewStats(),
+				repo:            repo,
+				openSearch:      osClient,
+				publisher:       publisher,
+				all:             tt.all,
+				force:           tt.force,
+				dryRun:          tt.dryRun,
+				includeAccess:   tt.includeAccess,
+				keepDirectUsers: tt.keepDirectUsers,
+				concurrency:     1,
+				stats:           commands.NewStats(),
 			}
 
 			err := r.run(context.Background(), tt.projectUID)
@@ -801,6 +870,9 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			assert.Equal(t, tt.wantFailed, r.stats.Failed)
 			if tt.wantFGAUIDs != nil {
 				assert.Equal(t, tt.wantFGAUIDs, publishedFGAUIDs(t, publisher))
+			}
+			if tt.wantExcludedUIDs != nil {
+				assert.Equal(t, tt.wantExcludedUIDs, publishedExclusionUIDs(t, publisher))
 			}
 			combined := strings.Join(requests, "\n")
 			for _, id := range tt.wantQueriedHas {
@@ -914,6 +986,11 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			wantErr: "--force requires --project-uid",
 		},
 		{
+			name:    "keep-direct-users without include-access is rejected",
+			args:    []string{"--keep-direct-users"},
+			wantErr: "--keep-direct-users requires --include-access",
+		},
+		{
 			name:    "unexpected positional argument is rejected",
 			args:    []string{"unexpected"},
 			wantErr: "unexpected arguments: unexpected",
@@ -938,4 +1015,40 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+// directUserRelationNames are the five relations the access message fills from project settings.
+var directUserRelationNames = []string{"writer", "auditor", "meeting_coordinator", "executive_director", "mentorship_program_admin"}
+
+func TestReindexProjectsRunner_accessMessage(t *testing.T) {
+	base := &models.ProjectBase{UID: "00000000-0000-0000-0000-000000000010", Stage: "Active"}
+	settings := &models.ProjectSettings{
+		UID:     base.UID,
+		Writers: []models.UserInfo{{Username: "listed-writer"}},
+	}
+	wantExcluded := directUserRelationNames
+
+	t.Run("default keeps the full sync", func(t *testing.T) {
+		r := &reindexProjectsRunner{}
+		data, ok := r.accessMessage(base, settings).Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Empty(t, data.ExcludeRelations)
+	})
+
+	t.Run("keep-direct-users excludes the settings-derived user relations", func(t *testing.T) {
+		r := &reindexProjectsRunner{keepDirectUsers: true}
+		data, ok := r.accessMessage(base, settings).Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.ElementsMatch(t, wantExcluded, data.ExcludeRelations)
+		assert.NotContains(t, data.ExcludeRelations, "global_writer", "global grants must stay removable")
+		assert.Equal(t, []string{"listed-writer"}, data.Relations["writer"], "listed users are still written")
+	})
+
+	t.Run("keep-direct-users changes nothing else in the message", func(t *testing.T) {
+		keep := (&reindexProjectsRunner{keepDirectUsers: true}).accessMessage(base, settings)
+		plain := (&reindexProjectsRunner{}).accessMessage(base, settings)
+		keepData, plainData := keep.Data.(fgatypes.GenericAccessData), plain.Data.(fgatypes.GenericAccessData)
+		keepData.ExcludeRelations = nil
+		assert.Equal(t, plainData, keepData)
+	})
 }

@@ -44,8 +44,13 @@ must be run in development and validated there before production.
 The default Job runs:
 
 ```text
-project-cli sync reindex-projects --all --include-access --concurrency 50
+project-cli sync reindex-projects --all --include-access --keep-direct-users --concurrency 50
 ```
+
+`--keep-direct-users` stops the access message from deleting a direct user tuple
+that project settings do not list; every tuple the message carries is still
+written, and the `global_*` team grants stay removable. Use an image built with
+that flag: an older digest rejects it.
 
 Without `--update`, `project-cli` scans all projects but publishes nothing.
 

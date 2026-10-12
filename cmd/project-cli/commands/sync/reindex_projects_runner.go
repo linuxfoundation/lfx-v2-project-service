@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
@@ -58,8 +59,11 @@ type reindexProjectsRunner struct {
 	all           bool
 	force         bool
 	includeAccess bool
-	concurrency   int
-	stats         *commands.Stats
+	// keepDirectUsers stops the access message from deleting direct user tuples that settings
+	// do not list. Only meaningful with includeAccess.
+	keepDirectUsers bool
+	concurrency     int
+	stats           *commands.Stats
 }
 
 // osMissing tracks, per project UID, whether the project and project_settings
@@ -246,8 +250,17 @@ func (r *reindexProjectsRunner) reindexRootAccess(ctx context.Context, base *mod
 		return fmt.Errorf("get project settings for root project: %w", err)
 	}
 
+	return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, r.accessMessage(base, settings))
+}
+
+// accessMessage builds the FGA access message, preserving unlisted direct user tuples when
+// keepDirectUsers is set.
+func (r *reindexProjectsRunner) accessMessage(base *models.ProjectBase, settings *models.ProjectSettings) fgatypes.GenericFGAMessage {
 	proj := service.NewProjectProjection(base, settings)
-	return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+	if r.keepDirectUsers {
+		return proj.ToFGAMessageKeepingDirectUsers()
+	}
+	return proj.ToFGAMessage()
 }
 
 func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osMissing) error {
@@ -316,8 +329,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 
 			if r.includeAccess {
 				sg.Go(func() error {
-					proj := service.NewProjectProjection(base, settings)
-					return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+					return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, r.accessMessage(base, settings))
 				})
 			}
 
