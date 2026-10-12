@@ -72,7 +72,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
 3. List **all** project settings (`ListAllProjectsSettings`; `lookup/` keys are skipped).
 4. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators + Mentorship Program Admins, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteInvitedUserInProjectSettings`:
    - Re-read settings with revision (optimistic concurrency).
-   - Set `username = accepted_by` and clear any legacy `invite` field on every matching email-only entry.
+   - Set `username` to the auth-resolved username from step 2 (never the event's `accepted_by` string) and clear any legacy `invite` field on every matching email-only entry.
    - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.
    - Re-index the project settings so the promoted user appears as an LFID user, and publish `lfx.fga-sync.update_access` so OpenFGA receives the new grant. `publishInvitePromotionSideEffects` reloads settings and retries indexer/FGA publishes (same `scrubMaxRetries` budget as username scrub). The repository write alone does not emit FGA or `project_settings.updated`.
 

@@ -137,7 +137,8 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 
 	// The event arrives over an unauthenticated bus, so accepted_by is only a claim. Bind it to
 	// the recipient email through the auth service before it can become an FGA principal.
-	if !s.inviteAcceptedByOwnsEmail(ctx, event.UID, event.AcceptedBy, normalizedEmail) {
+	verifiedUsername, ok := s.verifyInviteAcceptor(ctx, event.UID, event.AcceptedBy, normalizedEmail)
+	if !ok {
 		return nil
 	}
 
@@ -157,21 +158,23 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		}
 		projectUID := candidate.UID
 		promoteCtx, promoteCancel := context.WithTimeout(ctx, settingsScanTimeout)
-		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
+		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, verifiedUsername, event.UID, event.Role)
 		promoteCancel()
 	}
 
 	return nil
 }
 
-// inviteAcceptedByOwnsEmail reports whether the auth service resolves recipientEmail to the
-// claimed acceptedBy LFID. It fails closed: a missing reader, lookup error, unknown email or
-// mismatched username all return false so no settings or FGA state changes.
-func (s *ProjectsService) inviteAcceptedByOwnsEmail(ctx context.Context, inviteUID, acceptedBy, recipientEmail string) bool {
+// verifyInviteAcceptor checks that the auth service resolves recipientEmail to the claimed
+// acceptedBy LFID and returns the auth-resolved username. Callers must persist and publish that
+// value rather than the event's acceptedBy, so the exact string that becomes an FGA principal
+// always comes from the auth service. It fails closed: a missing reader, lookup error, unknown
+// email or mismatched username all return false so no settings or FGA state changes.
+func (s *ProjectsService) verifyInviteAcceptor(ctx context.Context, inviteUID, acceptedBy, recipientEmail string) (string, bool) {
 	if s.UserReader == nil {
 		slog.WarnContext(ctx, "project_subscriber: no user reader configured — discarding invite_accepted event",
 			"invite_uid", inviteUID)
-		return false
+		return "", false
 	}
 
 	lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
@@ -181,14 +184,14 @@ func (s *ProjectsService) inviteAcceptedByOwnsEmail(ctx context.Context, inviteU
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: could not verify invite acceptor against recipient email — discarding",
 			constants.ErrKey, err, "invite_uid", inviteUID)
-		return false
+		return "", false
 	}
 	if !usernameMatches(resolved, acceptedBy) {
 		slog.WarnContext(ctx, "project_subscriber: invite_accepted accepted_by does not own recipient email — discarding",
-			"invite_uid", inviteUID, "accepted_by", acceptedBy)
-		return false
+			"invite_uid", inviteUID)
+		return "", false
 	}
-	return true
+	return resolved, true
 }
 
 // projectSettingsHasEmailOnlyEntry reports whether settings contain at least one

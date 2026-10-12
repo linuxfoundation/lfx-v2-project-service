@@ -1157,13 +1157,13 @@ func TestHandleInviteAccepted(t *testing.T) {
 			noUserReader: true,
 		},
 		{
-			name:    "accepted_by matches auth lookup case-insensitively — promoted",
+			name:    "accepted_by differs only by case — promoted with the auth-resolved username",
 			payload: makeEvent(inviteUID, "NewUser", string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) > 0 && s.Writers[0].Username == "NewUser"
+					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(1)).Return(nil)
 				expectPromotionProjectBase(r, projectUID)
 			},
