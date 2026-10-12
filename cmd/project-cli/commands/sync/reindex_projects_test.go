@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -565,10 +566,16 @@ func publishedProjectUIDs(t *testing.T, publisher *domainmocks.MockMessageBuilde
 }
 
 // hasAllUserRelationExclusions reports whether an access message excludes exactly the five
-// settings-derived user relations from fga-sync's delete pass.
+// settings-derived user relations from fga-sync's delete pass, by name and regardless of order.
 func hasAllUserRelationExclusions(m fgatypes.GenericFGAMessage) bool {
 	data, ok := m.Data.(fgatypes.GenericAccessData)
-	return ok && len(data.ExcludeRelations) == len(directUserRelationNames)
+	if !ok {
+		return false
+	}
+	got, want := slices.Clone(data.ExcludeRelations), slices.Clone(directUserRelationNames)
+	slices.Sort(got)
+	slices.Sort(want)
+	return slices.Equal(got, want)
 }
 
 // publishedExclusionUIDs extracts the project UIDs whose published access message carries the
