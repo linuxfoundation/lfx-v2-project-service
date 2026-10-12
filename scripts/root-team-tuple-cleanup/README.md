@@ -76,6 +76,8 @@ exits 4 unless every legacy tuple is gone, every replacement grant is still
 present without a condition, and the complete set of user subjects, relations, and conditions is
 unchanged. The dry run prints the
 `fga tuple write` commands that recreate each tuple it would delete.
+Each rollback line pins `--model-id` to the model the script validated, so it
+is written against the model Heimdall uses and not the store's latest one.
 Those rollback lines assume `fga` is configured for the same API and store;
 run them from an equivalent in-cluster CLI pod if the local CLI cannot reach
 the service.

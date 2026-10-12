@@ -287,6 +287,7 @@ test_dry_run_is_default_and_deletes_nothing() {
   check "dry run issues no delete" '[[ $(delete_calls) -eq 0 ]]'
   check "dry run plans five deletes" '[[ $(grep -c "^  delete " <<<"$OUT") -eq 5 ]]'
   check "dry run prints rollback writes" '[[ $(grep -c "fga tuple write team:" <<<"$OUT") -eq 5 ]]'
+  check "every rollback write pins the validated gateway model" '[[ $(grep -c "fga tuple write team:.* --model-id 01ARZ3NDEKTSV4RRFFQ69G5FAV$" <<<"$OUT") -eq 5 ]]'
   check "dry run does not print usernames" '[[ "$OUT" != *"writer-one"* && "$OUT" != *"auditor-one"* ]]'
   check "dry run reports user tuple count" '[[ "$OUT" == *"user tuples on root: 2"* ]]'
   check "reads use the dev context" 'grep -q "^ctx=lfx-v2-dev " "${WORK}/calls"'
@@ -510,7 +511,8 @@ test_prod_apply_requires_terminal() {
 
 test_prod_dry_run_masks_store_id() {
   setup; write_state "$(full_state)"
-  run_script --env prod --root-uid "$ROOT_UID"
+  # The rollback lines now print the model ID, so it must differ from the store ID this test masks.
+  FAKE_GATEWAY_MODEL_ID="01ARZ3NDEKTSV4RRFFQ69G5FAW" run_script --env prod --root-uid "$ROOT_UID"
   check "prod dry run exits 0" '[[ $STATUS -eq 0 ]]'
   check "prod store ID is masked" '[[ "$OUT" != *"$FAKE_STORE_ID"* ]]'
   check "reads use the prod context" 'grep -q "^ctx=lfx-v2-prod " "${WORK}/calls"'

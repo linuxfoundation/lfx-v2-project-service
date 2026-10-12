@@ -418,7 +418,9 @@ print_rollback() {
   local t
   echo "Rollback (re-create the deleted tuples):"
   for t in "${TO_DELETE[@]}"; do
-    echo "  fga tuple write ${t} ${OBJECT}"
+    # Without --model-id the CLI writes against the store's latest model, which may already
+    # reject team#member after the restrictions are dropped; pin the model that was validated.
+    echo "  fga tuple write ${t} ${OBJECT} --model-id ${GATEWAY_MODEL_ID}"
   done
 }
 
