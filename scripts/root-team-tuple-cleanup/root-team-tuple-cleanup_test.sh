@@ -22,7 +22,7 @@ PASSES=0
 
 setup() {
   WORK="$(mktemp -d)"
-  mkdir -p "${WORK}/bin" "${WORK}/pods"
+  mkdir -p "${WORK}/bin" "${WORK}/pods" "${WORK}/tmp"
   : >"${WORK}/calls"
   cat >"${WORK}/bin/kubectl" <<'FAKE'
 #!/usr/bin/env bash
@@ -40,11 +40,15 @@ done
 verb=""
 pod=""
 overrides=""
+labels=""
+output=""
 i=0
 while [[ $i -lt ${#args[@]} ]]; do
   a="${args[$i]}"
   case "$a" in
-    --context|-n|--namespace|--image|--restart|-o|-l|--request-timeout) i=$((i + 2)); continue ;;
+    -o) output="${args[$((i + 1))]}"; i=$((i + 2)); continue ;;
+    --context|-n|--namespace|--image|--restart|-l|--request-timeout) i=$((i + 2)); continue ;;
+    --labels=*) labels="${a#--labels=}"; i=$((i + 1)); continue ;;
     --context=*|--request-timeout=*|--restart=*|--image=*|--ignore-not-found) i=$((i + 1)); continue ;;
     --overrides) overrides="${args[$((i + 1))]}"; i=$((i + 2)); continue ;;
     --overrides=*) overrides="${a#--overrides=}"; i=$((i + 1)); continue ;;
@@ -60,6 +64,19 @@ while [[ $i -lt ${#args[@]} ]]; do
 done
 case "$verb" in
   run)
+    # Record the mode of the script's pod state file on every pod, so a test can
+    # see whether it stays private across pods.
+    for f in "${TMPDIR:?}"/root-team-tuple-cleanup-pod.*; do
+      [[ -e "$f" ]] && { stat -c %a "$f" 2>/dev/null || stat -f %Lp "$f"; } >>"${dir}/pod-state-modes"
+    done
+    if [[ -n "${FAKE_RUN_ALREADY_EXISTS:-}" ]]; then
+      # Another operator's pod already owns this name.
+      printf '%s' "someone-else" >"${dir}/pods/${pod}.token"
+      echo "Error from server (AlreadyExists): pods \"${pod}\" already exists" >&2
+      exit 1
+    fi
+    echo "$pod" >>"${dir}/pod-names"
+    printf '%s' "${labels#root-tuple-cleanup-token=}" >"${dir}/pods/${pod}.token"
     image="$(jq -r '.spec.containers[0].image' <<<"$overrides")"
     mapfile_args="$(jq -r '.spec.containers[0].args | join(" ")' <<<"$overrides")"
     echo "ctx=${ctx} image=${image} args=${mapfile_args}" >>"${dir}/calls"
@@ -127,25 +144,36 @@ case "$verb" in
     if [[ "$pod" == "deployments" ]]; then
       gateway_model="${FAKE_GATEWAY_MODEL_ID:?}"
       gateway_store="${FAKE_GATEWAY_STORE_ID:?}"
+      # A finished rollout: every replica updated, ready and available.
+      updated=2; ready=2; available=2; total=2
+      if [[ -n "${FAKE_ROLLOUT_INCOMPLETE:-}" ]]; then
+        updated=1; ready=1; available=1; total=3
+      fi
       if [[ -e "${dir}/gateway-read" ]]; then
         gateway_model="${FAKE_GATEWAY_MODEL_ID_LATER:-$gateway_model}"
         gateway_store="${FAKE_GATEWAY_STORE_ID_LATER:-$gateway_store}"
       fi
       : >"${dir}/gateway-read"
-      jq -cn --arg id "$gateway_model" --arg store "$gateway_store" '{
-        items: [{spec: {template: {spec: {containers: [{
+      jq -cn --arg id "$gateway_model" --arg store "$gateway_store" \
+        --argjson updated "$updated" --argjson ready "$ready" \
+        --argjson available "$available" --argjson total "$total" '{
+        items: [{metadata: {generation: 1}, status: {observedGeneration: 1, replicas: $total,
+          updatedReplicas: $updated, readyReplicas: $ready, availableReplicas: $available},
+        spec: {replicas: 2, template: {spec: {containers: [{
           env: [
             {name: "OPENFGA_AUTH_MODEL_ID", value: $id},
             {name: "OPENFGA_STORE_ID", value: $store}
           ]
         }]}}}}]
       }'
+    elif [[ "$output" == *labels* ]]; then
+      cat "${dir}/pods/${pod}.token" 2>/dev/null || true
     else
       cat "${dir}/pods/${pod}.phase"
     fi
     ;;
   logs) cat "${dir}/pods/${pod}.out" ;;
-  delete) rm -f "${dir}/pods/${pod}.out" "${dir}/pods/${pod}.phase" ;;
+  delete) rm -f "${dir}/pods/${pod}.out" "${dir}/pods/${pod}.phase" "${dir}/pods/${pod}.token" ;;
   *) echo "fake kubectl: unexpected verb ${verb}" >&2; exit 1 ;;
 esac
 FAKE
@@ -191,7 +219,7 @@ full_state() {
 # run_script ARG...   -- runs the script with the fake kubectl; sets STATUS and OUT.
 run_script() {
   set +e
-  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" TMPDIR="${WORK}/tmp" \
     FAKE_CANONICAL_ROOT_UID="${FAKE_CANONICAL_ROOT_UID:-$ROOT_UID}" \
     FAKE_GATEWAY_MODEL_ID="${FAKE_GATEWAY_MODEL_ID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}" \
     FAKE_GATEWAY_STORE_ID="${FAKE_GATEWAY_STORE_ID:-$FAKE_STORE_ID}" \
@@ -204,7 +232,7 @@ run_script() {
 run_script_stdin() {
   local input="$1"; shift
   set +e
-  OUT="$(printf '%s\n' "$input" | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
+  OUT="$(printf '%s\n' "$input" | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" TMPDIR="${WORK}/tmp" \
     FAKE_CANONICAL_ROOT_UID="${FAKE_CANONICAL_ROOT_UID:-$ROOT_UID}" \
     FAKE_GATEWAY_MODEL_ID="${FAKE_GATEWAY_MODEL_ID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}" \
     FAKE_GATEWAY_STORE_ID="${FAKE_GATEWAY_STORE_ID:-$FAKE_STORE_ID}" \
@@ -540,6 +568,48 @@ test_unreadable_store_is_not_treated_as_empty() {
   FAKE_READ_GARBAGE=1 run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
   check "unreadable read exits 1" '[[ $STATUS -eq 1 ]]'
   check "no delete after unreadable read" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_pod_state_file_stays_private_across_pods() {
+  setup; write_state "$(full_state)"
+  (umask 022; run_script --env dev --root-uid "$ROOT_UID")
+  check "several pods ran" '[[ $(wc -l <"${WORK}/pod-state-modes") -ge 3 ]]'
+  check "state file is 0600 for every pod" '[[ -z "$(grep -v "^600$" "${WORK}/pod-state-modes")" ]]'
+  check "state file is removed at exit" '[[ -z "$(ls "${WORK}/tmp")" ]]'
+  teardown
+}
+
+test_pod_creation_collision_does_not_delete_a_foreign_pod() {
+  setup; write_state "$(full_state)"
+  FAKE_RUN_ALREADY_EXISTS=1 run_script --env dev --root-uid "$ROOT_UID"
+  check "creation failure stops the run" '[[ $STATUS -ne 0 && "$OUT" == *"could not be created"* ]]'
+  check "the other operator's pod is left alone" '[[ "$(cat "${WORK}"/pods/*.token)" == "someone-else" ]]'
+  teardown
+}
+
+test_pod_names_carry_a_random_ownership_token() {
+  setup; write_state "$(full_state)"
+  run_script --env dev --root-uid "$ROOT_UID"
+  check "every pod name is a 64-bit random token plus a sequence" '[[ -z "$(grep -Ev "^root-tuple-cleanup-[0-9a-f]{16}-[0-9]+$" "${WORK}/pod-names")" ]]'
+  check "the token is the same for one invocation" '[[ $(cut -d- -f4 "${WORK}/pod-names" | sort -u | wc -l) -eq 1 ]]'
+  teardown
+}
+
+test_apply_refused_while_heimdall_is_rolling_out() {
+  setup; write_state "$(full_state)"
+  FAKE_ROLLOUT_INCOMPLETE=1 run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "apply refused mid-rollout" '[[ $STATUS -eq 3 && "$OUT" == *"still rolling out"* ]]'
+  check "no tuple read mid-rollout" '! grep -q "args=tuple read" "${WORK}/calls"'
+  check "no delete mid-rollout" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_dry_run_warns_while_heimdall_is_rolling_out() {
+  setup; write_state "$(full_state)"
+  FAKE_ROLLOUT_INCOMPLETE=1 run_script --env dev --root-uid "$ROOT_UID"
+  check "mid-rollout dry run warns" '[[ $STATUS -eq 0 && "$OUT" == *"warning: Heimdall is still rolling out"* ]]'
+  check "mid-rollout dry run issues no delete" '[[ $(delete_calls) -eq 0 ]]'
   teardown
 }
 

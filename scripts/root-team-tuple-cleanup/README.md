@@ -38,8 +38,8 @@ accepted from the caller. `--env prod --apply` requires an interactive
 terminal.
 
 Requires `jq` and `kubectl` access to the target context (`lfx-v2-dev` or
-`lfx-v2-prod`) with permission to run, read, and delete pods in namespace
-`lfx`. The script first resolves `slug/ROOT` from the `projects` NATS KV bucket
+`lfx-v2-prod`) with permission to list deployments and to run, read, and
+delete pods in namespace `lfx`. The script first resolves `slug/ROOT` from the `projects` NATS KV bucket
 and refuses a different `--root-uid`. NATS reads and FGA calls run in
 short-lived, digest-pinned CLI pods with service-account token mounting
 disabled.
@@ -67,9 +67,21 @@ the `team#member` restrictions are dropped, prints a warning and continues
 through tuple validation, so operators can prepare the plan early. `--apply`
 keeps both model checks as hard refusals.
 
+Heimdall's store and model IDs come from its deployment's pod template, which
+names the model being rolled out to. `--apply` therefore also exits 3 until
+every Heimdall replica is updated, ready and available and no old replica is
+left, because an old pod can still be serving the previous model; a dry run
+warns instead.
+
 After the confirmation prompt, `--apply` re-reads Heimdall's store and model
-IDs, the root identity, the model, and the tuples, and exits 3 without
-deleting if the store ID, the model ID, or the delete plan changed.
+IDs, the rollout status, the root identity, the model, and the tuples, and
+exits 3 without deleting if the store ID, the model ID, or the delete plan
+changed.
+
+Each CLI pod is named and labelled with a random token generated once per run.
+If a pod cannot be created, the script deletes it only when it carries that
+label, so a name collision with another operator's pod never deletes theirs.
+The private temp file that records the current pod is kept until exit.
 
 It never deletes a `user:` subject. After `--apply` it re-reads the object and
 exits 4 unless every legacy tuple is gone, every replacement grant is still

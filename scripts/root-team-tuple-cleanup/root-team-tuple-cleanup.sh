@@ -117,8 +117,14 @@ masked_store_id() {
 CURRENT_POD=""
 POD_SEQ=0
 POD_STATE_FILE=""
+# Names and labels every pod this invocation creates, so a pod is only ever
+# deleted when it demonstrably belongs to this run. A name built from the PID
+# alone can collide with a concurrent operator on another machine.
+POD_TOKEN=""
 
 init_pod_state_file() {
+  POD_TOKEN="$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+  [[ "$POD_TOKEN" =~ ^[0-9a-f]{16}$ ]] || die 1 "could not generate a pod ownership token"
   POD_STATE_FILE="$(mktemp "${TMPDIR:-/tmp}/root-team-tuple-cleanup-pod.XXXXXX")" ||
     die 1 "could not create a private pod state file"
   chmod 600 "$POD_STATE_FILE" ||
@@ -134,12 +140,27 @@ cleanup_pod() {
     kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
   fi
   CURRENT_POD=""
+  # Truncate rather than remove: the private file made by mktemp must survive
+  # until exit, or the next pod would recreate the path with the default umask.
+  [[ -z "$POD_STATE_FILE" ]] || : >"$POD_STATE_FILE"
+}
+
+remove_pod_state_file() {
   [[ -z "$POD_STATE_FILE" ]] || rm -f -- "$POD_STATE_FILE"
+}
+
+# pod_is_ours POD   -- true only if POD carries this invocation's ownership label.
+pod_is_ours() {
+  local label
+  label="$(kubectl --context "$CTX" --request-timeout=10s get pod "$1" -n "$NS" \
+    -o jsonpath='{.metadata.labels.root-tuple-cleanup-token}' 2>/dev/null || true)"
+  [[ -n "$label" && "$label" == "$POD_TOKEN" ]]
 }
 
 handle_signal() {
   local code="$1"
   cleanup_pod
+  remove_pod_state_file
   if [[ "$APPLY_STARTED" == true ]]; then
     echo "interrupted during apply; state may be partial, re-run the dry run" >&2
   fi
@@ -147,7 +168,7 @@ handle_signal() {
   exit "$code"
 }
 
-trap cleanup_pod EXIT
+trap 'cleanup_pod; remove_pod_state_file' EXIT
 trap 'handle_signal 130' INT
 trap 'handle_signal 143' TERM
 
@@ -179,7 +200,7 @@ pod_overrides() {
 run_cli_pod() {
   local image="$1" env_json="$2"; shift 2
   POD_SEQ=$((POD_SEQ + 1))
-  local pod="root-tuple-cleanup-$$-${POD_SEQ}"
+  local pod="root-tuple-cleanup-${POD_TOKEN}-${POD_SEQ}"
   local overrides
   if ! overrides="$(pod_overrides "$pod" "$image" "$env_json" "$@")" || [[ -z "$overrides" ]]; then
     echo "could not build pod spec for ${pod}" >&2
@@ -188,9 +209,15 @@ run_cli_pod() {
   CURRENT_POD="$pod"
   printf '%s' "$pod" >"$POD_STATE_FILE"
   if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image="$image" \
-      --restart=Never --overrides="$overrides" >/dev/null; then
+      --restart=Never --labels="root-tuple-cleanup-token=${POD_TOKEN}" --overrides="$overrides" >/dev/null; then
     echo "pod ${pod} could not be created" >&2
-    cleanup_pod
+    # A failed create can mean the name already exists under someone else.
+    # Release it from this run first, then delete only a pod that is ours.
+    CURRENT_POD=""
+    : >"$POD_STATE_FILE"
+    if pod_is_ours "$pod"; then
+      kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+    fi
     return 1
   fi
 
@@ -239,6 +266,7 @@ verify_root_identity() {
 
 resolve_heimdall_openfga_config() {
   local deployments store_ids model_ids store_count model_count
+  HEIMDALL_DEPLOYMENTS=""
   deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$NS" \
     -l app.kubernetes.io/name=heimdall -o json)" || return 1
   store_ids="$(jq -r '
@@ -271,6 +299,29 @@ resolve_heimdall_openfga_config() {
   }
   STORE_ID="$store_ids"
   GATEWAY_MODEL_ID="$model_ids"
+  HEIMDALL_DEPLOYMENTS="$deployments"
+}
+
+# verify_heimdall_rollout   -- the IDs above come from the deployment's pod
+# template, which names the model Heimdall is rolling out to. While a rollout is
+# in progress old pods can still be serving the previous model, so deleting the
+# legacy tuples then would cut off users who reach those pods.
+verify_heimdall_rollout() {
+  local unsettled
+  unsettled="$(jq '
+    [.items[] | select(
+      (.metadata.generation // 0) != (.status.observedGeneration // -1)
+      or (.status.replicas // 0) != (.spec.replicas // 1)
+      or (.status.updatedReplicas // 0) != (.spec.replicas // 1)
+      or (.status.readyReplicas // 0) != (.spec.replicas // 1)
+      or (.status.availableReplicas // 0) != (.spec.replicas // 1)
+    )] | length
+  ' <<<"$HEIMDALL_DEPLOYMENTS")" || die 1 "could not read the Heimdall rollout status"
+  [[ "$unsettled" -eq 0 ]] && return 0
+  if [[ "$APPLY" == true ]]; then
+    die 3 "Heimdall is still rolling out; wait until every replica is updated, ready and available, then re-run the dry run"
+  fi
+  echo "warning: Heimdall is still rolling out; --apply will refuse until every replica is updated, ready and available" >&2
 }
 
 # project_definition RELATION   -- prints the "define RELATION:" line of type
@@ -477,6 +528,7 @@ main() {
   init_pod_state_file
   resolve_heimdall_openfga_config ||
     die 1 "could not resolve Heimdall's OpenFGA store and model IDs"
+  verify_heimdall_rollout
   verify_root_identity
   verify_deployed_model
 
@@ -510,6 +562,7 @@ main() {
     die 1 "could not refresh Heimdall's OpenFGA store and model IDs"
   [[ "$STORE_ID" == "$store_before" && "$GATEWAY_MODEL_ID" == "$model_before" ]] ||
     die 3 "Heimdall's OpenFGA store or model ID changed during confirmation; nothing deleted, re-run the dry run"
+  verify_heimdall_rollout
   verify_root_identity
   verify_deployed_model
   TUPLES="$(read_root_tuples)" || die 1 "could not refresh tuples on ${OBJECT}"
