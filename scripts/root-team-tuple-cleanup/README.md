@@ -1,3 +1,6 @@
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Root team tuple cleanup
 
 Deletes the legacy team tuples on the root project once each project carries
