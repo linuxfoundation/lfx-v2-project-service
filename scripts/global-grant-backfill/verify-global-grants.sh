@@ -11,6 +11,7 @@ set -euo pipefail
 PROJECT_CLI_REPOSITORY="ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli"
 FGA_API_URL="http://lfx-platform-openfga:8080"
 NS="lfx"
+PS_NS="project-service"
 
 usage() {
   echo "usage: $(basename "$0") --env dev|prod --image <project-cli@sha256:digest> [--concurrency N]" >&2
@@ -50,8 +51,8 @@ IMAGE_PREFIX="${PROJECT_CLI_REPOSITORY}@sha256:"
 ((CONCURRENCY <= 100)) || die 2 "--concurrency must not exceed 100"
 
 deployment_env_value() {
-  local label="$1" name="$2" deployments values count
-  deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$NS" \
+  local ns="$1" label="$2" name="$3" deployments values count
+  deployments="$(kubectl --context "$CTX" --request-timeout=10s get deployments -n "$ns" \
     -l "app.kubernetes.io/name=${label}" -o json)" ||
     die 1 "could not read the ${label} deployment"
   values="$(jq -r --arg name "$name" '
@@ -69,8 +70,8 @@ deployment_env_value() {
 main() {
   command -v jq >/dev/null || die 2 "jq is required"
   local nats_url store_id name args_json manifest
-  nats_url="$(deployment_env_value lfx-v2-project-service NATS_URL)"
-  store_id="$(deployment_env_value heimdall OPENFGA_STORE_ID)"
+  nats_url="$(deployment_env_value "$PS_NS" lfx-v2-project-service NATS_URL)"
+  store_id="$(deployment_env_value "$NS" heimdall OPENFGA_STORE_ID)"
   [[ "$store_id" =~ ^[0-9A-HJKMNP-TV-Z]{26}$ ]] ||
     die 1 "Heimdall OPENFGA_STORE_ID is not a ULID"
 
