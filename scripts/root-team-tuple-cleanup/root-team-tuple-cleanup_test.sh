@@ -117,7 +117,14 @@ case "$verb" in
     ;;
   get)
     if [[ "$pod" == "deployments" ]]; then
-      jq -cn --arg id "${FAKE_GATEWAY_MODEL_ID:?}" --arg store "${FAKE_GATEWAY_STORE_ID:?}" '{
+      gateway_model="${FAKE_GATEWAY_MODEL_ID:?}"
+      gateway_store="${FAKE_GATEWAY_STORE_ID:?}"
+      if [[ -e "${dir}/gateway-read" ]]; then
+        gateway_model="${FAKE_GATEWAY_MODEL_ID_LATER:-$gateway_model}"
+        gateway_store="${FAKE_GATEWAY_STORE_ID_LATER:-$gateway_store}"
+      fi
+      : >"${dir}/gateway-read"
+      jq -cn --arg id "$gateway_model" --arg store "$gateway_store" '{
         items: [{spec: {template: {spec: {containers: [{
           env: [
             {name: "OPENFGA_AUTH_MODEL_ID", value: $id},
@@ -438,6 +445,25 @@ test_apply_rechecks_plan_after_confirmation() {
     run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
   check "stale replacement plan refused" '[[ $STATUS -eq 3 && "$OUT" == *"replacement grant missing"* ]]'
   check "no delete after plan changed" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_apply_refuses_store_change_after_confirmation() {
+  setup; write_state "$(full_state)"
+  FAKE_GATEWAY_STORE_ID_LATER="01ARZ3NDEKTSV4RRFFQ69G5FAW" \
+    run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "store change after confirmation refused" '[[ $STATUS -eq 3 && "$OUT" == *"store or model ID changed"* ]]'
+  check "changed store ID is not printed" '[[ "$OUT" != *"01ARZ3NDEKTSV4RRFFQ69G5FAW"* ]]'
+  check "no delete after store change" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_apply_refuses_model_change_after_confirmation() {
+  setup; write_state "$(full_state)"
+  FAKE_GATEWAY_MODEL_ID_LATER="01ARZ3NDEKTSV4RRFFQ69G5FAW" \
+    run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "model change after confirmation refused" '[[ $STATUS -eq 3 && "$OUT" == *"store or model ID changed"* ]]'
+  check "no delete after model change" '[[ $(delete_calls) -eq 0 ]]'
   teardown
 }
 

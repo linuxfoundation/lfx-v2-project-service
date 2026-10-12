@@ -63,9 +63,13 @@ A dry run performed before the fallback-removal model is deployed prints a
 warning and continues through tuple validation, so operators can prepare the
 plan early. `--apply` keeps the model check as a hard refusal.
 
+After the confirmation prompt, `--apply` re-reads Heimdall's store and model
+IDs, the root identity, the model, and the tuples, and exits 3 without
+deleting if the store ID, the model ID, or the delete plan changed.
+
 It never deletes a `user:` subject. After `--apply` it re-reads the object and
 exits 4 unless every legacy tuple is gone, every replacement grant is still
-present, and the complete set of user subjects, relations, and conditions is
+present without a condition, and the complete set of user subjects, relations, and conditions is
 unchanged. The dry run prints the
 `fga tuple write` commands that recreate each tuple it would delete.
 Those rollback lines assume `fga` is configured for the same API and store;
