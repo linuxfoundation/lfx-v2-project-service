@@ -917,6 +917,20 @@ func TestProjectProjection(t *testing.T) {
 			},
 		},
 		{
+			name: "ToFGAMessageKeepingDirectUsers excludes only the settings-derived user relations",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				plain, ok := proj.ToFGAMessage().Data.(fgatypes.GenericAccessData)
+				require.True(t, ok)
+				assert.Empty(t, plain.ExcludeRelations)
+				keep, ok := proj.ToFGAMessageKeepingDirectUsers().Data.(fgatypes.GenericAccessData)
+				require.True(t, ok)
+				assert.ElementsMatch(t, []string{"writer", "auditor", "meeting_coordinator", "executive_director", "mentorship_program_admin"}, keep.ExcludeRelations)
+				keep.ExcludeRelations = nil
+				assert.Equal(t, plain, keep, "only the exclusions differ")
+			},
+		},
+		{
 			name: "ToFGAMessage delegates to buildFGAUpdateAccessMessage",
 			run: func(t *testing.T) {
 				proj := NewProjectProjection(base, settings)

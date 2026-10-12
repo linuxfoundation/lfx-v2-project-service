@@ -164,7 +164,7 @@ test_backfill_dev_dry_run() {
   check "dev dry-run succeeds" '[[ $RC -eq 0 ]]'
   check "dev dry-run uses only the dev context" '[[ "$(sort -u "${WORK}/contexts")" == "lfx-v2-dev" ]]'
   check "dry-run args omit --update" \
-    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--include-access\",\"--concurrency\",\"50\"]" ]]'
+    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--include-access\",\"--keep-direct-users\",\"--concurrency\",\"50\"]" ]]'
   check "dry-run Job name says dry-run" '[[ "$(manifest ".metadata.name")" == "\"project-global-grants-dry-run-"* ]]'
   check "backfill deadline is two hours" '[[ "$(manifest ".spec.activeDeadlineSeconds")" == "7200" ]]'
   check "backfill manifest is hardened" 'hardened_manifest'
@@ -192,7 +192,7 @@ test_backfill_dev_apply_with_confirmation() {
   run "$BACKFILL" $'apply global grants to dev\n' --env dev --image "$IMAGE" --apply
   check "dev apply succeeds with the exact phrase" '[[ $RC -eq 0 ]]'
   check "apply args end with --update" \
-    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--include-access\",\"--concurrency\",\"50\",\"--update\"]" ]]'
+    '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--include-access\",\"--keep-direct-users\",\"--concurrency\",\"50\",\"--update\"]" ]]'
   check "apply Job name says apply" '[[ "$(manifest ".metadata.name")" == "\"project-global-grants-apply-"* ]]'
   teardown
 }
@@ -204,6 +204,7 @@ test_backfill_documents_only() {
   check "documents-only args carry neither --include-access nor --update" \
     '[[ "$(manifest ".spec.template.spec.containers[0].args")" == "[\"sync\",\"reindex-projects\",\"--all\",\"--concurrency\",\"50\"]" ]]'
   check "documents-only manifest never mentions access" '! grep -q -- "--include-access" "${WORK}/manifest.json"'
+  check "documents-only manifest never mentions keep-direct-users" '! grep -q -- "--keep-direct-users" "${WORK}/manifest.json"'
   check "documents-only Job name says documents" '[[ "$(manifest ".metadata.name")" == "\"project-documents-dry-run-"* ]]'
   check "documents-only manifest is hardened" 'hardened_manifest'
   teardown

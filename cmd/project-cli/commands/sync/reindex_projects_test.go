@@ -914,6 +914,11 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			wantErr: "--force requires --project-uid",
 		},
 		{
+			name:    "keep-direct-users without include-access is rejected",
+			args:    []string{"--keep-direct-users"},
+			wantErr: "--keep-direct-users requires --include-access",
+		},
+		{
 			name:    "unexpected positional argument is rejected",
 			args:    []string{"unexpected"},
 			wantErr: "unexpected arguments: unexpected",
@@ -938,4 +943,59 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+func TestReindexProjectsRunner_accessMessage(t *testing.T) {
+	base := &models.ProjectBase{UID: "00000000-0000-0000-0000-000000000010", Stage: "Active"}
+	settings := &models.ProjectSettings{
+		UID:     base.UID,
+		Writers: []models.UserInfo{{Username: "listed-writer"}},
+	}
+	wantExcluded := []string{"writer", "auditor", "meeting_coordinator", "executive_director", "mentorship_program_admin"}
+
+	t.Run("default keeps the full sync", func(t *testing.T) {
+		r := &reindexProjectsRunner{}
+		data, ok := r.accessMessage(base, settings).Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Empty(t, data.ExcludeRelations)
+	})
+
+	t.Run("keep-direct-users excludes the settings-derived user relations", func(t *testing.T) {
+		r := &reindexProjectsRunner{keepDirectUsers: true}
+		data, ok := r.accessMessage(base, settings).Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.ElementsMatch(t, wantExcluded, data.ExcludeRelations)
+		assert.NotContains(t, data.ExcludeRelations, "global_writer", "global grants must stay removable")
+		assert.Equal(t, []string{"listed-writer"}, data.Relations["writer"], "listed users are still written")
+	})
+
+	t.Run("keep-direct-users changes nothing else in the message", func(t *testing.T) {
+		keep := (&reindexProjectsRunner{keepDirectUsers: true}).accessMessage(base, settings)
+		plain := (&reindexProjectsRunner{}).accessMessage(base, settings)
+		keepData, plainData := keep.Data.(fgatypes.GenericAccessData), plain.Data.(fgatypes.GenericAccessData)
+		keepData.ExcludeRelations = nil
+		assert.Equal(t, plainData, keepData)
+	})
+}
+
+func TestReindexProjectsRunner_reindexProject_keepDirectUsersPublishesExclusions(t *testing.T) {
+	base := &models.ProjectBase{UID: "00000000-0000-0000-0000-000000000010", Stage: "Active"}
+	settings := &models.ProjectSettings{UID: base.UID}
+
+	publisher := &domainmocks.MockMessageBuilder{}
+	publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.MatchedBy(func(m fgatypes.GenericFGAMessage) bool {
+		data, ok := m.Data.(fgatypes.GenericAccessData)
+		return ok && len(data.ExcludeRelations) == 5
+	})).Return(nil).Once()
+
+	r := &reindexProjectsRunner{
+		repo:            &fakeProjectRecordRepo{settingsByUID: map[string]*models.ProjectSettings{base.UID: settings}},
+		publisher:       publisher,
+		force:           true,
+		includeAccess:   true,
+		keepDirectUsers: true,
+	}
+	require.NoError(t, r.reindexProject(context.Background(), base, osMissing{project: true, projectSettings: true}))
+	publisher.AssertExpectations(t)
 }

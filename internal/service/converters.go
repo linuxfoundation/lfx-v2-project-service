@@ -602,7 +602,7 @@ func extractUsernames(users []models.UserInfo) []string {
 // buildFGAUpdateAccessMessage builds a GenericFGAMessage for update_access operations.
 // It constructs the relations map from project settings, and the references map from the
 // project's parent and the global team grants its stage allows.
-func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings) fgatypes.GenericFGAMessage {
+func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings, excludeRelations ...string) fgatypes.GenericFGAMessage {
 	// Build relations map for FGA sync
 	relations := make(map[string][]string)
 	if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
@@ -635,6 +635,8 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 			Public:     projectDB.Public,
 			Relations:  relations,
 			References: references,
+			// nil unless the caller asks, so ordinary publishes keep the full sync.
+			ExcludeRelations: excludeRelations,
 		},
 	}
 }
@@ -804,6 +806,24 @@ func (p ProjectProjection) ToEventSettings() events.ProjectSettings {
 // ToFGAMessage builds the FGA update-access message for this project.
 func (p ProjectProjection) ToFGAMessage() fgatypes.GenericFGAMessage {
 	return buildFGAUpdateAccessMessage(p.Base, p.Settings)
+}
+
+// directUserRelations are the relations the access message fills from project settings.
+var directUserRelations = []string{
+	fgaconstants.RelationWriter,
+	fgaconstants.RelationAuditor,
+	fgaconstants.RelationMeetingCoordinator,
+	"executive_director",
+	"mentorship_program_admin",
+}
+
+// ToFGAMessageKeepingDirectUsers builds the same message as ToFGAMessage but marks the
+// settings-derived user relations as excluded. fga-sync still writes every tuple the message
+// carries, but no longer deletes a direct user tuple that settings do not list. It is for
+// backfills only: ordinary edits keep the full sync, so removing a user in settings still
+// removes the tuple.
+func (p ProjectProjection) ToFGAMessageKeepingDirectUsers() fgatypes.GenericFGAMessage {
+	return buildFGAUpdateAccessMessage(p.Base, p.Settings, directUserRelations...)
 }
 
 // DomainDocumentToEvent converts an internal ProjectDocument to the NATS wire type.
