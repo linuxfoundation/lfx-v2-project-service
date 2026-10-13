@@ -162,12 +162,22 @@ test_pods_use_the_digest_pinned_image() {
   teardown
 }
 
+test_pods_drop_the_service_account_token_and_privileges() {
+  setup
+  run_check
+  check "pods were created" '[[ -s "${WORK}/runs" ]]'
+  check "every pod disables the service account token" '[[ $(grep -c "^run " "${WORK}/runs") -eq $(grep -cF "\"automountServiceAccountToken\": false," "${WORK}/runs") ]]'
+  check "every pod blocks privilege escalation and drops capabilities" '[[ $(grep -c "^run " "${WORK}/runs") -eq $(grep -cF "\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}," "${WORK}/runs") ]]'
+  teardown
+}
+
 test_store_switch_during_confirmation_is_refused
 test_stable_store_still_writes
 test_caller_store_id_is_refused
 test_heimdall_store_id_must_be_one_ulid
 test_pod_output_masks_store_id
 test_pods_use_the_digest_pinned_image
+test_pods_drop_the_service_account_token_and_privileges
 
 echo "${PASSES} passed, ${FAILURES} failed"
 [[ "$FAILURES" -eq 0 ]]

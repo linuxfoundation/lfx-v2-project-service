@@ -241,6 +241,7 @@ run_cli_pod() {
   local out rc=0
   out="$(kubectl --context "$CTX" --request-timeout=10s logs "$pod" -n "$NS" 2>&1)" || rc=1
   cleanup_pod
+  [[ -z "${STORE_ID:-}" ]] || out="${out//$STORE_ID/$(masked_store_id)}"
   printf '%s\n' "$out"
   if [[ "$phase" != "Succeeded" ]]; then
     echo "pod ${pod} did not succeed (phase=${phase:-timed out})" >&2

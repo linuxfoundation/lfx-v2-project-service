@@ -85,6 +85,7 @@ case "$verb" in
     state="${dir}/state.json"
     phase="Succeeded"
     out="{}"
+    [[ -z "${FAKE_POD_OUT:-}" ]] || out="$FAKE_POD_OUT"
     if [[ "$command" == "nats" && "$sub" == "kv" ]]; then
       out="${FAKE_CANONICAL_ROOT_UID:?}"
     elif [[ "$command" == "model" && "$sub" == "get" ]]; then
@@ -112,6 +113,9 @@ case "$verb" in
       if [[ -n "${FAKE_DROP_REPLACEMENT_ON_SECOND_READ:-}" && $read_count -eq 2 ]]; then
         jq '[.[] | select((.user == "team:formation#member" and .relation == "global_owner") | not)]' \
           "$state" >"${state}.tmp" && mv "${state}.tmp" "$state"
+      fi
+      if [[ -n "${FAKE_MUTATE_ON_SECOND_READ:-}" && $read_count -eq 2 ]]; then
+        jq "$FAKE_MUTATE_ON_SECOND_READ" "$state" >"${state}.tmp" && mv "${state}.tmp" "$state"
       fi
       object="$(jq -r '.spec.containers[0].args as $a | ($a | index("--object")) as $i | $a[$i + 1]' <<<"$overrides")"
       out="$(jq --arg o "$object" '{continuation_token: "", tuples: [.[] | select(.object == $o) | {key: .}]}' "$state")"
@@ -141,7 +145,9 @@ case "$verb" in
     printf '%s' "$phase" >"${dir}/pods/${pod}.phase"
     ;;
   get)
-    if [[ "$pod" == "deployments" ]]; then
+    if [[ "$pod" == "deployments" && -n "${FAKE_DEPLOYMENTS_JSON:-}" ]]; then
+      printf '%s\n' "$FAKE_DEPLOYMENTS_JSON"
+    elif [[ "$pod" == "deployments" ]]; then
       gateway_model="${FAKE_GATEWAY_MODEL_ID:?}"
       gateway_store="${FAKE_GATEWAY_STORE_ID:?}"
       # A finished rollout: every replica updated, ready and available.
@@ -308,6 +314,35 @@ test_refuses_invalid_gateway_store_id() {
   teardown
 }
 
+# heimdall_deployments STORES MODELS   -- a Heimdall deployment list with one container
+# per ID; STORES and MODELS are JSON arrays.
+heimdall_deployments() {
+  jq -cn --argjson stores "$1" --argjson models "$2" '{items: [{spec: {template: {spec: {containers: (
+    [$stores[] | {env: [{name: "OPENFGA_STORE_ID", value: .}]}]
+    + [$models[] | {env: [{name: "OPENFGA_AUTH_MODEL_ID", value: .}]}]
+  )}}}}]}'
+}
+
+test_refuses_zero_or_several_gateway_ids() {
+  local name deployments reason
+  local id_a="01ARZ3NDEKTSV4RRFFQ69G5FAV" id_b="01ARZ3NDEKTSV4RRFFQ69G5FAW"
+  # reason is read only inside a check() condition.
+  # shellcheck disable=SC2034
+  for name in no-store two-stores no-model two-models; do
+    case "$name" in
+      no-store) deployments="$(heimdall_deployments '[]' "[\"${id_a}\"]")"; reason="one store ID on the Heimdall deployment, found 0" ;;
+      two-stores) deployments="$(heimdall_deployments "[\"${id_a}\",\"${id_b}\"]" "[\"${id_a}\"]")"; reason="one store ID on the Heimdall deployment, found 2" ;;
+      no-model) deployments="$(heimdall_deployments "[\"${id_a}\"]" '[]')"; reason="one model ID on the Heimdall deployment, found 0" ;;
+      two-models) deployments="$(heimdall_deployments "[\"${id_a}\"]" "[\"${id_a}\",\"${id_b}\"]")"; reason="one model ID on the Heimdall deployment, found 2" ;;
+    esac
+    setup; write_state "$(full_state)"
+    FAKE_DEPLOYMENTS_JSON="$deployments" run_script --env dev --root-uid "$ROOT_UID"
+    check "${name} on Heimdall refused" '[[ $STATUS -eq 1 && "$OUT" == *"$reason"* ]]'
+    check "no pod for ${name} on Heimdall" '[[ ! -s "${WORK}/calls" ]]'
+    teardown
+  done
+}
+
 test_dry_run_is_default_and_deletes_nothing() {
   setup; write_state "$(full_state)"
   run_script --env dev --root-uid "$ROOT_UID"
@@ -324,6 +359,18 @@ test_dry_run_is_default_and_deletes_nothing() {
   check "nats image is pinned by digest" 'grep -q "image=natsio/nats-box@sha256:ffce8bd103383f179f8c7f11cf645726acf5d17280706c530c3b342dbe16334c " "${WORK}/calls"'
   check "root identity comes from slug index" 'grep -q "args=nats kv get projects slug/ROOT --raw --server " "${WORK}/calls"'
   check "model read uses gateway model ID" 'grep -q "args=model get --model-id 01ARZ3NDEKTSV4RRFFQ69G5FAV --format fga" "${WORK}/calls"'
+  teardown
+}
+
+test_dry_run_separates_absent_from_planned_deletes() {
+  setup
+  write_state "$(full_state | jq '[.[] | select((.user == "team:lf-contractor#member" and .relation == "auditor") | not)]')"
+  run_script --env dev --root-uid "$ROOT_UID"
+  check "partial dry run exits 0" '[[ $STATUS -eq 0 ]]'
+  check "the removed tuple is reported absent" '[[ "$OUT" == *"  already absent team:lf-contractor#member auditor"* ]]'
+  check "the removed tuple is not planned" '[[ "$OUT" != *"  delete team:lf-contractor#member auditor"* ]]'
+  check "the present tuples are still planned" '[[ $(grep -c "^  delete " <<<"$OUT") -eq 4 ]]'
+  check "rollback covers only the planned deletes" '[[ $(grep -c "fga tuple write team:" <<<"$OUT") -eq 4 && "$OUT" != *"fga tuple write team:lf-contractor#member"* ]]'
   teardown
 }
 
@@ -516,12 +563,21 @@ test_apply_requires_matching_confirmation() {
   teardown
 }
 
-test_apply_rechecks_plan_after_confirmation() {
+test_apply_rechecks_preflight_after_confirmation() {
   setup; write_state "$(full_state)"
   FAKE_DROP_REPLACEMENT_ON_SECOND_READ=1 \
     run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
-  check "stale replacement plan refused" '[[ $STATUS -eq 3 && "$OUT" == *"replacement grant missing"* ]]'
-  check "no delete after plan changed" '[[ $(delete_calls) -eq 0 ]]'
+  check "replacement removed during confirmation refused" '[[ $STATUS -eq 3 && "$OUT" == *"replacement grant missing"* ]]'
+  check "no delete after replacement removed" '[[ $(delete_calls) -eq 0 ]]'
+  teardown
+}
+
+test_apply_refuses_changed_delete_plan_after_confirmation() {
+  setup; write_state "$(full_state)"
+  FAKE_MUTATE_ON_SECOND_READ='[.[] | select((.user == "team:lf-contractor#member" and .relation == "auditor") | not)]' \
+    run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "changed delete plan refused" '[[ $STATUS -eq 3 && "$OUT" == *"delete plan changed during confirmation"* ]]'
+  check "no delete after the plan changed" '[[ $(delete_calls) -eq 0 ]]'
   teardown
 }
 
@@ -628,14 +684,36 @@ test_dry_run_warns_while_heimdall_is_rolling_out() {
   teardown
 }
 
+# write_lib   -- the script without its final `main "$@"`, for sourcing its functions
+# and traps. Sourced from a file, not a process substitution: bash 3.2 sources
+# nothing from <(...), which would let a test pass without loading the script.
+write_lib() {
+  sed '$d' "$SCRIPT" >"${WORK}/lib.sh"
+}
+
 test_term_trap_exits_instead_of_continuing() {
-  setup
+  setup; write_lib
   set +e
-  OUT="$(bash -c 'source <(sed "$d" "$1"); kill -TERM $$; echo continued' _ "$SCRIPT" 2>&1)"
+  OUT="$(bash -c 'source "$1"; kill -TERM $$; echo continued' _ "${WORK}/lib.sh" 2>&1)"
   STATUS=$?
   set -e
   check "TERM exits 143" '[[ $STATUS -eq 143 ]]'
   check "TERM does not continue" '[[ "$OUT" != *"continued"* ]]'
+  teardown
+}
+
+test_pod_output_masks_store_id() {
+  setup; write_lib
+  set +e
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" TMPDIR="${WORK}/tmp" \
+    FAKE_POD_OUT="Error: store ${FAKE_STORE_ID} unavailable" \
+    bash -c 'source "$1"; CTX=lfx-v2-dev; STORE_ID="$2"; init_pod_state_file; run_fga_pod store get' \
+    _ "${WORK}/lib.sh" "$FAKE_STORE_ID" 2>&1)"
+  STATUS=$?
+  set -e
+  check "pod output is printed" '[[ $STATUS -eq 0 && "$OUT" == *"unavailable"* ]]'
+  check "pod output does not print the full store ID" '[[ "$OUT" != *"$FAKE_STORE_ID"* ]]'
+  check "pod output carries the masked store ID" '[[ "$OUT" == *"${FAKE_STORE_ID:0:4}...${FAKE_STORE_ID: -4}"* ]]'
   teardown
 }
 
@@ -644,9 +722,7 @@ test_term_trap_exits_instead_of_continuing() {
 signal_with_current_pod() {
   mkdir -p "${WORK}/pods"
   printf '%s' "$1" >"${WORK}/pods/target-pod.token"
-  # Sourced from a file, not a process substitution, so the functions are
-  # defined even where /dev/fd is unavailable.
-  sed '$d' "$SCRIPT" >"${WORK}/lib.sh"
+  write_lib
   set +e
   OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" TMPDIR="${WORK}/tmp" \
     bash -c 'source "$1"; CTX=ctx; POD_TOKEN=aaaaaaaaaaaaaaaa; CURRENT_POD=target-pod; kill -TERM $$' _ "${WORK}/lib.sh" 2>&1)"

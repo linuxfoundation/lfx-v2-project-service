@@ -196,16 +196,20 @@ run_fga_pod() {
   # (bad RBAC, API error) would otherwise fall through into the 120s poll below
   # instead of failing immediately.
   if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image="$FGA_CLI_IMAGE" --restart=Never --overrides='{
-    "spec": {"containers": [{
-      "name": "'"$pod"'",
-      "image": "'"$FGA_CLI_IMAGE"'",
-      "args": '"$args_json"',
-      "env": [
-        {"name": "FGA_API_URL", "value": "'"$FGA_API_URL"'"},
-        {"name": "FGA_STORE_ID", "value": "'"$STORE_ID"'"}
-      ],
-      "resources": {"requests": {"cpu": "50m", "memory": "64Mi"}, "limits": {"cpu": "100m", "memory": "128Mi"}}
-    }]}
+    "spec": {
+      "automountServiceAccountToken": false,
+      "containers": [{
+        "name": "'"$pod"'",
+        "image": "'"$FGA_CLI_IMAGE"'",
+        "args": '"$args_json"',
+        "env": [
+          {"name": "FGA_API_URL", "value": "'"$FGA_API_URL"'"},
+          {"name": "FGA_STORE_ID", "value": "'"$STORE_ID"'"}
+        ],
+        "securityContext": {"allowPrivilegeEscalation": false, "capabilities": {"drop": ["ALL"]}},
+        "resources": {"requests": {"cpu": "50m", "memory": "64Mi"}, "limits": {"cpu": "100m", "memory": "128Mi"}}
+      }]
+    }
   }' >/dev/null; then
     echo "run_fga_pod: kubectl run failed to create pod ${pod}" >&2
     return 1
