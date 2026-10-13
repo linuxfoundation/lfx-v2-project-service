@@ -17,6 +17,8 @@ SCRIPT="${HERE}/marketing-ops-grant.sh"
 
 ROOT_UID="00000000-0000-4000-8000-000000000001"
 PROJECT_UID="00000000-0000-4000-8000-000000000002"
+# Read only inside check() conditions.
+# shellcheck disable=SC2034
 FGA_CLI_IMAGE="openfga/cli:v0.7.20@sha256:26acde96d90420e53fe361a740dcceba4b67f1c49e4f35117cd0c19c83ac5068"
 STORE_A="01ARZ3NDEKTSV4RRFFQ69G5FAV"
 STORE_B="01BX5ZZKBKACTAV9WEVGEMMVRZ"
@@ -125,6 +127,8 @@ test_caller_store_id_is_refused() {
 
 test_heimdall_store_id_must_be_one_ulid() {
   local name deployments reason
+  # reason is read only inside a check() condition.
+  # shellcheck disable=SC2034
   for name in none two malformed; do
     case "$name" in
       none) deployments='{"items":[]}'; reason="found 0" ;;
