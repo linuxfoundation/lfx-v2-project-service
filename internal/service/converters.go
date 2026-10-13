@@ -71,6 +71,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 	if base.RepositoryURL != "" {
 		full.RepositoryURL = &base.RepositoryURL
 	}
+	if base.ContactEmail != "" {
+		full.ContactEmail = &base.ContactEmail
+	}
 	if base.EntityFormationDocumentURL != "" {
 		full.EntityFormationDocumentURL = &base.EntityFormationDocumentURL
 	}
@@ -215,6 +218,9 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*models.ProjectBase, 
 	if project.RepositoryURL != nil {
 		p.RepositoryURL = *project.RepositoryURL
 	}
+	if project.ContactEmail != nil {
+		p.ContactEmail = *project.ContactEmail
+	}
 	if project.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *project.CreatedAt)
 		if err != nil {
@@ -289,6 +295,9 @@ func ConvertToServiceProjectBase(p *models.ProjectBase) *projsvc.ProjectBase {
 	}
 	if p.RepositoryURL != "" {
 		project.RepositoryURL = &p.RepositoryURL
+	}
+	if p.ContactEmail != "" {
+		project.ContactEmail = &p.ContactEmail
 	}
 
 	// Only set array fields if they're not empty

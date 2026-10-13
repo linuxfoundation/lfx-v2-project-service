@@ -88,6 +88,7 @@ var _ = Service("project-service", func() {
 			ProjectLogoURLWriteAttribute()
 			ProjectRepositoryURLAttribute()
 			ProjectWebsiteURLAttribute()
+			ProjectContactEmailAttribute()
 			ProjectAnnouncementDateAttribute()
 			ProjectMissionStatementAttribute()
 			ProjectWritersAttribute()
@@ -227,6 +228,7 @@ var _ = Service("project-service", func() {
 			ProjectLogoURLWriteAttribute()
 			ProjectRepositoryURLAttribute()
 			ProjectWebsiteURLAttribute()
+			ProjectContactEmailAttribute()
 			Required("slug", "description", "name", "parent_uid")
 		})
 
