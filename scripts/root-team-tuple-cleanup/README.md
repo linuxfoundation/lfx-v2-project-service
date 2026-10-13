@@ -61,7 +61,7 @@ The script refuses to delete anything (exit 3) when the object:
   `global_auditor` for `lf-staff` and `global-project-auditors`, and
   `global_marketing_ops` for `marketing-ops`;
 - carries a team tuple outside the legacy and replacement lists;
-- has a legacy tuple with a condition.
+- has a condition on any allowlisted team tuple, legacy or replacement.
 
 A dry run performed before the fallback-removal model is deployed, or after
 the `team#member` restrictions are dropped, prints a warning and continues
