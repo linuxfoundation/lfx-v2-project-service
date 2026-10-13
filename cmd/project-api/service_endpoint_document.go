@@ -80,6 +80,12 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			if s := string(data); s != "" {
+				// The generated body validator is not run on this hand-written
+				// path, so enforce the design's UUID format here.
+				if !domain.IsValidUID(s) {
+					slog.Warn("multipart field is not a valid UUID", "field", "folder_uid")
+					return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				}
 				payload.FolderUID = &s
 			}
 
