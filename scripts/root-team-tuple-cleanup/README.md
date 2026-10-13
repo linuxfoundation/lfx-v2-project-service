@@ -14,6 +14,7 @@ never removes these tuples. This script deletes them directly:
 | --- | --- |
 | `team:lf-staff#member` | `auditor` |
 | `team:lf-contractor#member` | `auditor` |
+| `team:global-project-auditors#member` | `auditor` |
 | `team:formation#member` | `owner` |
 | `team:product-support#member` | `owner` |
 | `team:marketing-ops#member` or `team:marketing-ops-<root-uid>#member` | `marketing_ops` |

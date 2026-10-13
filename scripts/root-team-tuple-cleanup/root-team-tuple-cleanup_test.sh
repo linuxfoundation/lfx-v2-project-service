@@ -475,6 +475,21 @@ test_apply_deletes_exactly_the_legacy_tuples() {
   teardown
 }
 
+test_global_auditors_team_on_root_auditor_is_legacy() {
+  setup
+  write_state "$(full_state | jq --arg o "project:${ROOT_UID}" '. + [{user: "team:global-project-auditors#member", relation: "auditor", object: $o}]')"
+  run_script --env dev --root-uid "$ROOT_UID"
+  check "dry run accepts the global auditors team on auditor" '[[ $STATUS -eq 0 ]]'
+  check "dry run plans its delete" '[[ "$OUT" == *"  delete team:global-project-auditors#member auditor"* ]]'
+  check "dry run prints its rollback" '[[ "$OUT" == *"fga tuple write team:global-project-auditors#member auditor project:${ROOT_UID}"* ]]'
+  run_script_stdin "$ROOT_UID" --env dev --root-uid "$ROOT_UID" --apply
+  check "apply with the global auditors team exits 0" '[[ $STATUS -eq 0 ]]'
+  check "apply issues six deletes" '[[ $(delete_calls) -eq 6 ]]'
+  check "global auditors team auditor removed" '! has_tuple "team:global-project-auditors#member" auditor'
+  check "global auditors team global_auditor kept" 'has_tuple "team:global-project-auditors#member" global_auditor'
+  teardown
+}
+
 test_apply_handles_per_root_marketing_team() {
   setup
   write_state "$(full_state | jq --arg u "team:marketing-ops-${ROOT_UID}#member" '[.[] | if .user == "team:marketing-ops#member" and .relation == "marketing_ops" then .user = $u else . end]')"

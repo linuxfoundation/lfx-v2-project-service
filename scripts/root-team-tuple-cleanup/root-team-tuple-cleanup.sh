@@ -6,14 +6,15 @@
 # global_* grants have replaced them.
 #
 # fga-sync's access reconciler only manages team subjects on global_*
-# relations, so these five tuples on the root object are never removed by a
+# relations, so these tuples on the root object are never removed by a
 # project update or a reindex. They have to be deleted directly:
 #
-#   team:lf-staff#member           auditor
-#   team:lf-contractor#member      auditor
-#   team:formation#member          owner
-#   team:product-support#member    owner
-#   team:marketing-ops#member      marketing_ops   (or team:marketing-ops-<root-uid>#member)
+#   team:lf-staff#member                  auditor
+#   team:lf-contractor#member             auditor
+#   team:global-project-auditors#member   auditor
+#   team:formation#member                 owner
+#   team:product-support#member           owner
+#   team:marketing-ops#member             marketing_ops   (or team:marketing-ops-<root-uid>#member)
 #
 # User tuples on the root project (the writers and auditors lists) are out of
 # scope: they are cleared through the project settings update so the stored
@@ -46,6 +47,7 @@ NS="lfx"
 LEGACY_TUPLES=(
   "team:lf-staff#member auditor"
   "team:lf-contractor#member auditor"
+  "team:global-project-auditors#member auditor"
   "team:formation#member owner"
   "team:product-support#member owner"
   "team:marketing-ops#member marketing_ops"
