@@ -51,6 +51,7 @@ type ProjectBase struct {
 	LogoURL                    string     `json:"logo_url"`
 	WebsiteURL                 string     `json:"website_url"`
 	RepositoryURL              string     `json:"repository_url"`
+	ContactEmail               string     `json:"contact_email"`
 	CreatedAt                  *time.Time `json:"created_at"`
 	UpdatedAt                  *time.Time `json:"updated_at"`
 }

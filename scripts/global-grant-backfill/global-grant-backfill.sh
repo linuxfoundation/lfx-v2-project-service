@@ -94,7 +94,7 @@ confirm_apply() {
 job_manifest() {
   local name="$1" args_json
   local args=(sync reindex-projects --all)
-  [[ "$DOCUMENTS_ONLY" == true ]] || args+=(--include-access)
+  [[ "$DOCUMENTS_ONLY" == true ]] || args+=(--include-access --keep-direct-users)
   args+=(--concurrency "$CONCURRENCY")
   [[ "$APPLY" == true ]] && args+=(--update)
   args_json="$(printf '%s\n' "${args[@]}" | jq -R . | jq -cs .)"

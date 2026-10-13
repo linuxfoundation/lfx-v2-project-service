@@ -49,6 +49,26 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			wantUser: "alice",
 		},
 		{
+			name:       "username with whitespace inside is rejected",
+			reply:      replyMsg([]byte("alice bob")),
+			wantErrStr: "not a valid username",
+		},
+		{
+			name:       "username with control or injection characters is rejected",
+			reply:      replyMsg([]byte("alice\tmeeting:x#writer")),
+			wantErrStr: "not a valid username",
+		},
+		{
+			name:       "username longer than 128 characters is rejected",
+			reply:      replyMsg([]byte(strings.Repeat("a", 129))),
+			wantErrStr: "not a valid username",
+		},
+		{
+			name:     "username with dot, dash and underscore is accepted",
+			reply:    replyMsg([]byte("alice.b-c_d")),
+			wantUser: "alice.b-c_d",
+		},
+		{
 			name:    "empty body returns ErrUserNotFound",
 			reply:   replyMsg([]byte("")),
 			wantErr: domain.ErrUserNotFound,

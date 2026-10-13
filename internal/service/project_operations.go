@@ -207,6 +207,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		LogoURL:                    payload.LogoURL,
 		WebsiteURL:                 payload.WebsiteURL,
 		RepositoryURL:              payload.RepositoryURL,
+		ContactEmail:               payload.ContactEmail,
 	}
 	projectSettings := &projsvc.ProjectSettings{
 		UID:                     &id,
@@ -527,6 +528,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		LogoURL:                    payload.LogoURL,
 		WebsiteURL:                 payload.WebsiteURL,
 		RepositoryURL:              payload.RepositoryURL,
+		ContactEmail:               payload.ContactEmail,
 		UpdatedAt:                  misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectDB.CreatedAt != nil {

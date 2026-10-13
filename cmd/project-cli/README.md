@@ -166,6 +166,7 @@ Connects to NATS at the start of `Run()`. Connects to OpenSearch unless `--all` 
 | `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely; the `ROOT` project is still excluded |
 | `--force` | `false` | Requires `--project-uid`. Skips the OpenSearch diff for that one project and unconditionally republishes it, even if its documents already exist (e.g. to repair stale field data such as a mismatched `slug`) |
 | `--include-access` | `false` | Also republish the FGA access message. Fires only for projects with at least one missing OpenSearch document, or when combined with `--all` or `--force` |
+| `--keep-direct-users` | `false` | With `--include-access`, mark the settings-derived user relations as excluded, so fga-sync writes every tuple the message carries but does not delete a direct user tuple that project settings do not list. For backfills; ordinary edits keep the full sync. Requires `--include-access` |
 
 **Exit code:** `0` on success, `1` on failure.
 

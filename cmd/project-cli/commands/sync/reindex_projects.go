@@ -42,6 +42,7 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	all := fs.Bool("all", false, "republish every project regardless of OpenSearch state, skipping the diff")
 	force := fs.Bool("force", false, "with --project-uid, skip the OpenSearch diff and unconditionally republish that project")
 	includeAccess := fs.Bool("include-access", false, "also republish the FGA access message")
+	keepDirectUsers := fs.Bool("keep-direct-users", false, "with --include-access, do not delete direct user tuples that project settings do not list")
 	if err := fs.Parse(rc.Args); err != nil {
 		if err == flag.ErrHelp {
 			return nil
@@ -58,6 +59,9 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	}
 	if *force && uid == "" {
 		return fmt.Errorf("--force requires --project-uid")
+	}
+	if *keepDirectUsers && !*includeAccess {
+		return fmt.Errorf("--keep-direct-users requires --include-access")
 	}
 	if *concurrency < 1 {
 		return fmt.Errorf("concurrency must be at least 1")
@@ -92,6 +96,7 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 		"all", *all,
 		"force", *force,
 		"include_access", *includeAccess,
+		"keep_direct_users", *keepDirectUsers,
 		"opensearch_url", redactURL(rc.OpenSearchConfig.URL),
 		"nats_url", redactURL(rc.NATSConfig.URL),
 	)
@@ -100,15 +105,16 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	stats.DryRun = rc.DryRun
 
 	runner := &reindexProjectsRunner{
-		repo:          repo,
-		openSearch:    osClient,
-		publisher:     &natsinfra.MessageBuilder{NatsConn: natsConn},
-		dryRun:        rc.DryRun,
-		all:           *all,
-		force:         *force,
-		includeAccess: *includeAccess,
-		concurrency:   *concurrency,
-		stats:         stats,
+		repo:            repo,
+		openSearch:      osClient,
+		publisher:       &natsinfra.MessageBuilder{NatsConn: natsConn},
+		dryRun:          rc.DryRun,
+		all:             *all,
+		force:           *force,
+		includeAccess:   *includeAccess,
+		keepDirectUsers: *keepDirectUsers,
+		concurrency:     *concurrency,
+		stats:           stats,
 	}
 
 	if err := runner.run(ctx, uid); err != nil {
