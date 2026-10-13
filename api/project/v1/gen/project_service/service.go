@@ -200,6 +200,8 @@ type CreateProjectPayload struct {
 	RepositoryURL *string
 	// The URL of the project website
 	WebsiteURL *string
+	// The definitive contact email address for the project
+	ContactEmail *string
 	// The date the project was announced
 	AnnouncementDate *string
 	// The mission statement of the project
@@ -500,6 +502,8 @@ type ProjectBase struct {
 	RepositoryURL *string
 	// The URL of the project website
 	WebsiteURL *string
+	// The definitive contact email address for the project
+	ContactEmail *string
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -603,6 +607,8 @@ type ProjectFull struct {
 	RepositoryURL *string
 	// The URL of the project website
 	WebsiteURL *string
+	// The definitive contact email address for the project
+	ContactEmail *string
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -767,6 +773,8 @@ type UpdateProjectBasePayload struct {
 	RepositoryURL *string
 	// The URL of the project website
 	WebsiteURL *string
+	// The definitive contact email address for the project
+	ContactEmail *string
 }
 
 // UpdateProjectSettingsPayload is the payload type of the project-service

@@ -2623,6 +2623,7 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 		LogoURL:                    v.LogoURL,
 		RepositoryURL:              v.RepositoryURL,
 		WebsiteURL:                 v.WebsiteURL,
+		ContactEmail:               v.ContactEmail,
 		CreatedAt:                  v.CreatedAt,
 		UpdatedAt:                  v.UpdatedAt,
 		MissionStatement:           v.MissionStatement,

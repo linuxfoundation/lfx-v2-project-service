@@ -27,20 +27,22 @@ func TestConvertToDBProjectBase(t *testing.T) {
 		{
 			name: "valid project base conversion",
 			input: &projsvc.ProjectBase{
-				UID:         misc.StringPtr("test-uid"),
-				Slug:        misc.StringPtr("test-slug"),
-				Name:        misc.StringPtr("Test Project"),
-				Description: misc.StringPtr("Test Description"),
-				Public:      misc.BoolPtr(true),
-				ParentUID:   misc.StringPtr("parent-uid"),
+				UID:          misc.StringPtr("test-uid"),
+				Slug:         misc.StringPtr("test-slug"),
+				Name:         misc.StringPtr("Test Project"),
+				Description:  misc.StringPtr("Test Description"),
+				Public:       misc.BoolPtr(true),
+				ParentUID:    misc.StringPtr("parent-uid"),
+				ContactEmail: misc.StringPtr("project-lead@example.com"),
 			},
 			expected: &models.ProjectBase{
-				UID:         "test-uid",
-				Slug:        "test-slug",
-				Name:        "Test Project",
-				Description: "Test Description",
-				Public:      true,
-				ParentUID:   "parent-uid",
+				UID:          "test-uid",
+				Slug:         "test-slug",
+				Name:         "Test Project",
+				Description:  "Test Description",
+				Public:       true,
+				ParentUID:    "parent-uid",
+				ContactEmail: "project-lead@example.com",
 			},
 			wantErr: false,
 		},
@@ -87,6 +89,7 @@ func TestConvertToDBProjectBase(t *testing.T) {
 				assert.Equal(t, tt.expected.Description, result.Description)
 				assert.Equal(t, tt.expected.Public, result.Public)
 				assert.Equal(t, tt.expected.ParentUID, result.ParentUID)
+				assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
 			}
 		})
 	}
@@ -336,6 +339,7 @@ func TestConvertToProjectFull(t *testing.T) {
 				Description:   "Test Description",
 				Public:        true,
 				ParentUID:     "parent-uid",
+				ContactEmail:  "project-lead@example.com",
 				FormationDate: &formationDate,
 				CreatedAt:     &now,
 				UpdatedAt:     &now,
@@ -371,6 +375,7 @@ func TestConvertToProjectFull(t *testing.T) {
 				MentorshipProgramAdmins: []*projsvc.UserInfo{
 					createTestAPIUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
 				},
+				ContactEmail: misc.StringPtr("project-lead@example.com"),
 			},
 		},
 		{
@@ -434,6 +439,7 @@ func TestConvertToProjectFull(t *testing.T) {
 				assert.Equal(t, tt.expected.MentorshipProgramAdmins, result.MentorshipProgramAdmins)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
+				assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
 			}
 		})
 	}
@@ -459,6 +465,7 @@ func TestConvertToServiceProjectBase(t *testing.T) {
 				ParentUID:       "parent-uid",
 				Stage:           "sandbox",
 				Category:        "infrastructure",
+				ContactEmail:    "project-lead@example.com",
 				FormationDate:   &formationDate,
 				AutojoinEnabled: true,
 				CreatedAt:       &now,
@@ -473,6 +480,7 @@ func TestConvertToServiceProjectBase(t *testing.T) {
 				ParentUID:       misc.StringPtr("parent-uid"),
 				Stage:           misc.StringPtr("sandbox"),
 				Category:        misc.StringPtr("infrastructure"),
+				ContactEmail:    misc.StringPtr("project-lead@example.com"),
 				AutojoinEnabled: misc.BoolPtr(true),
 			},
 		},
@@ -505,6 +513,7 @@ func TestConvertToServiceProjectBase(t *testing.T) {
 			if tt.expected.Stage != nil {
 				assert.Equal(t, tt.expected.Stage, result.Stage)
 			}
+			assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
 		})
 	}
 }

@@ -150,13 +150,14 @@ func TestProjectsService_CreateProject(t *testing.T) {
 		{
 			name: "successful project creation",
 			payload: &projsvc.CreateProjectPayload{
-				Slug:        "test-project",
-				Name:        "Test Project",
-				Description: "Test Description",
-				Public:      misc.BoolPtr(true),
-				Stage:       misc.StringPtr("incubating"),
-				Category:    misc.StringPtr("foundation"),
-				XSync:       misc.BoolPtr(true),
+				Slug:         "test-project",
+				Name:         "Test Project",
+				Description:  "Test Description",
+				Public:       misc.BoolPtr(true),
+				Stage:        misc.StringPtr("incubating"),
+				Category:     misc.StringPtr("foundation"),
+				ContactEmail: misc.StringPtr("project-lead@example.com"),
+				XSync:        misc.BoolPtr(true),
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
@@ -191,6 +192,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				assert.Equal(t, "Test Project", *result.Name)
 				assert.Equal(t, "Test Description", *result.Description)
 				assert.Equal(t, true, *result.Public)
+				assert.Equal(t, "project-lead@example.com", *result.ContactEmail)
 			},
 		},
 		{
@@ -902,12 +904,13 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			// Public changes false→true: FGA update_access must be published.
 			name: "successful update — Public changed — publishes FGA update_access message",
 			payload: &projsvc.UpdateProjectBasePayload{
-				UID:     misc.StringPtr("project-uid-1"),
-				IfMatch: misc.StringPtr("1"),
-				Slug:    "test-project",
-				Name:    "Test Project",
-				Public:  misc.BoolPtr(true),
-				XSync:   misc.BoolPtr(true),
+				UID:          misc.StringPtr("project-uid-1"),
+				IfMatch:      misc.StringPtr("1"),
+				Slug:         "test-project",
+				Name:         "Test Project",
+				Public:       misc.BoolPtr(true),
+				ContactEmail: misc.StringPtr("project-lead@example.com"),
+				XSync:        misc.BoolPtr(true),
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{
@@ -942,6 +945,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			validate: func(t *testing.T, result *projsvc.ProjectBase) {
 				require.NotNil(t, result)
 				assert.Equal(t, "project-uid-1", *result.UID)
+				assert.Equal(t, "project-lead@example.com", *result.ContactEmail)
 			},
 		},
 		{

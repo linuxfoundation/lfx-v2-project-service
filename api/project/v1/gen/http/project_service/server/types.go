@@ -63,6 +63,8 @@ type CreateProjectRequestBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// The mission statement of the project
@@ -132,6 +134,8 @@ type UpdateProjectBaseRequestBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 }
 
 // UpdateProjectSettingsRequestBody is the type of the "project-service"
@@ -252,6 +256,8 @@ type CreateProjectResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -335,6 +341,8 @@ type UpdateProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -1262,6 +1270,8 @@ type ProjectFullResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -1361,6 +1371,8 @@ type ProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The definitive contact email address for the project
+	ContactEmail *string `form:"contact_email,omitempty" json:"contact_email,omitempty" xml:"contact_email,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -1542,6 +1554,7 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		LogoURL:                    res.LogoURL,
 		RepositoryURL:              res.RepositoryURL,
 		WebsiteURL:                 res.WebsiteURL,
+		ContactEmail:               res.ContactEmail,
 		CreatedAt:                  res.CreatedAt,
 		UpdatedAt:                  res.UpdatedAt,
 		MissionStatement:           res.MissionStatement,
@@ -1615,6 +1628,7 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 		LogoURL:                    res.Project.LogoURL,
 		RepositoryURL:              res.Project.RepositoryURL,
 		WebsiteURL:                 res.Project.WebsiteURL,
+		ContactEmail:               res.Project.ContactEmail,
 		CreatedAt:                  res.Project.CreatedAt,
 		UpdatedAt:                  res.Project.UpdatedAt,
 	}
@@ -1700,6 +1714,7 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 		LogoURL:                    res.LogoURL,
 		RepositoryURL:              res.RepositoryURL,
 		WebsiteURL:                 res.WebsiteURL,
+		ContactEmail:               res.ContactEmail,
 		CreatedAt:                  res.CreatedAt,
 		UpdatedAt:                  res.UpdatedAt,
 	}
@@ -2754,6 +2769,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		LogoURL:                    body.LogoURL,
 		RepositoryURL:              body.RepositoryURL,
 		WebsiteURL:                 body.WebsiteURL,
+		ContactEmail:               body.ContactEmail,
 		AnnouncementDate:           body.AnnouncementDate,
 		MissionStatement:           body.MissionStatement,
 	}
@@ -2849,6 +2865,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 		LogoURL:                    body.LogoURL,
 		RepositoryURL:              body.RepositoryURL,
 		WebsiteURL:                 body.WebsiteURL,
+		ContactEmail:               body.ContactEmail,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -3156,6 +3173,9 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.WebsiteURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
+	if body.ContactEmail != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.contact_email", *body.ContactEmail, goa.FormatEmail))
+	}
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
@@ -3282,6 +3302,9 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 	}
 	if body.WebsiteURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
+	}
+	if body.ContactEmail != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.contact_email", *body.ContactEmail, goa.FormatEmail))
 	}
 	return
 }

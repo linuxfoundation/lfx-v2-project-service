@@ -85,6 +85,7 @@ func ProjectBaseAttributes() {
 	ProjectLogoURLAttribute()
 	ProjectRepositoryURLAttribute()
 	ProjectWebsiteURLAttribute()
+	ProjectContactEmailAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 }
@@ -282,6 +283,14 @@ func ProjectRepositoryURLAttribute() {
 	Attribute("repository_url", String, "The URL of the project repository", func() {
 		Example("https://example.com/project")
 		Format(FormatURI)
+	})
+}
+
+// ProjectContactEmailAttribute is the DSL attribute for a project's definitive contact email.
+func ProjectContactEmailAttribute() {
+	Attribute("contact_email", String, "The definitive contact email address for the project", func() {
+		Example("project-lead@example.com")
+		Format(FormatEmail)
 	})
 }
 
