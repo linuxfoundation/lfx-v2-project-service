@@ -27,10 +27,12 @@ import (
 // many sequential KV reads under load.
 const settingsScanTimeout = 2 * time.Minute
 
-// systemRootProjectSlug identifies the hidden project whose settings maintain
+// rootProjectSlug identifies the hidden project whose settings maintain
 // platform-wide access. Roster maintenance there is an operational migration,
-// not a user-facing project membership change.
-const systemRootProjectSlug = "ROOT"
+// not a user-facing project membership change. Compared case-sensitively, as in
+// cmd/project-cli/commands/sync: API slugs must be lowercase, so "ROOT" cannot
+// collide with a user project slugged "root".
+const rootProjectSlug = "ROOT"
 
 // scrubMaxRetries is the number of attempts for settings KV writes and indexer/FGA publishes
 // after a successful scrub. Retries are independent of the username match so a transient
@@ -105,8 +107,9 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		slog.WarnContext(ctx, "project_subscriber: failed to load project", constants.ErrKey, err, "project_uid", event.ProjectUID)
 		return nil
 	}
-	if projectBase.Slug == systemRootProjectSlug {
-		slog.InfoContext(ctx, "project_subscriber: skipping role notifications for system root project")
+	if projectBase.Slug == rootProjectSlug {
+		slog.InfoContext(ctx, "project_subscriber: skipping role notifications for system root project",
+			"project_uid", event.ProjectUID)
 		return nil
 	}
 
