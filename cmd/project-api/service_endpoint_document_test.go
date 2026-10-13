@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func TestUploadDocumentDecoder(t *testing.T) {
 		wantErr       bool
 		wantFolderUID *string
 	}{
-		{name: "valid folder uid accepted", folderUID: validFolderUID, wantFolderUID: strPtr(validFolderUID)},
+		{name: "valid folder uid accepted", folderUID: validFolderUID, wantFolderUID: misc.StringPtr(validFolderUID)},
 		{name: "empty folder uid treated as absent", folderUID: ""},
 		{name: "reservation key rejected", folderUID: "lookup/project-folders/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", wantErr: true},
 		{name: "non-uuid rejected", folderUID: "folder-1", wantErr: true},
@@ -40,7 +41,9 @@ func TestUploadDocumentDecoder(t *testing.T) {
 			err := uploadDocumentDecoder(multipart.NewReader(&buf, w.Boundary()), &payload)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				var badReq *projsvc.BadRequestError
+				require.ErrorAs(t, err, &badReq)
+				assert.Equal(t, "400", badReq.Code)
 				return
 			}
 			require.NoError(t, err)
@@ -48,5 +51,3 @@ func TestUploadDocumentDecoder(t *testing.T) {
 		})
 	}
 }
-
-func strPtr(s string) *string { return &s }
