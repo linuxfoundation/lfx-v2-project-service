@@ -53,11 +53,11 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			projectUID: "proj-1",
 			linkName:   "RFC",
 			url:        "https://example.com",
-			folderUID:  misc.StringPtr("folder-1"),
+			folderUID:  misc.StringPtr("00000000-0000-0000-0000-0000000000f1"),
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
+				mockFolder.On("GetFolder", mock.Anything, "proj-1", "00000000-0000-0000-0000-0000000000f1").Return(&models.ProjectFolder{UID: "00000000-0000-0000-0000-0000000000f1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject,
@@ -82,10 +82,10 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			projectUID: "proj-1",
 			linkName:   "LFX",
 			url:        "https://example.com",
-			folderUID:  misc.StringPtr("bad-folder"),
+			folderUID:  misc.StringPtr("00000000-0000-0000-0000-0000000000f2"),
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockFolder.On("GetFolder", mock.Anything, "proj-1", "bad-folder").Return(nil, uint64(0), domain.ErrFolderNotFound)
+				mockFolder.On("GetFolder", mock.Anything, "proj-1", "00000000-0000-0000-0000-0000000000f2").Return(nil, uint64(0), domain.ErrFolderNotFound)
 			},
 			wantErr: domain.ErrFolderNotFound,
 		},
@@ -98,6 +98,17 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(false, domain.ErrInternal)
 			},
 			wantErr: domain.ErrInternal,
+		},
+		{
+			name:       "malformed folder uid rejected before lookup",
+			projectUID: "proj-1",
+			linkName:   "RFC",
+			url:        "https://example.com",
+			folderUID:  misc.StringPtr("lookup/project-folders/0123456789abcdef"),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
+			},
+			wantErr: domain.ErrValidationFailed,
 		},
 		{
 			name:       "empty name rejected",
