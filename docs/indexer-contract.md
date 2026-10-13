@@ -90,6 +90,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `logo_url` | string (optional) | URL to the project logo |
 | `website_url` | string (optional) | Project website URL |
 | `repository_url` | string (optional) | Project repository URL |
+| `contact_email` | string (optional) | Project contact email address |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
