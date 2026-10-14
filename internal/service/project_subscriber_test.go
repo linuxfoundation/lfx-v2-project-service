@@ -77,6 +77,67 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:  0,
 			wantInviteCount: 0,
 		},
+		{
+			name: "system root roster removed — no notifications",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "root-project",
+				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
+				NewSettings: events.ProjectSettings{},
+			},
+			projectBase:     makeProjectBase("root-project", "System Root", rootProjectSlug),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			name: "system root roster added — no notifications",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "root-project",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{noLFIDAuditor},
+				},
+			},
+			projectBase:     makeProjectBase("root-project", "System Root", rootProjectSlug),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			name: "system root roster added, changed and removed together — no notifications",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "root-project",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{bob},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+					Writers:  []events.UserInfo{noLFIDWriter},
+				},
+			},
+			projectBase:     makeProjectBase("root-project", "System Root", rootProjectSlug),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// The same mixed change on an ordinary project still notifies everyone.
+			name: "lowercase root slug is a user project — mixed change still notifies",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-root-lower",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{bob},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+					Writers:  []events.UserInfo{noLFIDWriter},
+				},
+			},
+			projectBase:     makeProjectBase("proj-root-lower", "Root", "root"),
+			wantEmailCount:  2,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+		},
 		// ── Addition cases (Phase 1 regression) ──────────────────────────────────────
 		{
 			name: "LFID writer added — direct email sent",
