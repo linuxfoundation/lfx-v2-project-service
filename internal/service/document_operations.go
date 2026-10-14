@@ -77,6 +77,9 @@ func (s *ProjectsService) UploadDocument(
 	if folderUID != nil && *folderUID == "" {
 		folderUID = nil
 	}
+	if folderUID != nil && !domain.IsValidUID(*folderUID) {
+		return nil, domain.ErrValidationFailed
+	}
 	if folderUID != nil {
 		_, _, err := s.FolderRepository.GetFolder(ctx, projectUID, *folderUID)
 		if err != nil {

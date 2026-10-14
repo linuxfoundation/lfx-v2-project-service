@@ -1011,3 +1011,100 @@ func TestNatsRepository_DeleteProject(t *testing.T) {
 		})
 	}
 }
+
+// malformedResourceUIDs are client-controlled strings that must never reach a KV Get.
+var malformedResourceUIDs = []struct {
+	name string
+	uid  string
+}{
+	{"reservation key", "lookup/project-folders/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+	{"non-uuid string", "folder-1"},
+	{"empty", ""},
+}
+
+func TestNatsRepository_GetFolder(t *testing.T) {
+	const validUID = "00000000-0000-0000-0000-000000000001"
+
+	for _, tt := range malformedResourceUIDs {
+		t.Run("malformed uid returns not found without KV read: "+tt.name, func(t *testing.T) {
+			mockKV := &MockKeyValue{} // no expectations: any Get call fails the test
+			repo := &NatsRepository{Folders: mockKV}
+
+			folder, rev, err := repo.GetFolder(context.Background(), "proj-1", tt.uid)
+
+			assert.Equal(t, domain.ErrFolderNotFound, err)
+			assert.Nil(t, folder)
+			assert.Zero(t, rev)
+			mockKV.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("missing well-formed uid returns not found", func(t *testing.T) {
+		mockKV := &MockKeyValue{}
+		mockKV.On("Get", mock.Anything, validUID).Return(nil, jetstream.ErrKeyNotFound)
+		repo := &NatsRepository{Folders: mockKV}
+
+		_, _, err := repo.GetFolder(context.Background(), "proj-1", validUID)
+
+		assert.Equal(t, domain.ErrFolderNotFound, err)
+		mockKV.AssertExpectations(t)
+	})
+}
+
+func TestNatsRepository_GetLink(t *testing.T) {
+	const validUID = "00000000-0000-0000-0000-000000000002"
+
+	for _, tt := range malformedResourceUIDs {
+		t.Run("malformed uid returns not found without KV read: "+tt.name, func(t *testing.T) {
+			mockKV := &MockKeyValue{}
+			repo := &NatsRepository{Links: mockKV}
+
+			link, rev, err := repo.GetLink(context.Background(), "proj-1", tt.uid)
+
+			assert.Equal(t, domain.ErrLinkNotFound, err)
+			assert.Nil(t, link)
+			assert.Zero(t, rev)
+			mockKV.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("missing well-formed uid returns not found", func(t *testing.T) {
+		mockKV := &MockKeyValue{}
+		mockKV.On("Get", mock.Anything, validUID).Return(nil, jetstream.ErrKeyNotFound)
+		repo := &NatsRepository{Links: mockKV}
+
+		_, _, err := repo.GetLink(context.Background(), "proj-1", validUID)
+
+		assert.Equal(t, domain.ErrLinkNotFound, err)
+		mockKV.AssertExpectations(t)
+	})
+}
+
+func TestNatsRepository_GetDocumentMetadata(t *testing.T) {
+	const validUID = "00000000-0000-0000-0000-000000000003"
+
+	for _, tt := range malformedResourceUIDs {
+		t.Run("malformed uid returns not found without KV read: "+tt.name, func(t *testing.T) {
+			mockKV := &MockKeyValue{}
+			repo := &NatsRepository{Documents: mockKV}
+
+			doc, rev, err := repo.GetDocumentMetadata(context.Background(), "proj-1", tt.uid)
+
+			assert.Equal(t, domain.ErrDocumentNotFound, err)
+			assert.Nil(t, doc)
+			assert.Zero(t, rev)
+			mockKV.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("missing well-formed uid returns not found", func(t *testing.T) {
+		mockKV := &MockKeyValue{}
+		mockKV.On("Get", mock.Anything, validUID).Return(nil, jetstream.ErrKeyNotFound)
+		repo := &NatsRepository{Documents: mockKV}
+
+		_, _, err := repo.GetDocumentMetadata(context.Background(), "proj-1", validUID)
+
+		assert.Equal(t, domain.ErrDocumentNotFound, err)
+		mockKV.AssertExpectations(t)
+	})
+}

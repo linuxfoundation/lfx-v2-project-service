@@ -58,11 +58,11 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    validFile,
-			folderUID:   misc.StringPtr("folder-1"),
+			folderUID:   misc.StringPtr("00000000-0000-0000-0000-0000000000f1"),
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
+				mockFolder.On("GetFolder", mock.Anything, "proj-1", "00000000-0000-0000-0000-0000000000f1").Return(&models.ProjectFolder{UID: "00000000-0000-0000-0000-0000000000f1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
 				mockDoc.On("UniqueDocumentName", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return("lookup/project-documents/abc", nil)
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
@@ -73,6 +73,18 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 						return ok && ev.ProjectUID == "proj-1"
 					})).Return(nil).Maybe()
 			},
+		},
+		{
+			name:        "malformed folder uid rejected before lookup",
+			projectUID:  "proj-1",
+			docName:     "Spec",
+			contentType: "application/pdf",
+			fileData:    validFile,
+			folderUID:   misc.StringPtr("lookup/project-folders/0123456789abcdef"),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
+			},
+			wantErr: domain.ErrValidationFailed,
 		},
 		{
 			name:        "invalid content type",

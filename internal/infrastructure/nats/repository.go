@@ -607,6 +607,11 @@ func (s *NatsRepository) getLinkUnmarshal(ctx context.Context, entry jetstream.K
 
 // GetLink gets a project link, verifying it belongs to the given project.
 func (s *NatsRepository) GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error) {
+	// UIDs are used as raw KV keys; reject anything else so index and
+	// reservation keys in the shared bucket cannot be probed.
+	if !domain.IsValidUID(linkUID) {
+		return nil, 0, domain.ErrLinkNotFound
+	}
 	entry, err := s.getLink(ctx, linkUID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -737,6 +742,11 @@ func (s *NatsRepository) getFolderUnmarshal(ctx context.Context, entry jetstream
 
 // GetFolder gets a project folder, verifying it belongs to the given project.
 func (s *NatsRepository) GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error) {
+	// UIDs are used as raw KV keys; reject anything else so index and
+	// reservation keys in the shared bucket cannot be probed.
+	if !domain.IsValidUID(folderUID) {
+		return nil, 0, domain.ErrFolderNotFound
+	}
 	entry, err := s.getFolder(ctx, folderUID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -840,6 +850,11 @@ func (s *NatsRepository) getDocumentMetadataUnmarshal(ctx context.Context, entry
 
 // GetDocumentMetadata gets document metadata, verifying it belongs to the given project.
 func (s *NatsRepository) GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error) {
+	// UIDs are used as raw KV keys; reject anything else so index and
+	// reservation keys in the shared bucket cannot be probed.
+	if !domain.IsValidUID(documentUID) {
+		return nil, 0, domain.ErrDocumentNotFound
+	}
 	entry, err := s.getDocumentMetadata(ctx, documentUID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
