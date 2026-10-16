@@ -11,7 +11,7 @@ patterns are about keeping the `internal/domain/errors.go` sentinel + HTTP
 mapping discipline that the repo deliberately uses.
 
 **Read when:** `internal/service/converters.go`,
-`internal/service/*_operations.go`, `internal/domain/errors.go`,
+`cmd/project-api/converters.go`, `internal/service/*_operations.go`, `internal/domain/errors.go`,
 `internal/domain/message.go`, `internal/infrastructure/nats/repository.go`,
 `pkg/events/**`, `cmd/project-api/service_endpoint.go` (the `handleError`
 mapping), or `cmd/project-api/service_endpoint_project.go` changed.
@@ -22,13 +22,13 @@ mapping), or `cmd/project-api/service_endpoint_project.go` changed.
 
 **Pattern:** a converter that builds a NATS event / API wire slice uses `make([]T, len(users))` unconditionally, turning a `nil` input slice into an empty `[]` on the wire. `nil` serializes as JSON `null` and `[]` as `[]` — a semantic difference that breaks downstream diff/patch consumers.
 
-**Detect:** in `converters.go`, for functions converting `[]models.UserInfo` (or any domain slice) to wire/API types, check for an unconditional `make(...)`. The repo convention is an explicit `if users == nil { return nil }` guard before allocating — note `== nil`, not `len(...) == 0`, so an explicitly-empty `[]` is preserved as `[]`.
+**Detect:** in `internal/service/converters.go` or `cmd/project-api/converters.go`, for functions converting `[]models.UserInfo` (or any domain slice) to wire/API types, check for an unconditional `make(...)`. The repo convention is an explicit `if users == nil { return nil }` guard before allocating — note `== nil`, not `len(...) == 0`, so an explicitly-empty `[]` is preserved as `[]`.
 
 **Empirical citation:** PR #64 `internal/service/converters.go:592` (CodeRabbit + Copilot) — "the unconditional `make` turns a `nil` domain slice into an empty slice. This changes JSON serialization from `null` to `[]`, which can alter downstream diff/patch behavior." Recorded as a repo learning: "prefer `if users == nil { return nil }` over `if len(users) == 0 { return nil }` to preserve the semantic distinction." Live in `domainUsersToEvent` (`if users == nil { return nil }`).
 
 **Failure message:** Converter collapses a nil slice to empty (`null` → `[]`) — wire-format change that breaks downstream diff/patch.
 
-**Fix:** guard with `if users == nil { return nil }` (use `== nil`, not `len == 0`) before the `make`, mirroring `domainUsersToEvent` / `convertUsersToAPI`.
+**Fix:** guard with `if users == nil { return nil }` (use `== nil`, not `len == 0`) before the `make`, mirroring `domainUsersToEvent` / `convertUsersToAPI` (the latter now lives in `cmd/project-api/converters.go`).
 
 ---
 

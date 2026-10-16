@@ -7,7 +7,6 @@ import (
 	"context"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -18,7 +17,7 @@ func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.Cr
 		return nil, handleError(ctx, err)
 	}
 
-	return service.ConvertToServiceLink(link), nil
+	return convertToServiceLink(link), nil
 }
 
 // GetProjectLink gets a single project link.
@@ -29,7 +28,7 @@ func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetPr
 	}
 
 	return &projsvc.GetProjectLinkResult{
-		Link: service.ConvertToServiceLink(link),
+		Link: convertToServiceLink(link),
 		Etag: &etag,
 	}, nil
 }

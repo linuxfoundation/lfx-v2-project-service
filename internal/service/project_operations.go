@@ -17,7 +17,6 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
@@ -80,8 +79,8 @@ func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentU
 	return nil
 }
 
-// GetProjects fetches all projects
-func (s *ProjectsService) GetProjects(ctx context.Context) ([]*projsvc.ProjectFull, error) {
+// GetProjects fetches all projects, each paired with its settings when it has any.
+func (s *ProjectsService) GetProjects(ctx context.Context) ([]ProjectProjection, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
 		return nil, domain.ErrServiceUnavailable
@@ -104,31 +103,37 @@ func (s *ProjectsService) GetProjects(ctx context.Context) ([]*projsvc.ProjectFu
 		projectsSettingsMap[settings.UID] = settings
 	}
 
-	// Combine base and settings to get the full project data
-	projectsFull := []*projsvc.ProjectFull{}
+	// Pair each base with its settings to get the full project data
+	projects := []ProjectProjection{}
 	for uid, projectBase := range projectsBaseMap {
-		projectSettings := projectsSettingsMap[uid] // May be nil if settings don't exist
-		projectFull := ConvertToProjectFull(projectBase, projectSettings)
-		if projectFull != nil {
-			projectsFull = append(projectsFull, projectFull)
+		if projectBase == nil {
+			continue
 		}
+		// Settings may be nil if they don't exist
+		projects = append(projects, NewProjectProjection(projectBase, projectsSettingsMap[uid]))
 	}
 
-	slog.DebugContext(ctx, "returning projects", "projects", projectsFull)
+	slog.DebugContext(ctx, "returning projects", "count", len(projects))
 
-	return projectsFull, nil
+	return projects, nil
 }
 
-// CreateProject creates a new project
-func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.CreateProjectPayload) (*projsvc.ProjectFull, error) {
+// CreateProject creates a new project. base carries the project's fields as the
+// caller supplied them; the service assigns the UID and the timestamps.
+func (s *ProjectsService) CreateProject(ctx context.Context, base *models.ProjectBase, settings ProjectSettingsInput) (*ProjectProjection, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
 		return nil, domain.ErrServiceUnavailable
 	}
 
+	if base == nil {
+		slog.WarnContext(ctx, "project is required")
+		return nil, domain.ErrValidationFailed
+	}
+
 	// An Archived project must carry an entity dissolution date.
 	// Checked before any DB calls so invalid payloads are rejected cheaply.
-	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
+	if err := validateArchivedRequiresDissolutionDate(base.Stage, base.EntityDissolutionDate); err != nil {
 		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
 		return nil, err
 	}
@@ -137,13 +142,13 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
 	// JSON error envelope on the NATS wire and would make every get_name read
 	// permanently fail for all consumers using ParseRPCError / brace discrimination.
-	if err := validateProjectName(payload.Name); err != nil {
+	if err := validateProjectName(base.Name); err != nil {
 		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
 		return nil, err
 	}
 
 	// Check if slug exists
-	exists, err := s.ProjectRepository.ProjectSlugExists(ctx, payload.Slug)
+	exists, err := s.ProjectRepository.ProjectSlugExists(ctx, base.Slug)
 	if err != nil {
 		slog.ErrorContext(ctx, "error checking if slug exists", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -154,89 +159,48 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
-	if payload.ParentUID != "" {
-		if _, err := uuid.Parse(payload.ParentUID); err != nil {
+	if base.ParentUID != "" {
+		if _, err := uuid.Parse(base.ParentUID); err != nil {
 			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
-		exists, err := s.ProjectRepository.ProjectExists(ctx, payload.ParentUID)
+		exists, err := s.ProjectRepository.ProjectExists(ctx, base.ParentUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if parent project exists", constants.ErrKey, err)
 			return nil, domain.ErrInternal
 		}
 		if !exists {
 			slog.WarnContext(ctx, "parent project not found",
-				slog.String("parent_uid", payload.ParentUID),
-				slog.String("project_slug", payload.Slug),
+				slog.String("parent_uid", base.ParentUID),
+				slog.String("project_slug", base.Slug),
 			)
 			return nil, domain.ErrInvalidParentProject
 		}
 	}
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
-	if err := s.enrichAllRoleFields(ctx,
-		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
-		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
-	); err != nil {
+	if err := s.enrichAllRoleFields(ctx, settings.userSlices(), settings.userSingles()); err != nil {
 		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
 
-	// Create the project and settings structs
+	// Create the project and settings records
 	id := uuid.NewString()
-	project := &projsvc.ProjectBase{
-		UID:                        &id,
-		Slug:                       &payload.Slug,
-		Description:                &payload.Description,
-		Name:                       &payload.Name,
-		Public:                     payload.Public,
-		IsFoundation:               payload.IsFoundation,
-		ParentUID:                  &payload.ParentUID,
-		Stage:                      payload.Stage,
-		Category:                   payload.Category,
-		LegalEntityType:            payload.LegalEntityType,
-		LegalEntityName:            payload.LegalEntityName,
-		LegalParentUID:             payload.LegalParentUID,
-		Funding:                    payload.Funding,
-		FundingModel:               payload.FundingModel,
-		EntityDissolutionDate:      payload.EntityDissolutionDate,
-		EntityFormationDocumentURL: payload.EntityFormationDocumentURL,
-		FormationDate:              payload.FormationDate,
-		AutojoinEnabled:            payload.AutojoinEnabled,
-		CharterURL:                 payload.CharterURL,
-		LogoURL:                    payload.LogoURL,
-		WebsiteURL:                 payload.WebsiteURL,
-		RepositoryURL:              payload.RepositoryURL,
-		ContactEmail:               payload.ContactEmail,
-	}
-	projectSettings := &projsvc.ProjectSettings{
-		UID:                     &id,
-		MissionStatement:        payload.MissionStatement,
-		AnnouncementDate:        payload.AnnouncementDate,
-		Writers:                 payload.Writers,
-		Auditors:                payload.Auditors,
-		MeetingCoordinators:     payload.MeetingCoordinators,
-		ExecutiveDirector:       payload.ExecutiveDirector,
-		MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
-		ProgramManager:          payload.ProgramManager,
-		OpportunityOwner:        payload.OpportunityOwner,
-	}
+	currentTime := time.Now().UTC()
 
-	projectDB, err := ConvertToDBProjectBase(project)
-	if err != nil {
-		slog.ErrorContext(ctx, "error converting project to DB project", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
+	projectDB := *base
+	projectDB.UID = id
+	projectDB.CreatedAt = &currentTime
+	projectDB.UpdatedAt = &currentTime
 
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, nil)
-	if err != nil {
-		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
+	projectSettingsDB := buildProjectSettings(settings, nil)
+	projectSettingsDB.UID = id
+	projectSettingsDB.CreatedAt = &currentTime
+	projectSettingsDB.UpdatedAt = &currentTime
 
 	// Create the project in the repository
 	slog.With("project_uid", projectDB.UID, "project_slug", projectDB.Slug)
-	err = s.ProjectRepository.CreateProject(ctx, projectDB, projectSettingsDB)
+	err = s.ProjectRepository.CreateProject(ctx, &projectDB, projectSettingsDB)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectSlugExists) {
 			return nil, domain.ErrProjectSlugExists
@@ -248,7 +212,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	g.Go(func() error {
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionCreated,
-			Data:           *projectDB,
+			Data:           projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
@@ -263,7 +227,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
-	proj := NewProjectProjection(projectDB, projectSettingsDB)
+	proj := NewProjectProjection(&projectDB, projectSettingsDB)
 	g.Go(func() error {
 		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
@@ -284,105 +248,92 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrInternal
 	}
 
-	projectFull := proj.ToFull()
+	slog.DebugContext(ctx, "returning created project", "project_uid", projectDB.UID)
 
-	slog.DebugContext(ctx, "returning created project", "project", projectFull)
-
-	return projectFull, nil
+	return &proj, nil
 }
 
-func (s *ProjectsService) GetOneProjectBase(ctx context.Context, payload *projsvc.GetOneProjectBasePayload) (*projsvc.GetOneProjectBaseResult, error) {
+// GetOneProjectBase gets a single project's base information and its etag.
+func (s *ProjectsService) GetOneProjectBase(ctx context.Context, projectUID string) (*models.ProjectBase, string, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
-		return nil, domain.ErrServiceUnavailable
+		return nil, "", domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.UID == nil {
+	if projectUID == "" {
 		slog.WarnContext(ctx, "project UID is required")
-		return nil, domain.ErrValidationFailed
+		return nil, "", domain.ErrValidationFailed
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
 	// Get project with revision from store
-	projectDB, revision, err := s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+	projectDB, revision, err := s.ProjectRepository.GetProjectBaseWithRevision(ctx, projectUID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
-			return nil, domain.ErrProjectNotFound
+			return nil, "", domain.ErrProjectNotFound
 		}
 		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+		return nil, "", domain.ErrInternal
 	}
 
-	project := ConvertToServiceProjectBase(projectDB)
+	slog.DebugContext(ctx, "returning project", "project", projectDB, "revision", revision)
 
-	revisionStr := strconv.FormatUint(revision, 10)
-
-	slog.DebugContext(ctx, "returning project", "project", project, "revision", revision)
-
-	return &projsvc.GetOneProjectBaseResult{
-		Project: project,
-		Etag:    &revisionStr,
-	}, nil
+	return projectDB, strconv.FormatUint(revision, 10), nil
 }
 
-// Get a single project's settings information.
-func (s *ProjectsService) GetOneProjectSettings(ctx context.Context, payload *projsvc.GetOneProjectSettingsPayload) (*projsvc.GetOneProjectSettingsResult, error) {
+// GetOneProjectSettings gets a single project's settings information and its etag.
+func (s *ProjectsService) GetOneProjectSettings(ctx context.Context, projectUID string) (*models.ProjectSettings, string, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
-		return nil, domain.ErrServiceUnavailable
+		return nil, "", domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.UID == nil {
+	if projectUID == "" {
 		slog.WarnContext(ctx, "project UID is required")
-		return nil, domain.ErrValidationFailed
+		return nil, "", domain.ErrValidationFailed
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
 	// Check if the project exists
-	exists, err := s.ProjectRepository.ProjectExists(ctx, *payload.UID)
+	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error checking if project exists", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+		return nil, "", domain.ErrInternal
 	}
 	if !exists {
 		slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
-		return nil, domain.ErrProjectNotFound
+		return nil, "", domain.ErrProjectNotFound
 	}
 
 	// Get project settings with revision from store
-	projectSettingsDB, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
+	projectSettingsDB, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project settings not found", constants.ErrKey, err)
-			return nil, domain.ErrProjectNotFound
+			return nil, "", domain.ErrProjectNotFound
 		}
 		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+		return nil, "", domain.ErrInternal
 	}
 
-	projectSettings := ConvertToServiceProjectSettings(projectSettingsDB)
+	slog.DebugContext(ctx, "returning project settings", "project_settings", projectSettingsDB, "revision", revision)
 
-	revisionStr := strconv.FormatUint(revision, 10)
-
-	slog.DebugContext(ctx, "returning project settings", "project_settings", projectSettings, "revision", revision)
-
-	return &projsvc.GetOneProjectSettingsResult{
-		ProjectSettings: projectSettings,
-		Etag:            &revisionStr,
-	}, nil
+	return projectSettingsDB, strconv.FormatUint(revision, 10), nil
 }
 
-// Update a project's base information.
-func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsvc.UpdateProjectBasePayload) (*projsvc.ProjectBase, error) {
+// UpdateProjectBase updates a project's base information. base carries the
+// project's new fields as the caller supplied them; the service keeps the stored
+// creation time and sets the update time.
+func (s *ProjectsService) UpdateProjectBase(ctx context.Context, base *models.ProjectBase, ifMatch *string) (*models.ProjectBase, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.UID == nil {
+	if base == nil || base.UID == "" {
 		slog.WarnContext(ctx, "project UID is required")
 		return nil, domain.ErrValidationFailed
 	}
@@ -390,7 +341,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// An Archived project must carry an entity dissolution date.
 	// Validated before any repository access so invalid payloads are rejected cheaply,
 	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
-	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
+	if err := validateArchivedRequiresDissolutionDate(base.Stage, base.EntityDissolutionDate); err != nil {
 		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
 		return nil, err
 	}
@@ -399,13 +350,13 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
 	// JSON error envelope on the NATS wire and would make every get_name read
 	// permanently fail for all consumers using ParseRPCError / brace discrimination.
-	if err := validateProjectName(payload.Name); err != nil {
+	if err := validateProjectName(base.Name); err != nil {
 		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
 		return nil, err
 	}
 
-	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
-		_, rev, fetchErr := s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) {
+		_, rev, fetchErr := s.ProjectRepository.GetProjectBaseWithRevision(ctx, base.UID)
 		if fetchErr != nil {
 			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
@@ -420,11 +371,11 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, err
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", base.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
 	// Check if the project exists and use some of the existing project data for the update.
-	existingProjectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+	existingProjectDB, err := s.ProjectRepository.GetProjectBase(ctx, base.UID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
@@ -435,8 +386,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	// Check if the new slug is already taken
-	if payload.Slug != existingProjectDB.Slug {
-		newSlugExists, err := s.ProjectRepository.ProjectSlugExists(ctx, payload.Slug)
+	if base.Slug != existingProjectDB.Slug {
+		newSlugExists, err := s.ProjectRepository.ProjectSlugExists(ctx, base.Slug)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if new slug exists", constants.ErrKey, err)
 			return nil, domain.ErrInternal
@@ -448,14 +399,14 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	// Reject direct self-parenting. Longer ancestor cycles are not detected here.
-	if payload.ParentUID == *payload.UID {
+	if base.ParentUID == base.UID {
 		slog.WarnContext(ctx, "parent_uid must not equal the project's own UID")
 		return nil, domain.ErrValidationFailed
 	}
 
 	// Validate parent_uid format before it is used in any authorization query.
-	if payload.ParentUID != "" {
-		if _, err := uuid.Parse(payload.ParentUID); err != nil {
+	if base.ParentUID != "" {
+		if _, err := uuid.Parse(base.ParentUID); err != nil {
 			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
@@ -468,7 +419,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// Authorization runs before ProjectExists so unauthorized requests are rejected
 	// without incurring an extra KV read.
 	storedParentUID := existingProjectDB.ParentUID
-	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
+	if s.FGAChecker != nil && base.ParentUID != storedParentUID {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 		user := fgaconstants.ObjectTypeUser + principal
 
@@ -477,68 +428,40 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				return nil, err
 			}
 		}
-		if payload.ParentUID != "" {
-			if err := s.requireParentWriter(ctx, user, payload.ParentUID, "new"); err != nil {
+		if base.ParentUID != "" {
+			if err := s.requireParentWriter(ctx, user, base.ParentUID, "new"); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	// Validate that the parent UID references an existing project.
-	if payload.ParentUID != "" {
-		exists, err := s.ProjectRepository.ProjectExists(ctx, payload.ParentUID)
+	if base.ParentUID != "" {
+		exists, err := s.ProjectRepository.ProjectExists(ctx, base.ParentUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if parent project exists", constants.ErrKey, err)
 			return nil, domain.ErrInternal
 		}
 		if !exists {
 			slog.WarnContext(ctx, "parent project not found",
-				slog.String("parent_uid", payload.ParentUID),
+				slog.String("parent_uid", base.ParentUID),
 			)
 			return nil, domain.ErrInvalidParentProject
 		}
 	}
 
-	// Prepare the updated project
+	// Prepare the updated project: the caller's fields, the stored creation time
+	// and a fresh update time.
 	currentTime := time.Now().UTC()
-	project := &projsvc.ProjectBase{
-		UID:                        payload.UID,
-		Slug:                       &payload.Slug,
-		Description:                &payload.Description,
-		Name:                       &payload.Name,
-		Public:                     payload.Public,
-		IsFoundation:               payload.IsFoundation,
-		ParentUID:                  &payload.ParentUID,
-		Stage:                      payload.Stage,
-		Category:                   payload.Category,
-		LegalEntityType:            payload.LegalEntityType,
-		LegalEntityName:            payload.LegalEntityName,
-		LegalParentUID:             payload.LegalParentUID,
-		Funding:                    payload.Funding,
-		FundingModel:               payload.FundingModel,
-		EntityDissolutionDate:      payload.EntityDissolutionDate,
-		EntityFormationDocumentURL: payload.EntityFormationDocumentURL,
-		AutojoinEnabled:            payload.AutojoinEnabled,
-		FormationDate:              payload.FormationDate,
-		CharterURL:                 payload.CharterURL,
-		LogoURL:                    payload.LogoURL,
-		WebsiteURL:                 payload.WebsiteURL,
-		RepositoryURL:              payload.RepositoryURL,
-		ContactEmail:               payload.ContactEmail,
-		UpdatedAt:                  misc.StringPtr(currentTime.Format(time.RFC3339)),
-	}
-	if existingProjectDB.CreatedAt != nil {
-		project.CreatedAt = misc.StringPtr(existingProjectDB.CreatedAt.Format(time.RFC3339))
-	}
-
-	projectDB, err := ConvertToDBProjectBase(project)
-	if err != nil {
-		slog.ErrorContext(ctx, "error converting project to DB project", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+	projectDB := *base
+	projectDB.UpdatedAt = &currentTime
+	projectDB.CreatedAt = existingProjectDB.CreatedAt
+	if projectDB.CreatedAt == nil {
+		projectDB.CreatedAt = &currentTime
 	}
 
 	// Update the project in the repository
-	err = s.ProjectRepository.UpdateProjectBase(ctx, projectDB, revision)
+	err = s.ProjectRepository.UpdateProjectBase(ctx, &projectDB, revision)
 	if err != nil {
 		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
@@ -561,19 +484,15 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	//
 	// The settings read is done before starting any goroutines so that a read
 	// failure exits cleanly without orphaning the indexer goroutine.
-	//
-	// projectDB.Public is used (not re-derived from payload) because
-	// ConvertToDBProjectBase already applied the nil→false default; comparing
-	// projectDB values keeps the gate consistent with what was actually written.
 	var fgaProj *ProjectProjection
 	if projectDB.Public != existingProjectDB.Public || projectDB.ParentUID != existingProjectDB.ParentUID ||
 		withholdsGlobalGrants(projectDB.Stage) != withholdsGlobalGrants(existingProjectDB.Stage) {
-		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, base.UID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
 			return nil, domain.ErrInternal
 		}
-		proj := NewProjectProjection(projectDB, projectSettingsDB)
+		proj := NewProjectProjection(&projectDB, projectSettingsDB)
 		fgaProj = &proj
 	}
 
@@ -581,7 +500,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	g.Go(func() error {
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
-			Data:           *projectDB,
+			Data:           projectDB,
 			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg)
@@ -597,25 +516,27 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrInternal
 	}
 
-	slog.DebugContext(ctx, "returning updated project", "project", project)
+	slog.DebugContext(ctx, "returning updated project", "project", projectDB)
 
-	return ConvertToServiceProjectBase(projectDB), nil
+	return &projectDB, nil
 }
 
-// Update a project's settings.
-func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *projsvc.UpdateProjectSettingsPayload) (*projsvc.ProjectSettings, error) {
+// UpdateProjectSettings updates a project's settings. settings carries the new
+// values as the caller supplied them; a role the caller left out (a nil slice) is
+// kept for mentorship program admins and replaced for the other roles.
+func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, projectUID string, settings ProjectSettingsInput, ifMatch *string) (*models.ProjectSettings, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.UID == nil {
+	if projectUID == "" {
 		slog.WarnContext(ctx, "project UID is required")
 		return nil, domain.ErrValidationFailed
 	}
 
-	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
-		_, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) {
+		_, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if fetchErr != nil {
 			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project settings not found", constants.ErrKey, fetchErr)
@@ -630,11 +551,11 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, err
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
 	// Check if the project exists
-	exists, err := s.ProjectRepository.ProjectExists(ctx, *payload.UID)
+	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error checking if project exists", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -645,7 +566,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	}
 
 	// Get the existing project settings
-	existingProjectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+	existingProjectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, projectUID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project settings not found", constants.ErrKey, err)
@@ -656,43 +577,23 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	}
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
-	if err := s.enrichAllRoleFields(ctx,
-		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
-		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
-	); err != nil {
+	if err := s.enrichAllRoleFields(ctx, settings.userSlices(), settings.userSingles()); err != nil {
 		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
 
-	// Preserve mentorship admins when omitted from PUT payloads.
-	mentorshipProgramAdmins := payload.MentorshipProgramAdmins
-	if mentorshipProgramAdmins == nil {
-		mentorshipProgramAdmins = convertUsersToAPI(existingProjectSettingsDB.MentorshipProgramAdmins)
-	}
-
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
-	projectSettings := &projsvc.ProjectSettings{
-		UID:                     payload.UID,
-		MissionStatement:        payload.MissionStatement,
-		AnnouncementDate:        payload.AnnouncementDate,
-		Writers:                 payload.Writers,
-		Auditors:                payload.Auditors,
-		MeetingCoordinators:     payload.MeetingCoordinators,
-		ExecutiveDirector:       payload.ExecutiveDirector,
-		MentorshipProgramAdmins: mentorshipProgramAdmins,
-		ProgramManager:          payload.ProgramManager,
-		OpportunityOwner:        payload.OpportunityOwner,
-		UpdatedAt:               misc.StringPtr(currentTime.Format(time.RFC3339)),
+	projectSettingsDB := buildProjectSettings(settings, existingProjectSettingsDB)
+	projectSettingsDB.UID = projectUID
+	projectSettingsDB.UpdatedAt = &currentTime
+	projectSettingsDB.CreatedAt = existingProjectSettingsDB.CreatedAt
+	if projectSettingsDB.CreatedAt == nil {
+		projectSettingsDB.CreatedAt = &currentTime
 	}
-	if existingProjectSettingsDB.CreatedAt != nil {
-		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))
-	}
-
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, existingProjectSettingsDB)
-	if err != nil {
-		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+	// Preserve mentorship admins when omitted from PUT payloads.
+	if settings.MentorshipProgramAdmins == nil {
+		projectSettingsDB.MentorshipProgramAdmins = existingProjectSettingsDB.MentorshipProgramAdmins
 	}
 
 	// Update the project settings using the store
@@ -709,7 +610,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
-	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -733,7 +634,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	g.Go(func() error {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 		msg := events.ProjectSettingsUpdatedMessage{
-			ProjectUID:  *payload.UID,
+			ProjectUID:  projectUID,
 			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
 			NewSettings: proj.ToEventSettings(),
 			Actor:       events.Actor{Username: principal},
@@ -748,17 +649,17 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	slog.DebugContext(ctx, "returning updated project settings", "project_uid", projectSettingsDB.UID)
 
-	return ConvertToServiceProjectSettings(projectSettingsDB), nil
+	return projectSettingsDB, nil
 }
 
-// Delete a project.
-func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.DeleteProjectPayload) error {
+// DeleteProject deletes a project.
+func (s *ProjectsService) DeleteProject(ctx context.Context, projectUID string, ifMatch *string) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
 		return domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.UID == nil {
+	if projectUID == "" {
 		slog.WarnContext(ctx, "project UID is required")
 		return domain.ErrValidationFailed
 	}
@@ -766,11 +667,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	// projectDB is captured by the skip-etag closure below; in the non-skip-etag path
 	// it remains nil and is fetched separately after revision resolution.
 	var projectDB *models.ProjectBase
-	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) {
 		// Skip-etag path: single RPC returns both the model and the revision.
 		var rev uint64
 		var fetchErr error
-		projectDB, rev, fetchErr = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		projectDB, rev, fetchErr = s.ProjectRepository.GetProjectBaseWithRevision(ctx, projectUID)
 		if fetchErr != nil {
 			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
@@ -787,7 +688,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	// Non-skip-etag path: projectDB was not pre-fetched; get it now for funding model validation.
 	if projectDB == nil {
 		var fetchErr error
-		projectDB, fetchErr = s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+		projectDB, fetchErr = s.ProjectRepository.GetProjectBase(ctx, projectUID)
 		if fetchErr != nil {
 			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
@@ -798,7 +699,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		}
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
 	// Validate funding model - only allow deletion if project funding model is EXACTLY ["Crowdfunding"]
@@ -810,7 +711,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	}
 
 	// Delete the project using the store
-	err = s.ProjectRepository.DeleteProject(ctx, *payload.UID, revision)
+	err = s.ProjectRepository.DeleteProject(ctx, projectUID, revision)
 	if err != nil {
 		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
@@ -829,11 +730,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, projectUID)
 	})
 
 	g.Go(func() error {
-		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID)
+		return s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, projectUID)
 	})
 
 	g.Go(func() error {
@@ -841,7 +742,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 			ObjectType: "project",
 			Operation:  "delete_access",
 			Data: fgatypes.GenericDeleteData{
-				UID: *payload.UID,
+				UID: projectUID,
 			},
 		}
 		return s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
@@ -852,38 +753,36 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		return domain.ErrInternal
 	}
 
-	slog.DebugContext(ctx, "deleted project", "project_uid", *payload.UID)
+	slog.DebugContext(ctx, "deleted project", "project_uid", projectUID)
 	return nil
 }
 
 // ResolveProjectSlug resolves a project slug to its UID.
-func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, payload *projsvc.ResolveProjectSlugPayload) (*projsvc.ResolveProjectSlugResult, error) {
+func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, slug string) (string, error) {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "NATS connection or store not initialized")
-		return nil, domain.ErrServiceUnavailable
+		return "", domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.Slug == "" {
+	if slug == "" {
 		slog.WarnContext(ctx, "project slug is required")
-		return nil, domain.ErrValidationFailed
+		return "", domain.ErrValidationFailed
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_slug", payload.Slug))
+	ctx = log.AppendCtx(ctx, slog.String("project_slug", slug))
 
-	uid, err := s.ProjectRepository.GetProjectUIDFromSlug(ctx, payload.Slug)
+	uid, err := s.ProjectRepository.GetProjectUIDFromSlug(ctx, slug)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found by slug", constants.ErrKey, err)
-			return nil, domain.ErrProjectNotFound
+			return "", domain.ErrProjectNotFound
 		}
 		slog.ErrorContext(ctx, "error resolving slug to UID", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+		return "", domain.ErrInternal
 	}
 
 	slog.DebugContext(ctx, "resolved project slug to UID", "uid", uid)
-	return &projsvc.ResolveProjectSlugResult{
-		UID: uid,
-	}, nil
+	return uid, nil
 }
 
 // isCrowdfundingOnly checks if the funding model is exactly ["Crowdfunding"] and nothing else.
@@ -897,17 +796,17 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 const projectStageArchived = "Archived"
 
 // validateArchivedRequiresDissolutionDate checks that a project whose
-// stage is "Archived" must carry an entity dissolution date. The arguments are
-// the Goa payload pointers (stage and entity_dissolution_date); a nil, empty, or
-// whitespace-only dissolution date is treated as absent. The check only fires
-// when the submitted stage is "Archived", so non-Archived writes and un-archiving
-// are unaffected. Validation runs against the submitted payload (PUT replaces the
-// stored record), so an Archived update must always include the dissolution date.
-func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) error {
-	if stage == nil || *stage != projectStageArchived {
+// stage is "Archived" must carry an entity dissolution date. A nil dissolution
+// date is treated as absent; the caller maps an empty or whitespace-only value to
+// nil. The check only fires when the submitted stage is "Archived", so
+// non-Archived writes and un-archiving are unaffected. Validation runs against the
+// submitted project (PUT replaces the stored record), so an Archived update must
+// always include the dissolution date.
+func validateArchivedRequiresDissolutionDate(stage string, dissolutionDate *time.Time) error {
+	if stage != projectStageArchived {
 		return nil
 	}
-	if dissolutionDate == nil || strings.TrimSpace(*dissolutionDate) == "" {
+	if dissolutionDate == nil {
 		return domain.ErrArchivedRequiresDissolutionDate
 	}
 	return nil
@@ -947,7 +846,7 @@ func validateProjectName(name string) error {
 // slices and singles with authoritative values from the auth service.
 // Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
 // Unknown email (ErrUserNotFound) clears the request username so a caller-supplied value cannot
-// become an FGA principal. convertUsersFromAPI then keeps any already-stored LFID matched by
+// become an FGA principal. mergeUsers then keeps any already-stored LFID matched by
 // email, so a lookup miss cannot drop the writer key from the FGA message. Account deletion still
 // scrubs usernames via HandleUserDeleted. Missing/empty email skips the auth lookup; the username
 // is cleared to "" only when none is already present — M2M client principals are left untouched.
@@ -955,8 +854,8 @@ func validateProjectName(name string) error {
 // Metadata (name/avatar) errors only log a warning; display fields do not block the write.
 func (s *ProjectsService) enrichAllRoleFields(
 	ctx context.Context,
-	slices [][]*projsvc.UserInfo,
-	singles []*projsvc.UserInfo,
+	slices [][]*UserInput,
+	singles []*UserInput,
 ) error {
 	// Guard for incomplete wiring outside the normal ServiceReady path.
 	if s.UserReader == nil {
@@ -965,10 +864,10 @@ func (s *ProjectsService) enrichAllRoleFields(
 
 	// Gather all entries grouped by email; entries without an email skip the lookup — username is
 	// cleared only when none is already set (see function comment for M2M client edge case).
-	type group struct{ users []*projsvc.UserInfo }
+	type group struct{ users []*UserInput }
 	byEmail := make(map[string]*group)
 
-	gather := func(u *projsvc.UserInfo) {
+	gather := func(u *UserInput) {
 		if u == nil {
 			return
 		}
@@ -1063,7 +962,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 	// Only Name and Avatar are written back; other metadata fields (JobTitle, Organization, etc.)
 	// are not surfaced in UserInfo and are discarded after this call.
 	// On a lookup miss r.username is empty: that clears any caller-supplied username so
-	// convertUsersFromAPI can fall back to the stored LFID instead of trusting the request.
+	// mergeUsers can fall back to the stored LFID instead of trusting the request.
 	for email, eg := range byEmail {
 		r := results[email]
 		for _, u := range eg.users {

@@ -205,6 +205,26 @@ func TestCreateProject(t *testing.T) {
 			},
 			expectedError: true,
 		},
+		{
+			name: "malformed formation date is rejected before the service runs",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:          "test-project",
+				Name:          "Test Project",
+				FormationDate: misc.StringPtr("not-a-date"),
+			},
+			setupMocks:    func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder) {},
+			expectedError: true,
+		},
+		{
+			name: "malformed announcement date is rejected before the service runs",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:             "test-project",
+				Name:             "Test Project",
+				AnnouncementDate: misc.StringPtr("not-a-date"),
+			},
+			setupMocks:    func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder) {},
+			expectedError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -511,6 +531,18 @@ func TestUpdateProjectBase(t *testing.T) {
 			wantErr:    &projsvc.BadRequestError{},
 		},
 		{
+			name:       "archived project with a blank dissolution date is a bad request",
+			payload:    &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr(uid), Name: "Test Project", Stage: misc.StringPtr("Archived"), EntityDissolutionDate: misc.StringPtr("  "), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(*domainmocks.MockProjectRepository) {},
+			wantErr:    &projsvc.BadRequestError{},
+		},
+		{
+			name:       "malformed dissolution date is a bad request",
+			payload:    &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr(uid), Name: "Test Project", EntityDissolutionDate: misc.StringPtr("not-a-date"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(*domainmocks.MockProjectRepository) {},
+			wantErr:    &projsvc.BadRequestError{},
+		},
+		{
 			name:       "missing If-Match is a bad request",
 			payload:    &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr(uid), Name: "Test Project"},
 			setupMocks: func(*domainmocks.MockProjectRepository) {},
@@ -631,6 +663,12 @@ func TestUpdateProjectSettings(t *testing.T) {
 		{
 			name:       "missing uid is a bad request",
 			payload:    &projsvc.UpdateProjectSettingsPayload{IfMatch: misc.StringPtr("1")},
+			setupMocks: func(*domainmocks.MockProjectRepository) {},
+			wantErr:    &projsvc.BadRequestError{},
+		},
+		{
+			name:       "malformed announcement date is a bad request",
+			payload:    &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid), AnnouncementDate: misc.StringPtr("not-a-date"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(*domainmocks.MockProjectRepository) {},
 			wantErr:    &projsvc.BadRequestError{},
 		},

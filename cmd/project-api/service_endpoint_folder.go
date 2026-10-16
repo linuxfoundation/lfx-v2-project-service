@@ -7,7 +7,6 @@ import (
 	"context"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 )
 
 // CreateProjectFolder creates a new project folder.
@@ -17,7 +16,7 @@ func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.
 		return nil, handleError(ctx, err)
 	}
 
-	return service.ConvertToServiceFolder(folder), nil
+	return convertToServiceFolder(folder), nil
 }
 
 // GetProjectFolder gets a single project folder.
@@ -28,7 +27,7 @@ func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.Get
 	}
 
 	return &projsvc.GetProjectFolderResult{
-		Folder: service.ConvertToServiceFolder(folder),
+		Folder: convertToServiceFolder(folder),
 		Etag:   &etag,
 	}, nil
 }

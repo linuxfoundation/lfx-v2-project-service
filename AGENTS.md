@@ -173,6 +173,7 @@ cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint
 ├── service_endpoint_*.go  # Goa endpoint adapters (project, link, folder, document)
 ├── request_decoders.go    # Custom request decoders (create-project JSON, multipart document upload)
 ├── server.go              # HTTP server wiring (handler chain, listen address)
+├── converters.go          # Goa ↔ domain conversions (request payloads to service inputs, domain models to responses)
 ├── service.go             # ProjectsAPI adapter type (service and authenticator)
 ├── config.go              # Command-line flag and environment parsing
 ├── nats.go                # NATS connection setup, subscriptions, graceful shutdown
@@ -186,7 +187,8 @@ internal/                   # Core business logic
 │   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
 │   ├── project_subscriber.go  # Inbound NATS event subscribers (settings updates, invite acceptance)
 │   ├── document_subscriber.go # Inbound NATS event subscribers (document/link created notifications)
-│   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters; ProjectProjection for multi-output fan-out
+│   ├── converters.go     # Domain ↔ pkg/events wire-type converters and FGA messages; ProjectProjection for multi-output fan-out
+│   ├── project_inputs.go # Caller-supplied project settings input (UserInput, ProjectSettingsInput) and its merge with stored users
 │   ├── user_resolver.go  # UserResolver: centralised user identity lookup (JWT, auth service, fallback)
 │   ├── notification_dispatcher.go # NotificationDispatcher: role-change email/invite orchestration
 │   └── email/            # Email template rendering (one file per email type)
@@ -709,6 +711,7 @@ NATS message payload types that other services consume belong in `pkg/events/`, 
 
 - Domain types in `internal/domain/models/` may differ from wire types and can evolve independently.
 - Explicit converter functions in `internal/service/converters.go` map from domain → event type before publishing.
+- The service layer takes and returns domain types only. Goa request/response types are converted at the adapter boundary in `cmd/project-api/converters.go`; `internal/service` must not import the generated `api/project/v1/gen` package.
 - Example: `DomainSettingsToEvent(*models.ProjectSettings) events.ProjectSettings`
 - When a single `(base, settings)` domain pair needs to produce multiple output shapes, construct a `ProjectProjection` via `NewProjectProjection(base, settings)` and call the appropriate methods (`ToFull`, `ToFGAMessage`, `ToEventSettings`, etc.) rather than forwarding the pair to each standalone converter independently.
 
@@ -742,7 +745,7 @@ The `internal/service/` layer contains three focused modules extracted to avoid 
 |---|---|---|---|
 | `UserResolver` | `user_resolver.go` | Centralised user identity lookup: resolves display names from JWT, auth service, or falls back gracefully | Call `s.Resolver.ResolveDisplayName(ctx, events.Actor{Username: username})` or `s.Resolver.ResolveRequestingUser(ctx)` — never inline the auth-service lookup |
 | `NotificationDispatcher` | `notification_dispatcher.go` | Orchestrates role-change emails and invite requests for LFID and non-LFID users, respects `EmailsEnabled`/`InvitesEnabled` feature flags | Call `s.Dispatcher.Dispatch(ctx, projectUID, name, url, actor, changes)` from `HandleProjectSettingsUpdated` — never add notification logic to subscribers or operations directly |
-| `ProjectProjection` | `converters.go` | Bundles a `(base, settings)` domain pair and exposes typed output methods for each target type universe | Call `NewProjectProjection(base, settings)` once then `.ToFull()`, `.ToFGAMessage()`, `.ToEventSettings()`, etc. — never forward the same pair to multiple standalone converters |
+| `ProjectProjection` | `converters.go` | Bundles a `(base, settings)` domain pair and exposes typed output methods for each target type universe | Call `NewProjectProjection(base, settings)` once then `.ToFGAMessage()`, `.ToEventSettings()`, etc. (the adapter builds the Goa shapes from the same pair) — never forward the same pair to multiple standalone converters |
 
 **`resolveRevision` pattern** (`project_operations.go`): write operations (update, delete) must resolve the resource revision either from an `If-Match` header or by fetching it from the repository. Use the `s.resolveRevision(ctx, ifMatch, fetchFn)` helper — do not duplicate the `SkipEtagValidation` branching inline.
 
