@@ -263,10 +263,12 @@ Lists links, folders and documents whose project no longer exists (`orphan_link`
 
 #### `inspect index-drift`
 
-Lists projects whose `project` or `project_settings` OpenSearch document is missing (`missing_project_document`, `missing_settings_document`). It runs the same diff as `sync reindex-projects`, without publishing anything, and leaves out the hidden `ROOT` project. Needs `NATS_URL` and `OPENSEARCH_URL`.
+Lists records whose OpenSearch document is missing, without publishing anything. It covers projects (the `project` and `project_settings` documents), links, folders and documents, and reports `missing_project`, `missing_project_settings`, `missing_project_link`, `missing_project_folder` and `missing_project_document`. The project diff is the one `sync reindex-projects` runs, and the hidden `ROOT` project is left out. `--resource` narrows the check to a comma-separated list of `project`, `link`, `folder` and `document` (default `all`). Needs `NATS_URL` and `OPENSEARCH_URL`.
+
+Only projects can be repaired with `sync reindex-projects`; a missing link, folder or document document has no repair command yet, so it is reported here for follow-up.
 
 ```sh
-go run ./cmd/project-cli inspect index-drift
+go run ./cmd/project-cli inspect index-drift --resource=link,folder,document
 ```
 
 #### `inspect settings-access`

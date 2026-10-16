@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 
@@ -25,6 +24,53 @@ const ResourcesIndex = "resources"
 
 const idChunkSize = 1000
 
+// Document types in the resources index. The type is the indexer subject without
+// its "lfx.index." prefix, and a document's _id is "<type>:<uid>".
+const (
+	TypeProject         = "project"
+	TypeProjectSettings = "project_settings"
+	TypeProjectLink     = "project_link"
+	TypeProjectFolder   = "project_folder"
+	TypeProjectDocument = "project_document"
+)
+
+// Doc names one search document the index is expected to hold.
+type Doc struct {
+	Type string
+	UID  string
+}
+
+// ID is the document's _id in the resources index.
+func (d Doc) ID() string { return d.Type + ":" + d.UID }
+
+// MissingDocs returns the documents from docs that are absent from the resources
+// index, in the order given.
+func MissingDocs(ctx context.Context, client *opensearchgo.Client, docs []Doc) ([]Doc, error) {
+	ids := make([]string, len(docs))
+	for i, doc := range docs {
+		ids[i] = doc.ID()
+	}
+
+	found := make(map[string]struct{}, len(ids))
+	for _, chunk := range chunkStrings(ids, idChunkSize) {
+		hits, err := existingIDs(ctx, client, chunk)
+		if err != nil {
+			return nil, err
+		}
+		for id := range hits {
+			found[id] = struct{}{}
+		}
+	}
+
+	var missing []Doc
+	for _, doc := range docs {
+		if _, ok := found[doc.ID()]; !ok {
+			missing = append(missing, doc)
+		}
+	}
+	return missing, nil
+}
+
 // Missing records, for one project, whether its "project" and "project_settings"
 // documents are absent. The two are resolved independently since a project can be
 // missing one without the other.
@@ -36,40 +82,30 @@ type Missing struct {
 // Any reports whether either document is absent.
 func (m Missing) Any() bool { return m.Project || m.Settings }
 
-// Diff resolves, for every project UID, whether its documents exist in the
-// resources index.
+// Diff resolves, for every project UID, whether its project and project_settings
+// documents exist in the resources index.
 func Diff(ctx context.Context, client *opensearchgo.Client, bases []*models.ProjectBase) (map[string]Missing, error) {
+	docs := make([]Doc, 0, 2*len(bases))
 	missing := make(map[string]Missing, len(bases))
 	for _, base := range bases {
-		missing[base.UID] = Missing{Project: true, Settings: true}
+		docs = append(docs, Doc{TypeProject, base.UID}, Doc{TypeProjectSettings, base.UID})
+		missing[base.UID] = Missing{}
 	}
 
-	var ids []string
-	for _, base := range bases {
-		ids = append(ids, "project:"+base.UID, "project_settings:"+base.UID)
+	absent, err := MissingDocs(ctx, client, docs)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, chunk := range chunkStrings(ids, idChunkSize) {
-		found, err := existingIDs(ctx, client, chunk)
-		if err != nil {
-			return nil, err
+	for _, doc := range absent {
+		m := missing[doc.UID]
+		switch doc.Type {
+		case TypeProject:
+			m.Project = true
+		case TypeProjectSettings:
+			m.Settings = true
 		}
-		for id := range found {
-			uid, docType, ok := splitResourceID(id)
-			if !ok {
-				continue
-			}
-			m := missing[uid]
-			switch docType {
-			case "project":
-				m.Project = false
-			case "project_settings":
-				m.Settings = false
-			}
-			missing[uid] = m
-		}
+		missing[doc.UID] = m
 	}
-
 	return missing, nil
 }
 
@@ -137,15 +173,4 @@ func chunkStrings(items []string, size int) [][]string {
 		items = items[n:]
 	}
 	return chunks
-}
-
-// splitResourceID splits a resources index _id of the form "<object_type>:<uid>"
-// into its UID and object type.
-func splitResourceID(id string) (uid, docType string, ok bool) {
-	for _, prefix := range []string{"project_settings:", "project:"} {
-		if len(id) > len(prefix) && strings.HasPrefix(id, prefix) {
-			return id[len(prefix):], strings.TrimSuffix(prefix, ":"), true
-		}
-	}
-	return "", "", false
 }

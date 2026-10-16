@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
@@ -16,6 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+)
+
+const (
+	uid1 = "00000000-0000-4000-8000-000000000001"
+	uid2 = "00000000-0000-4000-8000-000000000002"
+	uid3 = "00000000-0000-4000-8000-000000000003"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -91,52 +99,6 @@ func Test_chunkStrings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := chunkStrings(tt.items, tt.size)
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func Test_splitResourceID(t *testing.T) {
-	tests := []struct {
-		name        string
-		id          string
-		wantUID     string
-		wantDocType string
-		wantOK      bool
-	}{
-		{
-			name:        "project doc",
-			id:          "project:00000000-0000-0000-0000-000000000001",
-			wantUID:     "00000000-0000-0000-0000-000000000001",
-			wantDocType: "project",
-			wantOK:      true,
-		},
-		{
-			name:        "project_settings doc",
-			id:          "project_settings:00000000-0000-0000-0000-000000000002",
-			wantUID:     "00000000-0000-0000-0000-000000000002",
-			wantDocType: "project_settings",
-			wantOK:      true,
-		},
-		{
-			name:   "unrecognized prefix",
-			id:     "project_folder:00000000-0000-0000-0000-000000000003",
-			wantOK: false,
-		},
-		{
-			name:   "empty uid after prefix",
-			id:     "project:",
-			wantOK: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uid, docType, ok := splitResourceID(tt.id)
-			assert.Equal(t, tt.wantOK, ok)
-			if tt.wantOK {
-				assert.Equal(t, tt.wantUID, uid)
-				assert.Equal(t, tt.wantDocType, docType)
-			}
 		})
 	}
 }
@@ -244,5 +206,66 @@ func TestDiff(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func TestMissingDocs(t *testing.T) {
+	docs := []Doc{
+		{TypeProject, uid1}, {TypeProjectLink, uid2}, {TypeProjectFolder, uid3}, {TypeProjectDocument, uid3},
+	}
+
+	t.Run("returns the documents the index lacks, in order", func(t *testing.T) {
+		client := newFakeOpenSearchClient(t, []string{"project:" + uid1, "project_folder:" + uid3})
+
+		missing, err := MissingDocs(context.Background(), client, docs)
+
+		require.NoError(t, err)
+		assert.Equal(t, []Doc{{TypeProjectLink, uid2}, {TypeProjectDocument, uid3}}, missing)
+	})
+
+	t.Run("a type prefix alone does not match another type's document", func(t *testing.T) {
+		client := newFakeOpenSearchClient(t, []string{"project_link:" + uid1})
+
+		missing, err := MissingDocs(context.Background(), client, []Doc{{TypeProject, uid1}})
+
+		require.NoError(t, err)
+		assert.Equal(t, []Doc{{TypeProject, uid1}}, missing)
+	})
+
+	t.Run("nothing is missing when everything is indexed", func(t *testing.T) {
+		client := newFakeOpenSearchClient(t, []string{"project:" + uid1})
+		missing, err := MissingDocs(context.Background(), client, docs[:1])
+		require.NoError(t, err)
+		assert.Empty(t, missing)
+	})
+
+	t.Run("no documents asks nothing", func(t *testing.T) {
+		missing, err := MissingDocs(context.Background(), newFakeOpenSearchClient(t, nil), nil)
+		require.NoError(t, err)
+		assert.Empty(t, missing)
+	})
+
+	t.Run("a search failure is returned", func(t *testing.T) {
+		client := newFakeOpenSearchClientWithBody(t, `{"timed_out":true,"hits":{"hits":[]}}`)
+		_, err := MissingDocs(context.Background(), client, docs)
+		assert.Error(t, err)
+	})
+}
+
+func TestDoc_ID(t *testing.T) {
+	assert.Equal(t, "project_link:"+uid1, Doc{TypeProjectLink, uid1}.ID())
+}
+
+func TestDocumentTypes(t *testing.T) {
+	// The type is the indexer subject without its prefix; a drift here would make every
+	// document of that type look missing.
+	for subject, docType := range map[string]string{
+		constants.IndexProjectSubject:         TypeProject,
+		constants.IndexProjectSettingsSubject: TypeProjectSettings,
+		constants.IndexProjectLinkSubject:     TypeProjectLink,
+		constants.IndexProjectFolderSubject:   TypeProjectFolder,
+		constants.IndexProjectDocumentSubject: TypeProjectDocument,
+	} {
+		assert.Equal(t, strings.TrimPrefix(subject, "lfx.index."), docType)
 	}
 }

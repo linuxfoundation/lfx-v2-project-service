@@ -16,6 +16,15 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
+type fakeProjectLister struct {
+	bases []*models.ProjectBase
+	err   error
+}
+
+func (f fakeProjectLister) ListAllProjectsBase(context.Context) ([]*models.ProjectBase, error) {
+	return f.bases, f.err
+}
+
 func TestRunParents(t *testing.T) {
 	const uid4 = "00000000-0000-4000-8000-000000000004"
 	project := func(uid, slug, parent string) *models.ProjectBase {

@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
 // Finding kinds reported by inspect parents.
@@ -19,6 +20,11 @@ const (
 	kindSelfParent    = "self_parent"
 	kindParentCycle   = "parent_cycle"
 )
+
+// projectLister is the slice of the repository the parent check reads.
+type projectLister interface {
+	ListAllProjectsBase(ctx context.Context) ([]*models.ProjectBase, error)
+}
 
 type parentsSubcommand struct{}
 
