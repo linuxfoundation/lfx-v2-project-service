@@ -317,9 +317,7 @@ func (s *ProjectsService) GetOneProjectBase(ctx context.Context, payload *projsv
 
 	project := ConvertToServiceProjectBase(projectDB)
 
-	// Store the revision in context for the custom encoder to use
 	revisionStr := strconv.FormatUint(revision, 10)
-	ctx = context.WithValue(ctx, constants.ETagContextID, revisionStr)
 
 	slog.DebugContext(ctx, "returning project", "project", project, "revision", revision)
 
@@ -367,9 +365,7 @@ func (s *ProjectsService) GetOneProjectSettings(ctx context.Context, payload *pr
 
 	projectSettings := ConvertToServiceProjectSettings(projectSettingsDB)
 
-	// Store the revision in context for the custom encoder to use
 	revisionStr := strconv.FormatUint(revision, 10)
-	ctx = context.WithValue(ctx, constants.ETagContextID, revisionStr)
 
 	slog.DebugContext(ctx, "returning project settings", "project_settings", projectSettings, "revision", revision)
 

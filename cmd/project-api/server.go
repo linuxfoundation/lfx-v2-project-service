@@ -5,7 +5,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -101,18 +100,6 @@ func newHTTPHandler(svc *ProjectsAPI) http.Handler {
 	requestDecoder := projectRequestDecoder
 	responseEncoder := goahttp.ResponseEncoder
 
-	// Create a custom encoder that sets ETag header for get-one-project
-	customEncoder := func(ctx context.Context, w http.ResponseWriter) goahttp.Encoder {
-		encoder := responseEncoder(ctx, w)
-
-		// Check if we have an ETag in the context
-		if etag, ok := ctx.Value(constants.ETagContextID).(string); ok {
-			w.Header().Set("ETag", etag)
-		}
-
-		return encoder
-	}
-
 	koDataPath := os.Getenv("KO_DATA_PATH")
 	if koDataPath == "" {
 		koDataPath = "./api/project/v1/gen/http/"
@@ -124,7 +111,7 @@ func newHTTPHandler(svc *ProjectsAPI) http.Handler {
 		endpoints,
 		mux,
 		requestDecoder,
-		customEncoder,
+		responseEncoder,
 		nil,
 		nil,
 		uploadDocumentDecoder,

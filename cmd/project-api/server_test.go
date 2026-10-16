@@ -16,8 +16,11 @@ import (
 
 	projsvchttpserver "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	goahttp "goa.design/goa/v3/http"
 )
@@ -288,6 +291,38 @@ func TestNewHTTPHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, res.Code)
 		assert.JSONEq(t, `{"openapi":"test"}`, res.Body.String())
+	})
+
+	t.Run("etag header is set from the result on get endpoints", func(t *testing.T) {
+		const uid = "787620d0-d7de-449a-b0bf-9d28b13da818"
+
+		tests := []struct {
+			name     string
+			path     string
+			wantEtag string
+		}{
+			{name: "project base", path: "/projects/" + uid + "?v=1", wantEtag: "4"},
+			{name: "project settings", path: "/projects/" + uid + "/settings?v=1", wantEtag: "8"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				api, mockRepo, _ := setupAPI()
+				api.auth.(*auth.MockJWTAuth).On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("test-user", "", nil)
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, uid).Return(&models.ProjectBase{UID: uid, Slug: "test-project", Name: "Test Project"}, uint64(4), nil)
+				mockRepo.On("ProjectExists", mock.Anything, uid).Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, uid).Return(&models.ProjectSettings{UID: uid}, uint64(8), nil)
+				handler := newHTTPHandler(api)
+
+				req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+				req.Header.Set("Authorization", "Bearer test-token")
+				res := httptest.NewRecorder()
+				handler.ServeHTTP(res, req)
+
+				require.Equal(t, http.StatusOK, res.Code)
+				assert.Equal(t, tt.wantEtag, res.Header().Get("ETag"))
+			})
+		}
 	})
 
 	t.Run("request bodies above the limit are rejected", func(t *testing.T) {
