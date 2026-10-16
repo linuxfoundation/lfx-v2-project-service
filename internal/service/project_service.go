@@ -22,7 +22,6 @@ type ProjectsService struct {
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
-	Auth               domain.Authenticator
 	FGAChecker         domain.AccessChecker // nil when OpenFGA is disabled (local dev)
 	Config             ServiceConfig
 }
@@ -47,9 +46,8 @@ type ServiceDeps struct {
 // NewProjectsService creates a fully valid ProjectsService with all dependencies
 // wired at construction time. Passing a zero ServiceDeps is allowed in tests that
 // intentionally probe the not-ready state, but production callers must supply all fields.
-func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps ServiceDeps) *ProjectsService {
+func NewProjectsService(config ServiceConfig, deps ServiceDeps) *ProjectsService {
 	return &ProjectsService{
-		Auth:               auth,
 		Config:             config,
 		ProjectRepository:  deps.ProjectRepository,
 		DocumentRepository: deps.DocumentRepository,

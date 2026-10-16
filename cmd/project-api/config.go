@@ -19,18 +19,19 @@ type cmdFlags struct {
 }
 
 func parseFlags(defaultPort string) cmdFlags {
-	var debug = flag.Bool("d", false, "enable debug logging")
-	var port = flag.String("p", defaultPort, "listen port")
-	var bind = flag.String("bind", "*", "interface to bind on")
-
 	flag.Usage = func() {
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
-	flag.Parse()
+
+	// flag.CommandLine uses flag.ExitOnError, so a parse failure exits here.
+	flags, err := parseFlagSet(flag.CommandLine, os.Args[1:], defaultPort)
+	if err != nil {
+		os.Exit(2)
+	}
 
 	// Based on the debug flag, set the log level environment variable used by [log.InitStructureLogConfig]
-	if *debug {
+	if flags.Debug {
 		err := os.Setenv("LOG_LEVEL", "debug")
 		if err != nil {
 			slog.With(constants.ErrKey, err).Error("error setting log level")
@@ -38,11 +39,24 @@ func parseFlags(defaultPort string) cmdFlags {
 		}
 	}
 
+	return flags
+}
+
+// parseFlagSet defines the command-line flags on fs and parses args.
+func parseFlagSet(fs *flag.FlagSet, args []string, defaultPort string) (cmdFlags, error) {
+	var debug = fs.Bool("d", false, "enable debug logging")
+	var port = fs.String("p", defaultPort, "listen port")
+	var bind = fs.String("bind", "*", "interface to bind on")
+
+	if err := fs.Parse(args); err != nil {
+		return cmdFlags{}, err
+	}
+
 	return cmdFlags{
 		Debug: *debug,
 		Port:  *port,
 		Bind:  *bind,
-	}
+	}, nil
 }
 
 // environment holds the environment variables for the project service.

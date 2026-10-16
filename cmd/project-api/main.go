@@ -109,16 +109,16 @@ func run() int {
 	}
 
 	// Construct a fully valid service with all dependencies wired at once.
-	projectService := service.NewProjectsService(jwtAuth, service.ServiceConfig{
+	projectService := service.NewProjectsService(service.ServiceConfig{
 		SkipEtagValidation:  env.SkipEtagValidation,
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
 		EmailsEnabled:       env.EmailsEnabled,
 		InvitesEnabled:      env.InvitesEnabled,
 	}, deps)
-	svc := NewProjectsAPI(projectService)
+	svc := NewProjectsAPI(projectService, jwtAuth)
 
 	// Wire NATS event and RPC subscriptions now that the service is ready.
-	if err := createNatsSubcriptions(ctx, svc, natsConn); err != nil {
+	if err := createNatsSubscriptions(ctx, svc, natsConn); err != nil {
 		slog.With(constants.ErrKey, err).Error("error creating NATS subscriptions")
 		return 1
 	}

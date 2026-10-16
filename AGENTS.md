@@ -169,9 +169,14 @@ api/                        # API contracts
 charts/                     # Helm charts containing kubernetes template files for deployments
 
 cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint adapters)
+├── service_endpoint.go    # Shared error mapping (handleError), health checks, JWT auth
 ├── service_endpoint_*.go  # Goa endpoint adapters (project, link, folder, document)
-├── http.go                # HTTP server wiring
-└── main.go                # Application entry point, NATS subscription wiring
+├── request_decoders.go    # Custom request decoders (create-project JSON, multipart document upload)
+├── server.go              # HTTP server wiring (handler chain, listen address)
+├── service.go             # ProjectsAPI adapter type (service and authenticator)
+├── config.go              # Command-line flag and environment parsing
+├── nats.go                # NATS connection setup, subscriptions, graceful shutdown
+└── main.go                # Application entry point
 
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors, mocks)
@@ -188,12 +193,16 @@ internal/                   # Core business logic
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
-    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
+    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger, route tagging)
     └── nats/             # NATS repository, object store, message builder, user reader
 
 pkg/                    # Shared packages across services
 ├── constants/          # Shared constants (NATS subjects, KV buckets, HTTP, access control)
-└── events/             # NATS event wire types consumed by other services
+├── env/                # Environment variable helpers (Get, GetBool, GetInt)
+├── events/             # NATS event wire types consumed by other services
+├── misc/               # Small generic helpers (StringPtr, BoolPtr, ValueOrZero)
+├── struct/             # Struct reflection helpers (FieldByTag)
+└── utils/              # OpenTelemetry SDK setup
 
 scripts/                # Scripts for services and miscellaneous tasks
 ```
@@ -711,11 +720,12 @@ Important context values:
 
 - `request-id`: Unique request identifier
 - `authorization`: JWT token from header
-- `etag`: ETag value for optimistic concurrency (sent as If-Match header in requests)
+
+`If-Match` is not carried in context: generated Goa decoders place it on payload fields such as `payload.IfMatch`, and the `ETag` response header comes from the `Etag` field of the endpoint result.
 
 ### 5. Error Handling
 
-Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint_project.go`:
+Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint.go`:
 
 - `ErrProjectNotFound` / `ErrDocumentNotFound` / `ErrLinkNotFound` / `ErrFolderNotFound` → 404
 - `ErrProjectSlugExists` / `ErrRevisionMismatch` / `ErrDocumentNameExists` / `ErrFolderNameExists` / `ErrFolderNotEmpty` → 409

@@ -4,23 +4,13 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/trace"
 	goahttp "goa.design/goa/v3/http"
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
@@ -30,69 +20,10 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
-type projectJSONDecoder struct {
-	decoder       *json.Decoder
-	validationErr error
-}
-
-func (d *projectJSONDecoder) Decode(v any) error {
-	if d.validationErr != nil {
-		return d.validationErr
-	}
-	return d.decoder.Decode(v)
-}
-
-func projectRequestDecoder(r *http.Request) goahttp.Decoder {
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	isJSON := r.Header.Get("Content-Type") == "" || err == nil && mediaType == "application/json"
-	if isJSON && r.Method == http.MethodPost && r.URL.Path == "/projects" {
-		body, readErr := io.ReadAll(r.Body)
-		if readErr != nil {
-			return &projectJSONDecoder{validationErr: readErr}
-		}
-		validationErr := rejectDuplicateParentUIDKeys(json.NewDecoder(bytes.NewReader(body)))
-		return &projectJSONDecoder{decoder: json.NewDecoder(bytes.NewReader(body)), validationErr: validationErr}
-	}
-	return goahttp.RequestDecoder(r)
-}
-
-func rejectDuplicateParentUIDKeys(decoder *json.Decoder) error {
-	token, err := decoder.Token()
-	if err != nil {
-		return err
-	}
-	if token != json.Delim('{') {
-		return fmt.Errorf("create project payload must be a JSON object")
-	}
-
-	parentUIDCount := 0
-	for decoder.More() {
-		keyToken, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		key, ok := keyToken.(string)
-		if !ok {
-			return fmt.Errorf("create project payload contains a non-string key")
-		}
-		if strings.EqualFold(key, "parent_uid") {
-			parentUIDCount++
-			if parentUIDCount > 1 {
-				return fmt.Errorf("create project payload contains multiple parent_uid keys")
-			}
-		}
-		var value json.RawMessage
-		if err := decoder.Decode(&value); err != nil {
-			return err
-		}
-	}
-	if _, err := decoder.Token(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
+// newHTTPHandler builds the full HTTP handler for the service: the Goa
+// endpoints mounted on a muxer, wrapped in the request middleware chain and
+// OpenTelemetry instrumentation.
+func newHTTPHandler(svc *ProjectsAPI) http.Handler {
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
 
@@ -100,18 +31,6 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 	mux := goahttp.NewMuxer()
 	requestDecoder := projectRequestDecoder
 	responseEncoder := goahttp.ResponseEncoder
-
-	// Create a custom encoder that sets ETag header for get-one-project
-	customEncoder := func(ctx context.Context, w http.ResponseWriter) goahttp.Encoder {
-		encoder := responseEncoder(ctx, w)
-
-		// Check if we have an ETag in the context
-		if etag, ok := ctx.Value(constants.ETagContextID).(string); ok {
-			w.Header().Set("ETag", etag)
-		}
-
-		return encoder
-	}
 
 	koDataPath := os.Getenv("KO_DATA_PATH")
 	if koDataPath == "" {
@@ -124,7 +43,7 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 		endpoints,
 		mux,
 		requestDecoder,
-		customEncoder,
+		responseEncoder,
 		nil,
 		nil,
 		uploadDocumentDecoder,
@@ -136,30 +55,8 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 
 	// Register route-tagging middleware inside chi's routing chain so that
 	// http.route is set on the OTel span after chi has matched the route pattern.
-	// The span name is also updated here to avoid high-cardinality names from
-	// using raw URL paths (which contain actual path parameter values).
 	// Must be registered before Mount calls per chi convention.
-	// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
-	// during routing (inside ServeHTTP), not before.
-	mux.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				rctx := chi.RouteContext(r.Context())
-				if rctx != nil {
-					routePattern := rctx.RoutePattern()
-					if routePattern != "" {
-						if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
-							labeler.Add(semconv.HTTPRoute(routePattern))
-						}
-						span := trace.SpanFromContext(r.Context())
-						span.SetAttributes(semconv.HTTPRoute(routePattern))
-						span.SetName(r.Method + " " + routePattern)
-					}
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	})
+	mux.Use(middleware.RouteTaggingMiddleware())
 
 	// Mount the handler on the mux
 	genhttp.Mount(mux, genHttpServer)
@@ -183,13 +80,23 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 		}),
 	)
 
-	// Set up http listener in a goroutine using provided command line parameters.
-	var addr string
+	return handler
+}
+
+// listenAddr returns the address the HTTP server listens on. A bind value of
+// "*" listens on all interfaces.
+func listenAddr(flags cmdFlags) string {
 	if flags.Bind == "*" {
-		addr = ":" + flags.Port
-	} else {
-		addr = flags.Bind + ":" + flags.Port
+		return ":" + flags.Port
 	}
+	return flags.Bind + ":" + flags.Port
+}
+
+func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
+	handler := newHTTPHandler(svc)
+
+	// Set up http listener in a goroutine using provided command line parameters.
+	addr := listenAddr(flags)
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           handler,

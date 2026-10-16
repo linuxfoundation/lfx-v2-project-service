@@ -63,14 +63,6 @@ func handleError(ctx context.Context, err error) error {
 	return err
 }
 
-// nilStr returns empty string if pointer is nil, otherwise the value.
-func nilStr(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
 // createResponse creates a response error based on the HTTP status code.
 func createResponse(code int, err error) error {
 	switch code {
@@ -133,7 +125,7 @@ func (s *ProjectsAPI) JWTAuth(ctx context.Context, bearerToken string, _ *securi
 	}
 
 	// Parse the Heimdall-authorized principal from the token.
-	principal, email, err := s.service.Auth.ParsePrincipalAndEmail(ctx, bearerToken)
+	principal, email, err := s.auth.ParsePrincipalAndEmail(ctx, bearerToken)
 	if err != nil {
 		return ctx, err
 	}

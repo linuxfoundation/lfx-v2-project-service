@@ -26,7 +26,7 @@ Repo-local conventions for writing Go code in `lfx-v2-project-service`. Auto-att
 
 - Generated-code boundary (Goa).
 - Logging with `log/slog` and the repo's `internal/infrastructure/log` context helper.
-- Domain errors in `internal/domain/errors.go` and the HTTP mapping in `cmd/project-api/service_endpoint_project.go`.
+- Domain errors in `internal/domain/errors.go` and the HTTP mapping in `cmd/project-api/service_endpoint.go`.
 - Request context propagation through `pkg/constants` typed keys.
 - Pagination shape for list endpoints.
 - NATS subject and KV bucket usage from `pkg/constants/nats.go`.
@@ -51,9 +51,10 @@ internal/domain/               models, ports, errors, mock factories
 internal/service/              business orchestration
 internal/infrastructure/nats/  KV repositories and message publishers
 internal/infrastructure/auth/  JWT auth integration
-internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit
+internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit, route_tagging
 internal/infrastructure/log/   slog context helpers
 pkg/constants/                 NATS, HTTP, app, access-control constants
+pkg/misc/                      small generic helpers (StringPtr, BoolPtr, ValueOrZero)
 charts/lfx-v2-project-service/ Helm chart (owned by this repo)
 ```
 
@@ -82,7 +83,7 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
 ## Errors
 
 - All domain errors live in `internal/domain/errors.go` as named sentinels (`ErrProjectNotFound`, `ErrRevisionMismatch`, `ErrInvalidParentProject`, etc.). Add new error returns there, do not scatter sentinels across packages.
-- Translate sentinels to HTTP at the Goa boundary in `cmd/project-api/service_endpoint_project.go::handleError`. New errors must be added to that switch.
+- Translate sentinels to HTTP at the Goa boundary in `cmd/project-api/service_endpoint.go::handleError`. New errors must be added to that switch.
 - Standard mapping for this repo:
 
   | Error category | HTTP | Examples |
@@ -105,7 +106,6 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
   - `constants.RequestIDContextID` for `X-REQUEST-ID`.
   - `constants.PrincipalContextID` for the Heimdall principal parsed by `ProjectsAPI.JWTAuth`.
   - `constants.AuthorizationContextID` for the inbound `Authorization` header captured by `AuthorizationMiddleware`.
-  - `constants.ETagContextID` for response `ETag` values set by the custom encoder in `cmd/project-api/main.go`.
 - Never introduce bare string context keys. Add a new typed alias to `pkg/constants/http.go` if a new key is needed.
 - Propagate `ctx` end to end: HTTP handler to service to repository to NATS publisher. Do not drop `ctx` in the middle.
 - `If-Match` is decoded by generated Goa code into payload fields such as `payload.IfMatch`; it is not read from context.

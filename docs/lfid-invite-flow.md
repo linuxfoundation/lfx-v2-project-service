@@ -50,7 +50,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
 
 **Triggered by:** a `lfx.invite-service.invite_accepted` event (`inviteapi.InviteServiceAcceptedSubject`) published by the invite service after it has processed an acceptance. The event (`inviteapi.InviteServiceAcceptedEvent`) embeds the full invite, so subscribers get enriched context without a separate lookup.
 
-**NATS subscription:** queue-subscribed in `cmd/project-api/main.go` under the `ProjectsAPIQueue` consumer group.
+**NATS subscription:** queue-subscribed in `cmd/project-api/nats.go` under the `ProjectsAPIQueue` consumer group.
 
 **Message payload** (relevant fields of the embedded invite):
 

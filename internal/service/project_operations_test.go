@@ -14,7 +14,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
@@ -109,7 +108,7 @@ func TestProjectsService_GetProjects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 
 			if tt.name == "service not ready" {
 				service.ProjectRepository = nil
@@ -132,7 +131,6 @@ func TestProjectsService_GetProjects(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }
@@ -386,7 +384,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 			mockUserReader := service.UserReader.(*domainmocks.MockUserReader)
 
 			if tt.name == "service not ready" {
@@ -416,7 +414,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 			mockUserReader.AssertExpectations(t)
 		})
 	}
@@ -503,7 +500,7 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 			tt.setupMocks(mockRepo, mockBuilder)
 
 			result, err := service.GetOneProjectBase(context.Background(), tt.payload)
@@ -524,7 +521,6 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }
@@ -805,17 +801,15 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			var service *ProjectsService
 			var mockRepo *domainmocks.MockProjectRepository
 			var mockBuilder *domainmocks.MockMessageBuilder
-			var mockAuth *auth.MockJWTAuth
 
 			if tt.skipEtagValidation {
 				// Create service with SkipEtagValidation enabled
 				mockRepo = &domainmocks.MockProjectRepository{}
 				mockBuilder = &domainmocks.MockMessageBuilder{}
-				mockAuth = &auth.MockJWTAuth{}
 				mockUserReader := &domainmocks.MockUserReader{}
 				resolver := NewUserResolver(mockUserReader)
 
-				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true}, ServiceDeps{
+				service = NewProjectsService(ServiceConfig{SkipEtagValidation: true}, ServiceDeps{
 					ProjectRepository:  mockRepo,
 					DocumentRepository: &domainmocks.MockDocumentRepository{},
 					LinkRepository:     &domainmocks.MockLinkRepository{},
@@ -828,7 +822,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				})
 			} else {
 				// Use default setup
-				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()
+				service, mockRepo, mockBuilder = setupServiceForTesting()
 			}
 
 			if tt.name == "service not ready" {
@@ -850,7 +844,6 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }
@@ -880,7 +873,7 @@ func TestProjectsService_ProjectValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, _ := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 			// Setup basic mocks to ensure service is ready
 			_ = mockRepo
 			_ = mockBuilder
@@ -1388,7 +1381,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 
 			if tt.fgaChecker != nil {
 				service.FGAChecker = tt.fgaChecker
@@ -1419,7 +1412,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }
@@ -1905,7 +1897,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 			mockUserReader := service.UserReader.(*domainmocks.MockUserReader)
 
 			if tt.expectedErr == domain.ErrServiceUnavailable {
@@ -1935,7 +1927,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 			mockUserReader.AssertExpectations(t)
 		})
 	}
@@ -2006,7 +1997,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 
 			if tt.expectedErr == domain.ErrServiceUnavailable {
 				service.ProjectRepository = nil
@@ -2030,7 +2021,6 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }

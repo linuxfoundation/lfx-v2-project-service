@@ -866,3 +866,67 @@ func DomainLinkToEvent(link *models.ProjectLink) events.ProjectLinkCreatedMessag
 		CreatedBy:  models.AuditCreatorUsername(link.CreatedBy),
 	}
 }
+
+// ConvertToServiceDocument converts an internal ProjectDocument to the Goa API type.
+func ConvertToServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
+	if d == nil {
+		return nil
+	}
+	doc := &projsvc.ProjectDocument{
+		UID:        &d.UID,
+		ProjectUID: &d.ProjectUID,
+		FolderUID:  d.FolderUID,
+		Name:       &d.Name,
+		FileName:   &d.FileName,
+		FileSize:   &d.FileSize,
+		CreatedBy:  ConvertAuditUserToAPI(d.CreatedBy),
+		UpdatedBy:  ConvertAuditUserToAPI(d.UpdatedBy),
+		CreatedAt:  misc.StringPtr(d.CreatedAt.Format(time.RFC3339)),
+		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format(time.RFC3339)),
+	}
+	if d.Description != "" {
+		doc.Description = &d.Description
+	}
+	if d.ContentType != "" {
+		doc.ContentType = &d.ContentType
+	}
+	return doc
+}
+
+// ConvertToServiceLink converts an internal ProjectLink to the Goa API type.
+func ConvertToServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
+	if l == nil {
+		return nil
+	}
+	link := &projsvc.ProjectLink{
+		UID:        &l.UID,
+		ProjectUID: &l.ProjectUID,
+		FolderUID:  l.FolderUID,
+		Name:       &l.Name,
+		URL:        &l.URL,
+		CreatedBy:  ConvertAuditUserToAPI(l.CreatedBy),
+		UpdatedBy:  ConvertAuditUserToAPI(l.UpdatedBy),
+		CreatedAt:  misc.StringPtr(l.CreatedAt.Format(time.RFC3339)),
+		UpdatedAt:  misc.StringPtr(l.UpdatedAt.Format(time.RFC3339)),
+	}
+	if l.Description != "" {
+		link.Description = &l.Description
+	}
+	return link
+}
+
+// ConvertToServiceFolder converts an internal ProjectFolder to the Goa API type.
+func ConvertToServiceFolder(f *models.ProjectFolder) *projsvc.ProjectFolder {
+	if f == nil {
+		return nil
+	}
+	return &projsvc.ProjectFolder{
+		UID:        &f.UID,
+		ProjectUID: &f.ProjectUID,
+		Name:       &f.Name,
+		CreatedBy:  ConvertAuditUserToAPI(f.CreatedBy),
+		UpdatedBy:  ConvertAuditUserToAPI(f.UpdatedBy),
+		CreatedAt:  misc.StringPtr(f.CreatedAt.Format(time.RFC3339)),
+		UpdatedAt:  misc.StringPtr(f.UpdatedAt.Format(time.RFC3339)),
+	}
+}

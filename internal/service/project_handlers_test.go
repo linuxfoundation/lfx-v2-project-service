@@ -13,7 +13,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/stretchr/testify/assert"
@@ -181,7 +180,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			service, mockRepo, mockBuilder := setupServiceForTesting()
 			tt.setupMocks(mockRepo, mockBuilder)
 
 			// Create mock message
@@ -200,7 +199,6 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			}
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
-			mockAuth.AssertExpectations(t)
 		})
 	}
 }
@@ -318,7 +316,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetNameSubject, tt.messageData)
@@ -403,7 +401,7 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetSlugSubject, tt.messageData)
@@ -488,7 +486,7 @@ func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetLogoSubject, tt.messageData)
@@ -569,7 +567,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectSlugToUIDSubject, tt.messageData)
@@ -675,7 +673,7 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetParentUIDSubject, tt.messageData)
@@ -783,7 +781,7 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetWritersSubject, tt.messageData)
@@ -904,7 +902,7 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectGetSettingsSubject, tt.messageData)
@@ -1116,7 +1114,7 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
+			service, mockRepo, _ := setupServiceForTesting()
 			tt.setupMocks(mockRepo)
 
 			mockMsg := newMockMessage(constants.ProjectListProjectsSubject, tt.messageData)
@@ -1172,7 +1170,6 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 					ProjectRepository: nil,
 					Publisher:         nil,
 					Sender:            nil,
-					Auth:              &auth.MockJWTAuth{},
 				}
 			},
 			subject:     constants.ProjectGetNameSubject,
@@ -1198,7 +1195,6 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 					UserReader:         &domainmocks.MockUserReader{},
 					Resolver:           resolver,
 					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
-					Auth:               &auth.MockJWTAuth{},
 				}
 			},
 			subject:     constants.ProjectGetNameSubject,
@@ -1223,7 +1219,6 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 					UserReader:         &domainmocks.MockUserReader{},
 					Resolver:           resolver,
 					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
-					Auth:               &auth.MockJWTAuth{},
 				}
 			},
 			subject:     constants.ProjectGetNameSubject,
@@ -1249,7 +1244,6 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 					UserReader:         &domainmocks.MockUserReader{},
 					Resolver:           resolver,
 					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
-					Auth:               &auth.MockJWTAuth{},
 				}
 			},
 			subject:     constants.ProjectGetNameSubject,
@@ -1300,7 +1294,7 @@ func TestProjectsService_MessageHandling_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("end to end message handling", func(t *testing.T) {
-		service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+		service, mockRepo, mockBuilder := setupServiceForTesting()
 
 		// Setup expectations for a complete flow
 		now := time.Now()
@@ -1330,7 +1324,6 @@ func TestProjectsService_MessageHandling_Integration(t *testing.T) {
 		// Verify all expectations
 		mockRepo.AssertExpectations(t)
 		mockBuilder.AssertExpectations(t)
-		mockAuth.AssertExpectations(t)
 		mockMsg.AssertExpectations(t)
 	})
 }

@@ -363,7 +363,12 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 │       ├── nats/                   # NATS messaging and repository implementation
 │       └── opensearch/             # OpenSearch client
 └── pkg/                            # Shared packages
-    └── constants/                  # Shared constants and configurations
+    ├── constants/                  # Shared constants and configurations
+    ├── env/                        # Environment variable helpers
+    ├── events/                     # NATS event wire types consumed by other services
+    ├── misc/                       # Small generic helpers (pointer helpers, ValueOrZero)
+    ├── struct/                     # Struct reflection helpers
+    └── utils/                      # OpenTelemetry SDK setup
 ```
 
 ## Development

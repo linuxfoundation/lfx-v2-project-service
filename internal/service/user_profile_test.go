@@ -224,7 +224,7 @@ func TestUserResolver_UsernameByEmail(t *testing.T) {
 }
 
 func TestProjectsService_stampAuditUsers(t *testing.T) {
-	svc, _, _, _ := setupServiceForTesting()
+	svc, _, _ := setupServiceForTesting()
 	mockUser := svc.Resolver.reader.(*domainmocks.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
@@ -243,7 +243,7 @@ func TestProjectsService_stampAuditUsers(t *testing.T) {
 }
 
 func TestProjectsService_normalizeAuditUsers(t *testing.T) {
-	svc, _, _, _ := setupServiceForTesting()
+	svc, _, _ := setupServiceForTesting()
 	mockUser := svc.Resolver.reader.(*domainmocks.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
