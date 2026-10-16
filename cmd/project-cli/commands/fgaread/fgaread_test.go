@@ -232,3 +232,26 @@ func TestNewClientFromEnv(t *testing.T) {
 func TestHTTPError_Error(t *testing.T) {
 	assert.Equal(t, "OpenFGA read returned HTTP 503", HTTPError{Status: 503}.Error())
 }
+
+func TestClient_ReadProjectTuples(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"tuples": [
+			{"key": {"user": "user:test", "relation": "writer"}},
+			{"key": {"user": "user:other", "relation": "auditor"}},
+			{"key": {"user": "team:formation#member", "relation": "global_owner"}}
+		]}`))
+	}))
+	defer server.Close()
+	client := &Client{baseURL: server.URL, storeID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", http: server.Client()}
+
+	tuples, err := client.ReadProjectTuples(context.Background(), "project-test", func(relation string) bool {
+		return relation == "writer" || relation == "auditor"
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []Tuple{
+		{User: "user:test", Relation: "writer"},
+		{User: "user:other", Relation: "auditor"},
+	}, tuples)
+}

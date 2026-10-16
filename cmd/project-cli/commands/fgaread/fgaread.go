@@ -120,6 +120,13 @@ func (c *Client) CheckStore(ctx context.Context) error {
 
 // ReadProjectGlobalTuples returns the global_* tuples on a project object.
 func (c *Client) ReadProjectGlobalTuples(ctx context.Context, projectUID string) ([]Tuple, error) {
+	return c.ReadProjectTuples(ctx, projectUID, func(relation string) bool {
+		return strings.HasPrefix(relation, "global_")
+	})
+}
+
+// ReadProjectTuples returns the tuples on a project object whose relation keep accepts.
+func (c *Client) ReadProjectTuples(ctx context.Context, projectUID string, keep func(relation string) bool) ([]Tuple, error) {
 	var tuples []Tuple
 	token := ""
 	seenTokens := map[string]struct{}{}
@@ -156,7 +163,7 @@ func (c *Client) ReadProjectGlobalTuples(ctx context.Context, projectUID string)
 			return nil, err
 		}
 		for _, tuple := range page.Tuples {
-			if strings.HasPrefix(tuple.Key.Relation, "global_") {
+			if keep(tuple.Key.Relation) {
 				tuples = append(tuples, Tuple{
 					User:        tuple.Key.User,
 					Relation:    tuple.Key.Relation,

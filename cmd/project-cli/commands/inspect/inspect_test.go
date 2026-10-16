@@ -129,7 +129,7 @@ func TestNewCommand(t *testing.T) {
 		assert.NotEmpty(t, sub.Help(), "%s needs help text", key)
 		names = append(names, key)
 	}
-	assert.ElementsMatch(t, []string{"project", "slug-index", "orphans", "index-drift"}, names)
+	assert.ElementsMatch(t, []string{"project", "slug-index", "orphans", "index-drift", "settings-access", "children", "parents"}, names)
 }
 
 func TestWriteReport(t *testing.T) {
@@ -163,6 +163,12 @@ func TestSubcommandRun_flagsAndConnect(t *testing.T) {
 		{name: "orphans fails at the NATS connect", sub: &orphansSubcommand{}, wantErr: ""},
 		{name: "index-drift rejects extra args", sub: &indexDriftSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
 		{name: "index-drift fails at the NATS connect", sub: &indexDriftSubcommand{}, wantErr: ""},
+		{name: "settings-access rejects extra args", sub: &settingsAccessSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "settings-access rejects a bad concurrency", sub: &settingsAccessSubcommand{}, args: []string{"--concurrency=0"}, wantErr: "concurrency must be between 1 and 100"},
+		{name: "children rejects extra args", sub: &childrenSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "children fails at the NATS connect", sub: &childrenSubcommand{}, wantErr: ""},
+		{name: "parents rejects extra args", sub: &parentsSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "parents fails at the NATS connect", sub: &parentsSubcommand{}, wantErr: ""},
 		{name: "project needs one argument", sub: &projectSubcommand{}, wantErr: "exactly one project UID or slug"},
 		{name: "project rejects two arguments", sub: &projectSubcommand{}, args: []string{"a", "b"}, wantErr: "exactly one project UID or slug"},
 		{name: "project rejects a blank target", sub: &projectSubcommand{}, args: []string{"  "}, wantErr: "must not be empty"},

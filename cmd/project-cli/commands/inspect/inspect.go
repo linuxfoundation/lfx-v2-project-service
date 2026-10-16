@@ -28,6 +28,9 @@ func (c *command) Subcommands() map[string]commands.Subcommand {
 		&slugIndexSubcommand{},
 		&orphansSubcommand{},
 		&indexDriftSubcommand{},
+		&settingsAccessSubcommand{},
+		&childrenSubcommand{},
+		&parentsSubcommand{},
 	)
 }
 
