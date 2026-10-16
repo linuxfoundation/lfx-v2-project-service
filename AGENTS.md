@@ -169,9 +169,14 @@ api/                        # API contracts
 charts/                     # Helm charts containing kubernetes template files for deployments
 
 cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint adapters)
+├── service_endpoint.go    # Shared error mapping (handleError), health checks, JWT auth
 ├── service_endpoint_*.go  # Goa endpoint adapters (project, link, folder, document)
-├── http.go                # HTTP server wiring
-└── main.go                # Application entry point, NATS subscription wiring
+├── request_decoders.go    # Custom request decoders (create-project JSON, multipart document upload)
+├── server.go              # HTTP server wiring (handler chain, listen address)
+├── service.go             # ProjectsAPI adapter type (service and authenticator)
+├── config.go              # Command-line flag and environment parsing
+├── nats.go                # NATS connection setup, subscriptions, graceful shutdown
+└── main.go                # Application entry point
 
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors, mocks)
@@ -193,7 +198,11 @@ internal/                   # Core business logic
 
 pkg/                    # Shared packages across services
 ├── constants/          # Shared constants (NATS subjects, KV buckets, HTTP, access control)
-└── events/             # NATS event wire types consumed by other services
+├── env/                # Environment variable helpers (Get, GetBool, GetInt)
+├── events/             # NATS event wire types consumed by other services
+├── misc/               # Small generic helpers (StringPtr, BoolPtr, ValueOrZero)
+├── struct/             # Struct reflection helpers (FieldByTag)
+└── utils/              # OpenTelemetry SDK setup
 
 scripts/                # Scripts for services and miscellaneous tasks
 ```

@@ -26,7 +26,7 @@ Repo-local conventions for writing Go code in `lfx-v2-project-service`. Auto-att
 
 - Generated-code boundary (Goa).
 - Logging with `log/slog` and the repo's `internal/infrastructure/log` context helper.
-- Domain errors in `internal/domain/errors.go` and the HTTP mapping in `cmd/project-api/service_endpoint_project.go`.
+- Domain errors in `internal/domain/errors.go` and the HTTP mapping in `cmd/project-api/service_endpoint.go`.
 - Request context propagation through `pkg/constants` typed keys.
 - Pagination shape for list endpoints.
 - NATS subject and KV bucket usage from `pkg/constants/nats.go`.
@@ -54,6 +54,7 @@ internal/infrastructure/auth/  JWT auth integration
 internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit, route_tagging
 internal/infrastructure/log/   slog context helpers
 pkg/constants/                 NATS, HTTP, app, access-control constants
+pkg/misc/                      small generic helpers (StringPtr, BoolPtr, ValueOrZero)
 charts/lfx-v2-project-service/ Helm chart (owned by this repo)
 ```
 

@@ -35,4 +35,7 @@ Contents: dependency-injection style and mock layout for lfx-v2-project-service.
 | New repository method | interface in `internal/domain/repository.go`, implementation in `internal/infrastructure/nats/`, mock in `internal/domain/mock.go` |
 | New endpoint (after design + apigen) | `cmd/project-api/service_endpoint_*.go` plus `internal/service/*_operations.go` |
 | New middleware | `internal/infrastructure/middleware/` with a `*_test.go` alongside |
+| Goa type to or from a domain model (and domain to event type) conversion | `internal/service/converters.go`, with a case in `converters_test.go`; not in `cmd/project-api` |
+| Custom Goa request decoder | `cmd/project-api/request_decoders.go` |
+| Small generic helper with no domain knowledge (pointer helpers, `ValueOrZero`) | `pkg/misc/` |
 | New shared structured-log field | a `log.AppendCtx` call inside the middleware or service that has the value |
