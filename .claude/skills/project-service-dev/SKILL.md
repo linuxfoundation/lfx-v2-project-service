@@ -66,6 +66,7 @@ Match existing package names and constructor styles before adding a new abstract
 - Change `api/project/v1/design/*.go` first, then run `make apigen` (which runs `goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o api/project/v1`).
 - Generated files under `api/project/v1/gen/` are tracked in this repo. Commit generated diffs alongside the design changes that produced them.
 - Implement generated interfaces in `cmd/project-api/service_endpoint_*.go`. Business logic lives in `internal/service/`, not in the endpoint adapter.
+- The service layer takes and returns domain types (`internal/domain/models`, `service.ProjectSettingsInput`), never Goa types. Request-to-input and model-to-response conversion lives in `cmd/project-api/converters.go`; `internal/service` must not import `api/project/v1/gen` (a test enforces this).
 - When a design change affects authorization, update `charts/lfx-v2-project-service/templates/ruleset.yaml` in the same change.
 
 Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout) live in `references/goa-and-codegen.md`.

@@ -450,7 +450,7 @@ func (r *documentAuditUsersRunner) applyAuditUsers(
 }
 
 func (r *documentAuditUsersRunner) resolveAuditProfile(ctx context.Context, res freshAuditResource, username string) (*models.UserInfo, bool) {
-	profile := service.ResolveAuditUserProfile(ctx, r.userReader, username)
+	profile := service.NewUserResolver(r.userReader).ResolveAuditUserProfile(ctx, username)
 	if profile == nil || models.AuditUserNeedsMigration(profile) {
 		slog.WarnContext(ctx, "failed to resolve audit user profile for migration",
 			"resource_type", res.resourceType,

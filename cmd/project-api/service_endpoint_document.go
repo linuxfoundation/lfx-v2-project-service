@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 )
 
 // UploadProjectDocument handles multipart document upload.
@@ -36,7 +35,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 		return nil, handleError(ctx, err)
 	}
 
-	return service.ConvertToServiceDocument(doc), nil
+	return convertToServiceDocument(doc), nil
 }
 
 // GetProjectDocument gets project document metadata.
@@ -47,7 +46,7 @@ func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.G
 	}
 
 	return &projsvc.GetProjectDocumentResult{
-		Document: service.ConvertToServiceDocument(doc),
+		Document: convertToServiceDocument(doc),
 		Etag:     &etag,
 	}, nil
 }
