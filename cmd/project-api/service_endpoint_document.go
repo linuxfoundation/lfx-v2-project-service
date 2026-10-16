@@ -224,23 +224,29 @@ func (b *documentDownloadBody) WriteTo(w io.Writer) (int64, error) {
 			hw.Header().Set("Content-Type", b.contentType)
 		}
 		if b.fileName != "" {
-			// ASCII fallback: strip non-ASCII and chars illegal inside quoted-string.
-			asciiFallback := strings.Map(func(r rune) rune {
-				if r > 127 || r == '"' || r == '\\' || r == '\n' || r == '\r' {
-					return '_'
-				}
-				return r
-			}, b.fileName)
-			// RFC 6266 dual form: legacy agents use filename="…", modern agents prefer filename*=UTF-8''…
-			hw.Header().Set("Content-Disposition", fmt.Sprintf(
-				`attachment; filename="%s"; filename*=UTF-8''%s`,
-				asciiFallback,
-				url.PathEscape(b.fileName),
-			))
+			hw.Header().Set("Content-Disposition", contentDispositionHeader(b.fileName))
 		}
 	}
 	n, err := w.Write(b.data)
 	return int64(n), err
+}
+
+// contentDispositionHeader builds the attachment Content-Disposition value for
+// fileName using the RFC 6266 dual form: legacy agents use the quoted filename
+// parameter, modern agents prefer the UTF-8 percent-encoded filename* parameter.
+func contentDispositionHeader(fileName string) string {
+	// ASCII fallback: strip non-ASCII and chars illegal inside quoted-string.
+	asciiFallback := strings.Map(func(r rune) rune {
+		if r > 127 || r == '"' || r == '\\' || r == '\n' || r == '\r' {
+			return '_'
+		}
+		return r
+	}, fileName)
+	return fmt.Sprintf(
+		`attachment; filename="%s"; filename*=UTF-8''%s`,
+		asciiFallback,
+		url.PathEscape(fileName),
+	)
 }
 
 // DeleteProjectDocument deletes a project document.

@@ -55,6 +55,7 @@ func setupAPI() (*ProjectsAPI, *domainmocks.MockProjectRepository, *domainmocks.
 
 	api := &ProjectsAPI{
 		service: projectService,
+		auth:    mockJwtAuth,
 	}
 
 	return api, mockRepo, mockMessageBuilder

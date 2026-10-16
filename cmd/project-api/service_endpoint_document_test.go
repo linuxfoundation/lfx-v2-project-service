@@ -562,3 +562,23 @@ func TestDocumentDownloadBody(t *testing.T) {
 		assert.Equal(t, "hello", buf.String())
 	})
 }
+
+func TestContentDispositionHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		fileName string
+		want     string
+	}{
+		{name: "ascii file name", fileName: "charter.txt", want: `attachment; filename="charter.txt"; filename*=UTF-8''charter.txt`},
+		{name: "spaces are escaped in the encoded form only", fileName: "annual report.pdf", want: `attachment; filename="annual report.pdf"; filename*=UTF-8''annual%20report.pdf`},
+		{name: "non-ascii characters are replaced in the fallback", fileName: "résumé.pdf", want: `attachment; filename="r_sum_.pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf`},
+		{name: "quotes and backslashes cannot break out of the quoted string", fileName: `a"b\c.txt`, want: `attachment; filename="a_b_c.txt"; filename*=UTF-8''a%22b%5Cc.txt`},
+		{name: "line breaks cannot inject headers", fileName: "a\r\nX-Injected: 1.txt", want: `attachment; filename="a__X-Injected: 1.txt"; filename*=UTF-8''a%0D%0AX-Injected:%201.txt`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, contentDispositionHeader(tt.fileName))
+		})
+	}
+}

@@ -165,7 +165,7 @@ func TestJWTAuth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, _, _ := setupAPI()
-			tt.setupMocks(api.service.Auth.(*auth.MockJWTAuth))
+			tt.setupMocks(api.auth.(*auth.MockJWTAuth))
 
 			ctx, err := api.JWTAuth(context.Background(), tt.bearerToken, tt.schema)
 

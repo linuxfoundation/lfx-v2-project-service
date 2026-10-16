@@ -115,7 +115,7 @@ func run() int {
 		EmailsEnabled:       env.EmailsEnabled,
 		InvitesEnabled:      env.InvitesEnabled,
 	}, deps)
-	svc := NewProjectsAPI(projectService)
+	svc := NewProjectsAPI(projectService, jwtAuth)
 
 	// Wire NATS event and RPC subscriptions now that the service is ready.
 	if err := createNatsSubscriptions(ctx, svc, natsConn); err != nil {
