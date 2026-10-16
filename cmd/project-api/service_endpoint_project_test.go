@@ -615,3 +615,68 @@ func TestDeleteProject(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateProjectSettings covers the adapter's request validation and error
+// mapping. The full update flow (FGA, indexing, notifications) is covered by
+// the service-layer tests.
+func TestUpdateProjectSettings(t *testing.T) {
+	const uid = "00000000-0000-0000-0000-000000000001"
+
+	tests := []struct {
+		name       string
+		payload    *projsvc.UpdateProjectSettingsPayload
+		setupMocks func(*domainmocks.MockProjectRepository)
+		wantErr    any
+	}{
+		{
+			name:       "missing uid is a bad request",
+			payload:    &projsvc.UpdateProjectSettingsPayload{IfMatch: misc.StringPtr("1")},
+			setupMocks: func(*domainmocks.MockProjectRepository) {},
+			wantErr:    &projsvc.BadRequestError{},
+		},
+		{
+			name:       "missing If-Match is a bad request",
+			payload:    &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid)},
+			setupMocks: func(*domainmocks.MockProjectRepository) {},
+			wantErr:    &projsvc.BadRequestError{},
+		},
+		{
+			name:    "project not found",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(r *domainmocks.MockProjectRepository) {
+				r.On("ProjectExists", mock.Anything, uid).Return(false, nil)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+		{
+			name:    "existence check failure is an internal error",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(r *domainmocks.MockProjectRepository) {
+				r.On("ProjectExists", mock.Anything, uid).Return(false, errors.New("kv unavailable"))
+			},
+			wantErr: &projsvc.InternalServerError{},
+		},
+		{
+			name:    "settings not found",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(r *domainmocks.MockProjectRepository) {
+				r.On("ProjectExists", mock.Anything, uid).Return(true, nil)
+				r.On("GetProjectSettings", mock.Anything, uid).Return(nil, domain.ErrProjectNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api, mockRepo, _ := setupAPI()
+			tt.setupMocks(mockRepo)
+
+			got, err := api.UpdateProjectSettings(context.Background(), tt.payload)
+
+			require.IsType(t, tt.wantErr, err)
+			assert.Nil(t, got)
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}

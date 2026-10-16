@@ -118,7 +118,7 @@ func run() int {
 	svc := NewProjectsAPI(projectService)
 
 	// Wire NATS event and RPC subscriptions now that the service is ready.
-	if err := createNatsSubcriptions(ctx, svc, natsConn); err != nil {
+	if err := createNatsSubscriptions(ctx, svc, natsConn); err != nil {
 		slog.With(constants.ErrKey, err).Error("error creating NATS subscriptions")
 		return 1
 	}

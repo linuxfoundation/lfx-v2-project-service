@@ -9,11 +9,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	projsvchttpserver "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	goahttp "goa.design/goa/v3/http"
@@ -193,4 +196,112 @@ func TestRejectDuplicateParentUIDKeys(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+func TestListenAddr(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags cmdFlags
+		want  string
+	}{
+		{name: "wildcard bind listens on all interfaces", flags: cmdFlags{Bind: "*", Port: "8080"}, want: ":8080"},
+		{name: "explicit interface", flags: cmdFlags{Bind: "127.0.0.1", Port: "9090"}, want: "127.0.0.1:9090"},
+		{name: "hostname", flags: cmdFlags{Bind: "localhost", Port: "8080"}, want: "localhost:8080"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, listenAddr(tt.flags))
+		})
+	}
+}
+
+func TestNewHTTPHandler(t *testing.T) {
+	koDataDir := t.TempDir()
+	// Goa serves /_projects/openapi.json from <KO_DATA_PATH>/gen/http/openapi.json,
+	// which is what the kodata/gen symlink provides in the built image.
+	require.NoError(t, os.MkdirAll(filepath.Join(koDataDir, "gen", "http"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(koDataDir, "gen", "http", "openapi.json"), []byte(`{"openapi":"test"}`), 0o600))
+	t.Setenv("KO_DATA_PATH", koDataDir)
+
+	t.Run("livez responds and sets a request id", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/livez", nil))
+
+		assert.Equal(t, http.StatusOK, res.Code)
+		assert.Equal(t, "OK\n", res.Body.String())
+		assert.NotEmpty(t, res.Header().Get(constants.RequestIDHeader))
+	})
+
+	t.Run("an existing request id is echoed back", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		req := httptest.NewRequest(http.MethodGet, "/livez", nil)
+		req.Header.Set(constants.RequestIDHeader, "request-123")
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+
+		assert.Equal(t, "request-123", res.Header().Get(constants.RequestIDHeader))
+	})
+
+	t.Run("readyz is ok when the service is ready", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+
+		assert.Equal(t, http.StatusOK, res.Code)
+	})
+
+	t.Run("readyz is unavailable when the service is not ready", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		api.service.ProjectRepository = nil
+		handler := newHTTPHandler(api)
+
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+
+		assert.Equal(t, http.StatusServiceUnavailable, res.Code)
+	})
+
+	t.Run("unknown paths are not found", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/does-not-exist", nil))
+
+		assert.Equal(t, http.StatusNotFound, res.Code)
+	})
+
+	t.Run("openapi spec is served from KO_DATA_PATH", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/_projects/openapi.json", nil))
+
+		assert.Equal(t, http.StatusOK, res.Code)
+		assert.JSONEq(t, `{"openapi":"test"}`, res.Body.String())
+	})
+
+	t.Run("request bodies above the limit are rejected", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		handler := newHTTPHandler(api)
+
+		// Larger than the document size limit plus the multipart headroom.
+		body := strings.NewReader(strings.Repeat("a", 12<<20))
+		req := httptest.NewRequest(http.MethodPost, "/projects", body)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+
+		assert.GreaterOrEqual(t, res.Code, http.StatusBadRequest)
+		assert.NotEqual(t, http.StatusCreated, res.Code)
+	})
 }

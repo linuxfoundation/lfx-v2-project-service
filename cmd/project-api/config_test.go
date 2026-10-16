@@ -4,9 +4,12 @@
 package main
 
 import (
+	"flag"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseEnv(t *testing.T) {
@@ -148,4 +151,44 @@ func TestLFXSelfServeBaseURL(t *testing.T) {
 			assert.Equal(t, tt.want, LFXSelfServeBaseURL())
 		})
 	}
+}
+
+func TestParseFlagSet(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		want    cmdFlags
+		wantErr bool
+	}{
+		{name: "defaults", args: nil, want: cmdFlags{Port: "8080", Bind: "*"}},
+		{name: "debug flag", args: []string{"-d"}, want: cmdFlags{Debug: true, Port: "8080", Bind: "*"}},
+		{name: "port flag", args: []string{"-p", "9090"}, want: cmdFlags{Port: "9090", Bind: "*"}},
+		{name: "bind flag", args: []string{"-bind", "127.0.0.1"}, want: cmdFlags{Port: "8080", Bind: "127.0.0.1"}},
+		{name: "all flags", args: []string{"-d", "-p", "9090", "-bind", "127.0.0.1"}, want: cmdFlags{Debug: true, Port: "9090", Bind: "127.0.0.1"}},
+		{name: "unknown flag is an error", args: []string{"-unknown"}, wantErr: true},
+		{name: "missing flag value is an error", args: []string{"-p"}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			fs.SetOutput(io.Discard)
+
+			got, err := parseFlagSet(fs, tt.args, "8080")
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	t.Run("default port is taken from the argument", func(t *testing.T) {
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		got, err := parseFlagSet(fs, nil, "1234")
+		require.NoError(t, err)
+		assert.Equal(t, "1234", got.Port)
+	})
 }

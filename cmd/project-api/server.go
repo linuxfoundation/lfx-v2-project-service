@@ -17,10 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/trace"
 	goahttp "goa.design/goa/v3/http"
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
@@ -92,7 +89,10 @@ func rejectDuplicateParentUIDKeys(decoder *json.Decoder) error {
 	return nil
 }
 
-func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
+// newHTTPHandler builds the full HTTP handler for the service: the Goa
+// endpoints mounted on a muxer, wrapped in the request middleware chain and
+// OpenTelemetry instrumentation.
+func newHTTPHandler(svc *ProjectsAPI) http.Handler {
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
 
@@ -136,30 +136,8 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 
 	// Register route-tagging middleware inside chi's routing chain so that
 	// http.route is set on the OTel span after chi has matched the route pattern.
-	// The span name is also updated here to avoid high-cardinality names from
-	// using raw URL paths (which contain actual path parameter values).
 	// Must be registered before Mount calls per chi convention.
-	// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
-	// during routing (inside ServeHTTP), not before.
-	mux.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				rctx := chi.RouteContext(r.Context())
-				if rctx != nil {
-					routePattern := rctx.RoutePattern()
-					if routePattern != "" {
-						if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
-							labeler.Add(semconv.HTTPRoute(routePattern))
-						}
-						span := trace.SpanFromContext(r.Context())
-						span.SetAttributes(semconv.HTTPRoute(routePattern))
-						span.SetName(r.Method + " " + routePattern)
-					}
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	})
+	mux.Use(middleware.RouteTaggingMiddleware())
 
 	// Mount the handler on the mux
 	genhttp.Mount(mux, genHttpServer)
@@ -183,13 +161,23 @@ func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.Wai
 		}),
 	)
 
-	// Set up http listener in a goroutine using provided command line parameters.
-	var addr string
+	return handler
+}
+
+// listenAddr returns the address the HTTP server listens on. A bind value of
+// "*" listens on all interfaces.
+func listenAddr(flags cmdFlags) string {
 	if flags.Bind == "*" {
-		addr = ":" + flags.Port
-	} else {
-		addr = flags.Bind + ":" + flags.Port
+		return ":" + flags.Port
 	}
+	return flags.Bind + ":" + flags.Port
+}
+
+func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
+	handler := newHTTPHandler(svc)
+
+	// Set up http listener in a goroutine using provided command line parameters.
+	addr := listenAddr(flags)
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           handler,

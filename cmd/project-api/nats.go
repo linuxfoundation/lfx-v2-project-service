@@ -112,8 +112,8 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.
 	return repo, nil
 }
 
-// createNatsSubcriptions creates the NATS subscriptions for the project service.
-func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nats.Conn) error {
+// createNatsSubscriptions creates the NATS subscriptions for the project service.
+func createNatsSubscriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nats.Conn) error {
 	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers())
 	queueName := constants.ProjectsAPIQueue
 
