@@ -97,8 +97,22 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 	return nil
 }
 
+// documentAuditRepo is the narrow slice of natsinfra.NatsRepository this
+// runner needs, so tests can fake it without a live NATS connection.
+type documentAuditRepo interface {
+	ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error)
+	GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error)
+	UpdateFolder(ctx context.Context, folder *models.ProjectFolder, revision uint64) error
+	ListAllLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error)
+	GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error)
+	UpdateLink(ctx context.Context, link *models.ProjectLink, revision uint64) error
+	ListAllDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error)
+	GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error)
+	UpdateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument, revision uint64) error
+}
+
 type documentAuditUsersRunner struct {
-	repo        *natsinfra.NatsRepository
+	repo        documentAuditRepo
 	userReader  domain.UserReader
 	publisher   domain.EventPublisher
 	dryRun      bool

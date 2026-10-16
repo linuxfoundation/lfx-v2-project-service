@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 )
 
 type fakeKVEntry struct {
@@ -399,4 +403,50 @@ func assertEqual[T comparable](t *testing.T, want, got []T) {
 			t.Errorf("index %d: want %v, got %v", i, want[i], got[i])
 		}
 	}
+}
+
+func TestRenameProjectSlugSubcommand_Run(t *testing.T) {
+	s := &renameProjectSlugSubcommand{}
+	assert.Equal(t, "rename-project-slug", s.Name())
+	assert.NotEmpty(t, s.Help())
+
+	// Slug and dry-run defaults come from the environment, so pin them.
+	t.Setenv("OLD_SLUG", "")
+	t.Setenv("NEW_SLUG", "")
+	t.Setenv("DRY_RUN", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "help is not an error", args: []string{"-h"}},
+		{name: "no slugs", wantErr: "usage: project-cli sync rename-project-slug"},
+		{name: "only one positional slug", args: []string{"old-slug"}, wantErr: "expected exactly 2 positional args"},
+		{name: "flags and positionals together", args: []string{"--old-slug=a", "b", "c"}, wantErr: "not both"},
+		{name: "unknown flag", args: []string{"--nope"}, wantErr: "flag provided but not defined"},
+		{name: "valid slugs proceed to connect to NATS", args: []string{"old-slug", "new-slug"}, wantErr: "failed to connect to NATS"},
+		{name: "slugs from flags proceed to connect to NATS", args: []string{"--old-slug=old-slug", "--new-slug=new-slug"}, wantErr: "failed to connect to NATS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := s.Run(context.Background(), commands.RunContext{Args: tt.args, NATSConfig: unreachableNATS()})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+
+	t.Run("slugs can come from the environment", func(t *testing.T) {
+		t.Setenv("OLD_SLUG", "old-slug")
+		t.Setenv("NEW_SLUG", "new-slug")
+
+		err := s.Run(context.Background(), commands.RunContext{NATSConfig: unreachableNATS()})
+
+		require.ErrorContains(t, err, "failed to connect to NATS")
+	})
 }

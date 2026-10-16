@@ -1017,6 +1017,24 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 	}
 }
 
+func TestReindexProjectsSubcommand_Run(t *testing.T) {
+	s := &reindexProjectsSubcommand{}
+	assert.Equal(t, "reindex-projects", s.Name())
+	assert.NotEmpty(t, s.Help())
+
+	t.Run("help is not an error", func(t *testing.T) {
+		require.NoError(t, s.Run(context.Background(), commands.RunContext{Args: []string{"-h"}}))
+	})
+
+	t.Run("a valid invocation proceeds to connect to NATS", func(t *testing.T) {
+		err := s.Run(context.Background(), commands.RunContext{
+			Args:       []string{"--all", "--include-access", "--keep-direct-users", "--concurrency=2"},
+			NATSConfig: unreachableNATS(),
+		})
+		require.ErrorContains(t, err, "failed to connect to NATS")
+	})
+}
+
 // directUserRelationNames are the five relations the access message fills from project settings.
 var directUserRelationNames = []string{"writer", "auditor", "meeting_coordinator", "executive_director", "mentorship_program_admin"}
 

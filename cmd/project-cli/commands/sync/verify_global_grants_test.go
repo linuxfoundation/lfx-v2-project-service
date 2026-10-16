@@ -7,12 +7,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 )
 
 func TestExpectedGlobalGrantTuples(t *testing.T) {
@@ -240,4 +245,154 @@ func TestHasTupleCondition(t *testing.T) {
 	assert.False(t, hasTupleCondition(json.RawMessage(`null`)))
 	assert.False(t, hasTupleCondition(json.RawMessage(`{}`)))
 	assert.True(t, hasTupleCondition(json.RawMessage(`{"name":"temporary"}`)))
+}
+
+func TestNewGlobalGrantFGAClientFromEnv(t *testing.T) {
+	const storeID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+
+	tests := []struct {
+		name    string
+		url     string
+		store   string
+		wantErr string
+		wantURL string
+	}{
+		{name: "valid config trims the trailing slash", url: " https://openfga.example.com/ ", store: storeID, wantURL: "https://openfga.example.com"},
+		{name: "missing URL", store: storeID, wantErr: "OPENFGA_API_URL and OPENFGA_STORE_ID are required"},
+		{name: "missing store", url: "https://openfga.example.com", wantErr: "OPENFGA_API_URL and OPENFGA_STORE_ID are required"},
+		{name: "non-HTTP scheme", url: "ftp://openfga.example.com", store: storeID, wantErr: "absolute HTTP(S) URL"},
+		{name: "relative URL", url: "openfga.example.com", store: storeID, wantErr: "absolute HTTP(S) URL"},
+		{name: "store ID that is not a ULID", url: "https://openfga.example.com", store: "not-a-ulid", wantErr: "must be a ULID"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("OPENFGA_API_URL", tt.url)
+			t.Setenv("OPENFGA_STORE_ID", tt.store)
+
+			client, err := newGlobalGrantFGAClientFromEnv()
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				assert.NotContains(t, err.Error(), tt.store+"x", "store IDs are not echoed")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantURL, client.baseURL)
+			assert.Equal(t, tt.store, client.storeID)
+			assert.NotZero(t, client.http.Timeout)
+		})
+	}
+}
+
+func TestGlobalGrantHTTPError_Error(t *testing.T) {
+	assert.Equal(t, "OpenFGA read returned HTTP 503", globalGrantHTTPError{status: 503}.Error())
+}
+
+func TestGlobalGrantReadErrorKind(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{name: "http status", err: globalGrantHTTPError{status: 500}, want: "http_500"},
+		{name: "wrapped http status", err: fmt.Errorf("read: %w", globalGrantHTTPError{status: 429}), want: "http_429"},
+		{name: "timeout", err: context.DeadlineExceeded, want: "timeout"},
+		{name: "canceled", err: context.Canceled, want: "canceled"},
+		{name: "repeated token", err: errRepeatedContinuationToken, want: "repeated_continuation_token"},
+		{name: "page limit", err: errTooManyReadPages, want: "page_limit"},
+		{name: "anything else", err: errors.New("connection reset"), want: "transport_or_decode"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, globalGrantReadErrorKind(tt.err))
+		})
+	}
+}
+
+func TestRelationCounts(t *testing.T) {
+	report := newGlobalGrantClassReport()
+
+	existing := relationCounts(report, "global_owner")
+	existing.Missing = 2
+	assert.Same(t, existing, relationCounts(report, "global_owner"), "an existing relation is returned, not replaced")
+
+	created := relationCounts(report, "legacy_relation")
+	require.NotNil(t, created)
+	assert.Same(t, created, report.Relations["legacy_relation"], "an unknown relation is registered on first use")
+}
+
+func TestVerifyGlobalGrantsSubcommand_Run(t *testing.T) {
+	const storeID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+	s := &verifyGlobalGrantsSubcommand{}
+	assert.Equal(t, "verify-global-grants", s.Name())
+	assert.NotEmpty(t, s.Help())
+
+	t.Run("flag and argument validation", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			args    []string
+			wantErr string
+		}{
+			{name: "help is not an error", args: []string{"-h"}},
+			{name: "unexpected positional argument", args: []string{"extra"}, wantErr: "unexpected arguments: extra"},
+			{name: "concurrency below range", args: []string{"--concurrency=0"}, wantErr: "concurrency must be between 1 and 100"},
+			{name: "concurrency above range", args: []string{"--concurrency=101"}, wantErr: "concurrency must be between 1 and 100"},
+			{name: "unknown flag", args: []string{"--nope"}, wantErr: "flag provided but not defined"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				err := s.Run(context.Background(), commands.RunContext{Args: tt.args})
+				if tt.wantErr == "" {
+					require.NoError(t, err)
+					return
+				}
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			})
+		}
+	})
+
+	t.Run("missing OpenFGA configuration fails before any connection", func(t *testing.T) {
+		t.Setenv("OPENFGA_API_URL", "")
+		t.Setenv("OPENFGA_STORE_ID", "")
+
+		err := s.Run(context.Background(), commands.RunContext{})
+
+		require.ErrorContains(t, err, "OPENFGA_API_URL and OPENFGA_STORE_ID are required")
+	})
+
+	t.Run("an unknown store fails before NATS is contacted", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+		t.Setenv("OPENFGA_API_URL", server.URL)
+		t.Setenv("OPENFGA_STORE_ID", storeID)
+
+		err := s.Run(context.Background(), commands.RunContext{NATSConfig: unreachableNATS()})
+
+		require.ErrorContains(t, err, "does not name an existing OpenFGA store")
+	})
+
+	t.Run("a NATS connection failure is reported once the store exists", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+		t.Setenv("OPENFGA_API_URL", server.URL)
+		t.Setenv("OPENFGA_STORE_ID", storeID)
+
+		err := s.Run(context.Background(), commands.RunContext{NATSConfig: unreachableNATS()})
+
+		require.ErrorContains(t, err, "failed to connect to NATS")
+	})
+}
+
+// unreachableNATS points at a closed local port so a subcommand's Connect
+// fails immediately, letting tests cover everything that runs before it.
+func unreachableNATS() natsinfra.Config {
+	return natsinfra.Config{URL: "nats://127.0.0.1:1", Timeout: 200 * time.Millisecond}
 }
