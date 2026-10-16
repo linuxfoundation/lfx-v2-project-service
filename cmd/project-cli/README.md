@@ -50,7 +50,8 @@ For the `projects` bucket, the migration also keeps the secondary `slug/<slug>` 
 |---|---|---|
 | `--old-slug` | `""` | Current slug (or first positional arg) |
 | `--new-slug` | `""` | New slug (or second positional arg) |
-| `--dry-run` | `true` | Preview changes without writing |
+| `--update` | `false` | Write changes to OpenSearch and NATS KV (default is preview-only, like the other `sync` subcommands) |
+| `--dry-run` | `true` | Deprecated: previewing is the default. `--dry-run=false` still works and means `--update`; combining it with a contradictory `--update` is an error |
 | `--concurrency` | `50` | Max concurrent NATS KV record updates per bucket |
 | `--nats-buckets` | see below | Comma-separated KV bucket names |
 
@@ -60,7 +61,8 @@ Flag defaults can be overridden by environment variables (useful in Kubernetes J
 |---|---|---|
 | `OLD_SLUG` | — | Current slug (alternative to `--old-slug` or positional args) |
 | `NEW_SLUG` | — | New slug (alternative to `--new-slug` or positional args) |
-| `DRY_RUN` | `true` | Preview without writing (`true`/`false`) |
+| `UPDATE` | `false` | Write changes (`true`/`false`) |
+| `DRY_RUN` | `true` | Deprecated: `DRY_RUN=false` still means `UPDATE=true` |
 | `CONCURRENCY` | `50` | Max concurrent NATS KV updates per bucket |
 | `NATS_BUCKETS` | see below | Comma-separated KV bucket names |
 
@@ -76,7 +78,7 @@ Provide slugs either as two positional args **or** via `--old-slug` / `--new-slu
 
 **Examples**
 
-Dry-run across OpenSearch and NATS (safe first step):
+Preview across OpenSearch and NATS (safe first step, nothing is written):
 
 ```sh
 NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
@@ -87,18 +89,18 @@ NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
   go run ./cmd/project-cli sync rename-project-slug old-slug new-slug
 ```
 
-Apply changes (review dry-run logs first):
+Apply changes (review the preview logs first):
 
 ```sh
-./bin/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+./bin/project-cli sync rename-project-slug --update old-slug new-slug
 # Or:
-go run ./cmd/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+go run ./cmd/project-cli sync rename-project-slug --update old-slug new-slug
 ```
 
 Lower NATS KV concurrency:
 
 ```sh
-./bin/project-cli sync rename-project-slug --dry-run=false --concurrency=20 old-slug new-slug
+./bin/project-cli sync rename-project-slug --update --concurrency=20 old-slug new-slug
 ```
 
 #### `sync document-audit-users`
@@ -300,8 +302,8 @@ spec:
               value: old-slug
             - name: NEW_SLUG
               value: new-slug
-            - name: DRY_RUN
-              value: "true"
+            - name: UPDATE
+              value: "false"
             - name: CONCURRENCY
               value: "50"
           resources:
@@ -317,7 +319,7 @@ spec:
 kubectl apply -f rename-project-slug-job.yaml
 ```
 
-Run a live migration by setting `DRY_RUN` to `"false"` (and reviewing dry-run logs first).
+Run a live migration by setting `UPDATE` to `"true"` (and reviewing the preview logs first). Manifests that still set `DRY_RUN: "false"` keep working but log a deprecation warning.
 
 ### Quick start (`kubectl create job`)
 

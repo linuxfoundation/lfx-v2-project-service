@@ -42,7 +42,7 @@ type RunContext struct {
 	NATSConfig       natsinfra.Config
 	OpenSearchConfig osinfra.Config
 	JobRunID         string
-	// DryRun is set by each subcommand after it parses its own --dry-run flag,
+	// DryRun is set by each subcommand after it parses its own flags,
 	// making the value available to any helper that receives a RunContext.
 	DryRun bool
 	Args   []string

@@ -6,6 +6,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 )
 
 type fakeKVEntry struct {
@@ -425,6 +427,7 @@ func TestRenameProjectSlugSubcommand_Run(t *testing.T) {
 		{name: "only one positional slug", args: []string{"old-slug"}, wantErr: "expected exactly 2 positional args"},
 		{name: "flags and positionals together", args: []string{"--old-slug=a", "b", "c"}, wantErr: "not both"},
 		{name: "unknown flag", args: []string{"--nope"}, wantErr: "flag provided but not defined"},
+		{name: "contradictory write mode is rejected before connecting", args: []string{"--update", "--dry-run", "a", "b"}, wantErr: "conflicting write mode"},
 		{name: "valid slugs proceed to connect to NATS", args: []string{"old-slug", "new-slug"}, wantErr: "failed to connect to NATS"},
 		{name: "slugs from flags proceed to connect to NATS", args: []string{"--old-slug=old-slug", "--new-slug=new-slug"}, wantErr: "failed to connect to NATS"},
 	}
@@ -449,4 +452,54 @@ func TestRenameProjectSlugSubcommand_Run(t *testing.T) {
 
 		require.ErrorContains(t, err, "failed to connect to NATS")
 	})
+}
+
+func TestResolveWriteMode(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		env       map[string]string
+		wantApply bool
+		wantErr   string
+	}{
+		{name: "previews by default"},
+		{name: "--update writes", args: []string{"--update"}, wantApply: true},
+		{name: "--update=false previews", args: []string{"--update=false"}},
+		{name: "deprecated --dry-run=false writes", args: []string{"--dry-run=false"}, wantApply: true},
+		{name: "deprecated --dry-run=true previews", args: []string{"--dry-run=true"}},
+		{name: "bare deprecated --dry-run previews", args: []string{"--dry-run"}},
+		{name: "consistent flags are accepted", args: []string{"--update", "--dry-run=false"}, wantApply: true},
+		{name: "--update with --dry-run is contradictory", args: []string{"--update", "--dry-run"}, wantErr: "conflicting write mode"},
+		{name: "--update=false with --dry-run=false is contradictory", args: []string{"--update=false", "--dry-run=false"}, wantErr: "conflicting write mode"},
+		{name: "UPDATE env writes", env: map[string]string{"UPDATE": "true"}, wantApply: true},
+		{name: "deprecated DRY_RUN=false env writes", env: map[string]string{"DRY_RUN": "false"}, wantApply: true},
+		{name: "deprecated DRY_RUN=true env previews", env: map[string]string{"DRY_RUN": "true"}},
+		{name: "a flag overrides the env", args: []string{"--dry-run=true"}, env: map[string]string{"DRY_RUN": "false"}},
+		{name: "UPDATE env with the deprecated flag is checked for contradiction", args: []string{"--dry-run"}, env: map[string]string{"UPDATE": "true"}, wantErr: "conflicting write mode"},
+		{name: "an unparseable DRY_RUN fails safe to a preview", env: map[string]string{"DRY_RUN": "maybe"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("UPDATE", "")
+			t.Setenv("DRY_RUN", "")
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			fs := commands.NewFlagSet("rename-project-slug", "sync rename-project-slug")
+			update := fs.Bool("update", env.GetBool("UPDATE", false), "")
+			dryRun := fs.Bool("dry-run", env.GetBool("DRY_RUN", true), "")
+			fs.SetOutput(io.Discard)
+			require.NoError(t, fs.Parse(tt.args))
+
+			apply, err := resolveWriteMode(context.Background(), fs, *update, *dryRun)
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantApply, apply)
+		})
+	}
 }
