@@ -132,6 +132,7 @@ type childCounts struct {
 }
 
 type projectReport struct {
+	reportStatus
 	UID             string           `json:"uid"`
 	Slug            string           `json:"slug"`
 	Name            string           `json:"name"`
@@ -221,10 +222,8 @@ func (p *projectInspector) run(ctx context.Context, target string, skipped []str
 	if report.Problems == nil {
 		report.Problems = []string{}
 	}
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect project", len(report.Problems))
+	report.reportStatus = statusFor(len(report.Problems))
+	return finishReport(ctx, "inspect project", out, report, len(report.Problems), "project "+report.Slug)
 }
 
 func (p *projectInspector) checkOpenSearch(ctx context.Context, base *models.ProjectBase, report *projectReport, problem func(string, ...any)) error {

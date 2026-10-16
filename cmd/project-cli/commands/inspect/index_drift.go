@@ -93,6 +93,7 @@ func parseDriftResources(value string) (map[string]bool, error) {
 }
 
 type indexDriftReport struct {
+	reportStatus
 	// Checked is how many documents were looked up, per document type.
 	Checked  map[string]int `json:"checked"`
 	Counts   map[string]int `json:"counts"`
@@ -181,10 +182,8 @@ func runIndexDrift(ctx context.Context, repo driftRepo, client *opensearchgo.Cli
 	}
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect index-drift", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect index-drift", out, report, len(report.Findings), fmt.Sprintf("%d documents looked up", len(docs)))
 }
 
 func childDoc(docType, uid, projectUID string) expectedDoc {

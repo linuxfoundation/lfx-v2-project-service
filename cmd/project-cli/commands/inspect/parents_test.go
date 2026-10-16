@@ -86,6 +86,7 @@ func TestRunParents(t *testing.T) {
 			}
 			var report parentsReport
 			require.NoError(t, json.Unmarshal(out.Bytes(), &report))
+			assert.Equal(t, wantStatus(err), report.Status)
 			assert.Equal(t, len(tt.bases), report.Projects)
 			if tt.wantFindings == nil {
 				assert.Empty(t, report.Findings)

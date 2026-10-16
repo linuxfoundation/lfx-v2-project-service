@@ -53,6 +53,7 @@ func (s *parentsSubcommand) Run(ctx context.Context, rc commands.RunContext) err
 }
 
 type parentsReport struct {
+	reportStatus
 	Projects int            `json:"projects"`
 	Counts   map[string]int `json:"counts"`
 	Findings []finding      `json:"findings"`
@@ -131,10 +132,8 @@ func runParents(ctx context.Context, repo projectLister, out io.Writer) error {
 	}
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect parents", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect parents", out, report, len(report.Findings), fmt.Sprintf("%d projects", report.Projects))
 }
 
 func indexOf(items []string, target string) int {

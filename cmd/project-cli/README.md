@@ -236,7 +236,7 @@ For cluster execution, use the digest-pinned wrapper documented in
 
 ### Inspect commands
 
-The `inspect` group is read-only. It never writes to NATS, OpenSearch or OpenFGA. Each command prints a JSON report to stdout and exits nonzero when it finds a problem, so it can gate a Job. Findings name project UIDs, slugs and record UIDs, so keep the logs in an access-controlled system.
+The `inspect` group is read-only. It never writes to NATS, OpenSearch or OpenFGA. Each command prints a JSON report to stdout and exits nonzero when it finds a problem, so it can gate a Job. Every report starts with `"status"`, either `"ok"` or `"problems_found"`, and the run logs a one-line verdict such as `inspect slug-index: OK (450 projects, 450 slug entries, no problems)`, so an empty `findings` list reads as a result. Logs share stdout with the report; the report is the JSON object with the `status` field. Findings name project UIDs, slugs and record UIDs, so keep the logs in an access-controlled system.
 
 #### `inspect project`
 

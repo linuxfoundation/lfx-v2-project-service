@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"sort"
 	"testing"
@@ -130,6 +131,61 @@ func TestNewCommand(t *testing.T) {
 		names = append(names, key)
 	}
 	assert.ElementsMatch(t, []string{"project", "slug-index", "orphans", "index-drift", "settings-access", "children", "parents"}, names)
+}
+
+// wantStatus is the status a report must carry given the run's error: a run that
+// printed a report and failed did so because it found problems.
+func wantStatus(err error) string {
+	if err != nil {
+		return statusProblems
+	}
+	return statusOK
+}
+
+func TestStatusFor(t *testing.T) {
+	assert.Equal(t, reportStatus{Status: "ok"}, statusFor(0))
+	assert.Equal(t, reportStatus{Status: "problems_found"}, statusFor(1))
+}
+
+func TestFinishReport(t *testing.T) {
+	type report struct {
+		reportStatus
+		N int `json:"n"`
+	}
+
+	t.Run("a clean run prints the report, logs OK and returns nil", func(t *testing.T) {
+		var logs bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+		t.Cleanup(func() { slog.SetDefault(prev) })
+		var out bytes.Buffer
+
+		err := finishReport(context.Background(), "inspect x", &out, report{reportStatus: statusFor(0), N: 4}, 0, "4 things")
+
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"status":"ok","n":4}`, out.String())
+		assert.Contains(t, logs.String(), "inspect x: OK (4 things, no problems)")
+	})
+
+	t.Run("a run with problems logs the count and returns an error", func(t *testing.T) {
+		var logs bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+		t.Cleanup(func() { slog.SetDefault(prev) })
+		var out bytes.Buffer
+
+		err := finishReport(context.Background(), "inspect x", &out, report{reportStatus: statusFor(2)}, 2, "4 things")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "inspect x found 2 problem(s)")
+		assert.JSONEq(t, `{"status":"problems_found","n":0}`, out.String())
+		assert.Contains(t, logs.String(), "inspect x: 2 problem(s) found (4 things)")
+	})
+
+	t.Run("an unencodable report is an error", func(t *testing.T) {
+		err := finishReport(context.Background(), "inspect x", &bytes.Buffer{}, map[string]any{"c": make(chan int)}, 0, "")
+		assert.Error(t, err)
+	})
 }
 
 func TestWriteReport(t *testing.T) {

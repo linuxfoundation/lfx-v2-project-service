@@ -280,6 +280,7 @@ func TestProjectInspector_run(t *testing.T) {
 			}
 			var report projectReport
 			require.NoError(t, json.Unmarshal(out.Bytes(), &report))
+			assert.Equal(t, wantStatus(err), report.Status)
 			if tt.wantProblems != nil {
 				assert.Equal(t, tt.wantProblems, report.Problems)
 			}
