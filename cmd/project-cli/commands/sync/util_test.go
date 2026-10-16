@@ -13,6 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The URL is assembled from parts so no credential-shaped literal is committed
+// for secret scanners to flag.
+const (
+	fakeUser     = "admin"
+	fakePassword = "not-a-real-password"
+)
+
 func TestRedactURL(t *testing.T) {
 	tests := []struct {
 		name string
@@ -20,7 +27,7 @@ func TestRedactURL(t *testing.T) {
 		want string
 	}{
 		{name: "no credentials is unchanged", in: "http://localhost:9200", want: "http://localhost:9200"},
-		{name: "user and password are redacted", in: "https://admin:s3cret@search.example.com:9200/x", want: "https://REDACTED@search.example.com:9200/x"},
+		{name: "user and password are redacted", in: "https://" + fakeUser + ":" + fakePassword + "@search.example.com:9200/x", want: "https://REDACTED@search.example.com:9200/x"},
 		{name: "a bare user is redacted", in: "nats://token@nats.example.com:4222", want: "nats://REDACTED@nats.example.com:4222"},
 		{name: "an unparseable URL is not echoed", in: "http://[::1", want: "<invalid>"},
 	}
@@ -29,7 +36,7 @@ func TestRedactURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := redactURL(tt.in)
 			assert.Equal(t, tt.want, got)
-			assert.NotContains(t, got, "s3cret")
+			assert.NotContains(t, got, fakePassword)
 		})
 	}
 }

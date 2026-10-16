@@ -82,10 +82,11 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 
 // resolveWriteMode reports whether the run should write. --update is the
 // switch, as on the other sync subcommands (this one also reads UPDATE from
-// the environment, which they do not), and a run previews unless it is given. --dry-run (or DRY_RUN) is the older spelling of the
-// same choice and is still honoured so existing invocations and Job manifests
-// keep working. Contradictory settings fail rather than guess which one was
-// meant for a command that rewrites data.
+// the environment, which they do not), and a run previews unless it is
+// given. --dry-run (or DRY_RUN) is the older spelling of the same choice and
+// is still honoured so existing invocations and Job manifests keep working.
+// Contradictory settings fail rather than guess which one was meant for a
+// command that rewrites data.
 func resolveWriteMode(ctx context.Context, fs *flag.FlagSet, update, dryRun bool) (bool, error) {
 	updateSet, dryRunSet := specified(fs, "update", "UPDATE"), specified(fs, "dry-run", "DRY_RUN")
 	if dryRunSet {

@@ -275,7 +275,9 @@ func TestNewGlobalGrantFGAClientFromEnv(t *testing.T) {
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
-				assert.NotContains(t, err.Error(), tt.store+"x", "store IDs are not echoed")
+				if tt.store != "" {
+					assert.NotContains(t, err.Error(), tt.store, "store IDs are not echoed")
+				}
 				return
 			}
 			require.NoError(t, err)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	stdlog "log"
 	"log/slog"
 	"os"
 	"strings"
@@ -157,11 +158,16 @@ func TestWithSlugContext(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
 	prevStdout, prevDefault := os.Stdout, slog.Default()
+	prevLogWriter, prevLogFlags := stdlog.Writer(), stdlog.Flags()
 	os.Stdout = writer
+	// The probe below is info level, so do not inherit a quieter LOG_LEVEL.
+	t.Setenv("LOG_LEVEL", "info")
 	log.InitStructureLogConfig()
 	t.Cleanup(func() {
 		os.Stdout = prevStdout
 		slog.SetDefault(prevDefault)
+		stdlog.SetOutput(prevLogWriter)
+		stdlog.SetFlags(prevLogFlags)
 	})
 
 	ctx := withSlugContext(context.Background(), "old-slug", "new-slug", true)
