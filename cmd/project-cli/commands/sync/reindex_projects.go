@@ -5,18 +5,15 @@ package sync
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 )
 
@@ -31,11 +28,7 @@ func (s *reindexProjectsSubcommand) Help() string {
 func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
 	slog.DebugContext(ctx, "starting subcommand", "subcommand", s.Name(), "args", rc.Args)
 
-	fs := flag.NewFlagSet("reindex-projects", flag.ContinueOnError)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync reindex-projects [flags]\n\nflags:\n")
-		fs.PrintDefaults()
-	}
+	fs := commands.NewFlagSet(s.Name(), "sync reindex-projects [flags]")
 	projectUID := fs.String("project-uid", "", "limit to a single project UID (default all)")
 	update := fs.Bool("update", false, "publish indexer messages (default is preview-only)")
 	concurrency := fs.Int("concurrency", env.GetInt("CONCURRENCY", 50), "max concurrent project republishes")
@@ -43,14 +36,11 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	force := fs.Bool("force", false, "with --project-uid, skip the OpenSearch diff and unconditionally republish that project")
 	includeAccess := fs.Bool("include-access", false, "also republish the FGA access message")
 	keepDirectUsers := fs.Bool("keep-direct-users", false, "with --include-access, do not delete direct user tuples that project settings do not list")
-	if err := fs.Parse(rc.Args); err != nil {
-		if err == flag.ErrHelp {
-			return nil
-		}
+	if help, err := commands.ParseFlags(fs, rc.Args); help || err != nil {
 		return err
 	}
-	if fs.NArg() > 0 {
-		return fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	if err := commands.RejectExtraArgs(fs); err != nil {
+		return err
 	}
 
 	uid := strings.TrimSpace(*projectUID)
@@ -68,18 +58,13 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	}
 
 	rc.DryRun = !*update
-	ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer lfx-v2-project-service")
+	ctx = commands.WithServiceAuthorization(ctx)
 
-	natsConn, js, err := natsinfra.Connect(ctx, rc.NATSConfig)
+	natsConn, repo, err := commands.ConnectRepository(ctx, rc.NATSConfig)
 	if err != nil {
 		return err
 	}
 	defer natsConn.Close()
-
-	repo, err := natsinfra.OpenRepository(ctx, js)
-	if err != nil {
-		return fmt.Errorf("open repository: %w", err)
-	}
 
 	skipDiff := *all || *force
 	var osClient *opensearchgo.Client
@@ -121,12 +106,5 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 		return err
 	}
 
-	stats.Log(ctx, "sync reindex-projects")
-	if err := natsConn.FlushTimeout(5 * time.Second); err != nil {
-		return fmt.Errorf("flush NATS connection: %w", err)
-	}
-	if stats.Failed > 0 {
-		return fmt.Errorf("%d project(s) failed to reindex", stats.Failed)
-	}
-	return nil
+	return commands.Finish(ctx, "sync reindex-projects", stats, natsConn, "project(s) failed to reindex")
 }

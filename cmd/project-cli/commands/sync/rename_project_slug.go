@@ -5,7 +5,6 @@ package sync
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -26,20 +25,13 @@ func (s *renameProjectSlugSubcommand) Help() string {
 }
 
 func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
-	fs := flag.NewFlagSet("rename-project-slug", flag.ContinueOnError)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync rename-project-slug [flags] [<old-slug> <new-slug>]\n\nflags:\n")
-		fs.PrintDefaults()
-	}
+	fs := commands.NewFlagSet(s.Name(), "sync rename-project-slug [flags] [<old-slug> <new-slug>]")
 	dryRun := fs.Bool("dry-run", env.GetBool("DRY_RUN", true), "preview changes without writing")
 	concurrency := fs.Int("concurrency", env.GetInt("CONCURRENCY", 50), "max concurrent NATS KV record updates per bucket")
 	natsBuckets := fs.String("nats-buckets", env.Get("NATS_BUCKETS", strings.Join(DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
 	oldSlugFlag := fs.String("old-slug", env.Get("OLD_SLUG", ""), "current slug (alternative to first positional arg)")
 	newSlugFlag := fs.String("new-slug", env.Get("NEW_SLUG", ""), "new slug (alternative to second positional arg)")
-	if err := fs.Parse(rc.Args); err != nil {
-		if err == flag.ErrHelp {
-			return nil
-		}
+	if help, err := commands.ParseFlags(fs, rc.Args); help || err != nil {
 		return err
 	}
 

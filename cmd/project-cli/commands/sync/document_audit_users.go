@@ -5,7 +5,6 @@ package sync
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -33,24 +32,17 @@ func (s *documentAuditUsersSubcommand) Help() string {
 func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
 	slog.DebugContext(ctx, "starting subcommand", "subcommand", s.Name(), "args", rc.Args)
 
-	fs := flag.NewFlagSet("document-audit-users", flag.ContinueOnError)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync document-audit-users [flags]\n\nflags:\n")
-		fs.PrintDefaults()
-	}
+	fs := commands.NewFlagSet(s.Name(), "sync document-audit-users [flags]")
 	projectUID := fs.String("project-uid", "", "limit migration to a single project UID")
 	resourceType := fs.String("resource-type", "", "optional filter: folder, link, or document")
 	sleep := fs.Duration("sleep", 0, "wait between each auth-service lookup (e.g. 200ms, 1s)")
 	reindexOnly := fs.Bool("reindex-only", false, "re-publish ActionUpdated indexer messages without KV writes (recovery after a partial migration run)")
 	update := fs.Bool("update", false, "write KV changes and publish indexer messages (default is preview-only)")
-	if err := fs.Parse(rc.Args); err != nil {
-		if err == flag.ErrHelp {
-			return nil
-		}
+	if help, err := commands.ParseFlags(fs, rc.Args); help || err != nil {
 		return err
 	}
-	if fs.NArg() > 0 {
-		return fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	if err := commands.RejectExtraArgs(fs); err != nil {
+		return err
 	}
 
 	includeFolders, includeLinks, includeDocuments, err := parseDocumentResourceType(*resourceType)
@@ -59,18 +51,13 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 	}
 
 	rc.DryRun = !*update
-	ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer lfx-v2-project-service")
+	ctx = commands.WithServiceAuthorization(ctx)
 
-	natsConn, js, err := natsinfra.Connect(ctx, rc.NATSConfig)
+	natsConn, repo, err := commands.ConnectRepository(ctx, rc.NATSConfig)
 	if err != nil {
 		return err
 	}
 	defer natsConn.Close()
-
-	repo, err := natsinfra.OpenRepository(ctx, js)
-	if err != nil {
-		return fmt.Errorf("open repository: %w", err)
-	}
 
 	runner := &documentAuditUsersRunner{
 		repo:        repo,
@@ -87,14 +74,7 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 		return err
 	}
 
-	runner.stats.Log(ctx, "sync document-audit-users")
-	if runner.stats.Failed > 0 {
-		return fmt.Errorf("%d resource(s) failed to migrate", runner.stats.Failed)
-	}
-	if err := natsConn.FlushTimeout(5 * time.Second); err != nil {
-		return fmt.Errorf("flush NATS connection: %w", err)
-	}
-	return nil
+	return commands.Finish(ctx, "sync document-audit-users", runner.stats, natsConn, "resource(s) failed to migrate")
 }
 
 // documentAuditRepo is the narrow slice of natsinfra.NatsRepository this
