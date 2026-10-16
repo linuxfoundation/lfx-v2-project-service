@@ -24,6 +24,38 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
+// resourceMocks holds the mocked dependencies behind the folder, link and
+// document endpoints.
+type resourceMocks struct {
+	project  *domainmocks.MockProjectRepository
+	folder   *domainmocks.MockFolderRepository
+	link     *domainmocks.MockLinkRepository
+	document *domainmocks.MockDocumentRepository
+	msg      *domainmocks.MockMessageBuilder
+}
+
+// setupResourceAPI creates a ProjectsAPI whose folder, link and document
+// repositories are mocks the caller can program.
+func setupResourceAPI() (*ProjectsAPI, *resourceMocks) {
+	api, mockProject, mockMsg := setupAPI()
+	m := &resourceMocks{
+		project:  mockProject,
+		folder:   &domainmocks.MockFolderRepository{},
+		link:     &domainmocks.MockLinkRepository{},
+		document: &domainmocks.MockDocumentRepository{},
+		msg:      mockMsg,
+	}
+	api.service.FolderRepository = m.folder
+	api.service.LinkRepository = m.link
+	api.service.DocumentRepository = m.document
+
+	// Index and event publishes run in background goroutines and are not the
+	// subject of the endpoint tests.
+	m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+	m.msg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+	return api, m
+}
+
 func TestReadyz(t *testing.T) {
 	tests := []struct {
 		name          string
