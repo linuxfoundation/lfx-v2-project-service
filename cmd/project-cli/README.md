@@ -23,6 +23,8 @@ go build -o bin/project-cli ./cmd/project-cli
 go run ./cmd/project-cli <command> <subcommand> [subcommand flags]
 ```
 
+To print the build version, run `project-cli version` (or `project-cli --version`). A binary built with `make build-cli` or the `ko` workflow reports its version, git commit and build time; a plain `go build` reports `dev`.
+
 ### Environment variables (global)
 
 These env vars are read in `main` and passed to subcommands via `RunContext`. Subcommands establish connections in their own `Run()`.
@@ -339,8 +341,12 @@ The Job is kept after completion so its logs and exit status remain accessible a
 
 ## Adding new commands
 
-1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`.
+1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`. Build the group's `Subcommands()` with `commands.IndexSubcommands(...)` so each name is declared once, on the subcommand itself.
 2. Register the new command in `buildRegistry()` in `cmd/project-cli/main.go`.
-3. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
+3. In a subcommand's `Run`, use the shared helpers in `commands/` instead of repeating the boilerplate:
+   - `commands.NewFlagSet`, `commands.ParseFlags` and `commands.RejectExtraArgs` for flags, `--help` and stray arguments.
+   - `commands.ConnectRepository` to dial NATS and open the project repository, and `commands.WithServiceAuthorization` for code that reads the authorization from the context.
+   - `commands.NewStats` and `commands.Finish` to count records, log the summary, flush NATS and turn failures into a nonzero exit.
+4. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 
 No changes to the Helm chart are required. Document the new command here with a `kubectl create job` or Job manifest example when it is intended for in-cluster use.

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -140,6 +141,19 @@ func TestRun(t *testing.T) {
 		assert.Contains(t, stderr, "commands:")
 	})
 
+	t.Run("version prints the build information", func(t *testing.T) {
+		prev := [3]string{Version, GitCommit, BuildTime}
+		Version, GitCommit, BuildTime = "v1.2.3", "abc1234", "2026-01-02T03:04:05Z"
+		t.Cleanup(func() { Version, GitCommit, BuildTime = prev[0], prev[1], prev[2] })
+
+		for _, args := range [][]string{{"version"}, {"--version"}} {
+			stdout, _, err := runWithArgs(t, args...)
+
+			require.NoError(t, err)
+			assert.Equal(t, "project-cli v1.2.3 (commit abc1234, built 2026-01-02T03:04:05Z)\n", stdout)
+		}
+	})
+
 	t.Run("a known subcommand is dispatched and its error is returned", func(t *testing.T) {
 		// --force without --project-uid is rejected by the subcommand itself,
 		// before it connects to anything.
@@ -186,6 +200,30 @@ func TestBuildRegistry(t *testing.T) {
 	require.Contains(t, registry, "sync")
 	assert.Equal(t, "sync", registry["sync"].Name())
 	assert.Contains(t, registry["sync"].Subcommands(), "reindex-projects")
+}
+
+func TestPrintUsage_ordering(t *testing.T) {
+	registry := map[string]commands.Command{}
+	for _, name := range []string{"zeta", "alpha", "mid"} {
+		registry[name] = stubCommand{name: name, subs: commands.IndexSubcommands(
+			stubSubcommand{name: "second"}, stubSubcommand{name: "first"}, stubSubcommand{name: "third"},
+		)}
+	}
+
+	var first bytes.Buffer
+	printUsage(&first, registry)
+	out := first.String()
+
+	assert.Less(t, strings.Index(out, "alpha"), strings.Index(out, "mid"))
+	assert.Less(t, strings.Index(out, "mid"), strings.Index(out, "zeta"))
+	assert.Less(t, strings.Index(out, "first"), strings.Index(out, "second"))
+	assert.Less(t, strings.Index(out, "second"), strings.Index(out, "third"))
+	assert.Contains(t, out, "version")
+	for i := 0; i < 20; i++ {
+		var again bytes.Buffer
+		printUsage(&again, registry)
+		require.Equal(t, out, again.String(), "usage output must not change between runs")
+	}
 }
 
 func TestPrintUsage(t *testing.T) {

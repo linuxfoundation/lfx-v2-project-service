@@ -69,3 +69,18 @@ func TestStats_Log(t *testing.T) {
 		assert.EqualValues(t, 0, entry["rate_per_sec"])
 	})
 }
+
+type namedSubcommand struct{ name string }
+
+func (n namedSubcommand) Name() string                          { return n.name }
+func (n namedSubcommand) Help() string                          { return "" }
+func (n namedSubcommand) Run(context.Context, RunContext) error { return nil }
+
+func TestIndexSubcommands(t *testing.T) {
+	a, b := namedSubcommand{name: "a"}, namedSubcommand{name: "b"}
+
+	index := IndexSubcommands(a, b)
+
+	assert.Equal(t, map[string]Subcommand{"a": a, "b": b}, index)
+	assert.Empty(t, IndexSubcommands())
+}
