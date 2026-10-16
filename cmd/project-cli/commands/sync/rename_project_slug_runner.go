@@ -15,13 +15,15 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 // projectsBucket is the only bucket that carries a "slug/<slug>" -> uid
 // lookup index (see GetProjectUIDFromSlug in internal/infrastructure/nats),
 // which needs its own reconciliation logic distinct from the plain
 // field-rename path used by every other bucket.
-const projectsBucket = "projects"
+const projectsBucket = constants.KVStoreNameProjects
 
 // defaultNATSBuckets are the KV buckets scanned during a slug rename. Besides
 // the project buckets it includes the committee buckets, whose records
@@ -32,17 +34,17 @@ var defaultNATSBuckets = []string{
 	"committees",
 	"committee-settings",
 	projectsBucket,
-	"project-settings",
+	constants.KVStoreNameProjectSettings,
 }
 
 // bucketSlugFields maps a KV bucket name to the JSON field name(s) that hold
 // the project slug.
 var bucketSlugFields = map[string][]string{
-	"committee-members":  {"project_slug"},
-	"committees":         {"project_slug"},
-	"committee-settings": {"project_slug"},
-	projectsBucket:       {"slug"},
-	"project-settings":   {"project_slug"},
+	"committee-members":                  {"project_slug"},
+	"committees":                         {"project_slug"},
+	"committee-settings":                 {"project_slug"},
+	projectsBucket:                       {"slug"},
+	constants.KVStoreNameProjectSettings: {"project_slug"},
 }
 
 // RenameSlugOptions configures a rename-project-slug run.

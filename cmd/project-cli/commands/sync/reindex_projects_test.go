@@ -964,12 +964,25 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 	})
 }
 
-func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
+func TestReindexProjectsSubcommand_Run(t *testing.T) {
+	s := &reindexProjectsSubcommand{}
+	assert.Equal(t, "reindex-projects", s.Name())
+	assert.NotEmpty(t, s.Help())
+
 	tests := []struct {
 		name    string
 		args    []string
 		wantErr string
 	}{
+		{
+			name: "help is not an error",
+			args: []string{"-h"},
+		},
+		{
+			name:    "a valid invocation proceeds to connect to NATS",
+			args:    []string{"--all", "--include-access", "--keep-direct-users", "--concurrency=2"},
+			wantErr: "failed to connect to NATS",
+		},
 		{
 			name:    "all with project-uid is rejected",
 			args:    []string{"--all", "--project-uid", "00000000-0000-0000-0000-000000000001"},
@@ -1009,30 +1022,15 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &reindexProjectsSubcommand{}
-			err := s.Run(context.Background(), commands.RunContext{Args: tt.args})
+			err := s.Run(context.Background(), commands.RunContext{Args: tt.args, NATSConfig: unreachableNATS()})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
-}
-
-func TestReindexProjectsSubcommand_Run(t *testing.T) {
-	s := &reindexProjectsSubcommand{}
-	assert.Equal(t, "reindex-projects", s.Name())
-	assert.NotEmpty(t, s.Help())
-
-	t.Run("help is not an error", func(t *testing.T) {
-		require.NoError(t, s.Run(context.Background(), commands.RunContext{Args: []string{"-h"}}))
-	})
-
-	t.Run("a valid invocation proceeds to connect to NATS", func(t *testing.T) {
-		err := s.Run(context.Background(), commands.RunContext{
-			Args:       []string{"--all", "--include-access", "--keep-direct-users", "--concurrency=2"},
-			NATSConfig: unreachableNATS(),
-		})
-		require.ErrorContains(t, err, "failed to connect to NATS")
-	})
 }
 
 // directUserRelationNames are the five relations the access message fills from project settings.

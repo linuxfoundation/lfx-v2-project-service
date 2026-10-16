@@ -62,7 +62,7 @@ Flag defaults can be overridden by environment variables (useful in Kubernetes J
 | `OLD_SLUG` | — | Current slug (alternative to `--old-slug` or positional args) |
 | `NEW_SLUG` | — | New slug (alternative to `--new-slug` or positional args) |
 | `UPDATE` | `false` | Write changes (`true`/`false`) |
-| `DRY_RUN` | `true` | Deprecated: `DRY_RUN=false` still means `UPDATE=true` |
+| `DRY_RUN` | `true` | Deprecated: `DRY_RUN=false` still means `UPDATE=true`. Setting `DRY_RUN` to any value logs a deprecation warning, and setting it together with `UPDATE` fails the run with "conflicting write mode" unless the two agree, so remove `DRY_RUN` when you add `UPDATE` |
 | `CONCURRENCY` | `50` | Max concurrent NATS KV updates per bucket |
 | `NATS_BUCKETS` | see below | Comma-separated KV bucket names |
 
@@ -319,7 +319,7 @@ spec:
 kubectl apply -f rename-project-slug-job.yaml
 ```
 
-Run a live migration by setting `UPDATE` to `"true"` (and reviewing the preview logs first). Manifests that still set `DRY_RUN: "false"` keep working but log a deprecation warning.
+Run a live migration by setting `UPDATE` to `"true"` (and reviewing the preview logs first). Manifests that still set `DRY_RUN` keep working but log a deprecation warning for any value. When switching a manifest to `UPDATE`, delete its `DRY_RUN` entry: leaving `DRY_RUN: "true"` next to `UPDATE: "true"` fails the run with a conflicting-write-mode error rather than guessing.
 
 ### Quick start (`kubectl create job`)
 

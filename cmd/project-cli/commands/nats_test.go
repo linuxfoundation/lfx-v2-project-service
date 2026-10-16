@@ -42,11 +42,10 @@ func (s *stubFlusher) FlushTimeout(timeout time.Duration) error {
 
 func TestFinish(t *testing.T) {
 	tests := []struct {
-		name      string
-		failed    int
-		flushErr  error
-		wantErr   string
-		wantFlush bool
+		name     string
+		failed   int
+		flushErr error
+		wantErr  string
 	}{
 		{name: "clean run"},
 		{name: "failed records become an error", failed: 3, wantErr: "3 project(s) failed to reindex"},

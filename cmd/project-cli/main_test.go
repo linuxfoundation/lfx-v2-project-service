@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	stdlog "log"
 	"log/slog"
 	"os"
 	"strings"
@@ -42,33 +43,45 @@ func (s stubSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
 }
 
 // runWithArgs runs the CLI with the given arguments and returns what it wrote
-// to stdout and stderr. run() reads os.Args and installs a new slog default,
-// so both are restored afterwards.
+// to stdout and stderr. run() reads os.Args and reconfigures logging, so the
+// arguments, the standard streams, the slog default and the standard log
+// package's writer and flags are all restored afterwards. The pipes are
+// drained while run() executes so a chatty command cannot block on a full
+// pipe buffer.
 func runWithArgs(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	prevArgs, prevStdout, prevStderr, prevLogger := os.Args, os.Stdout, os.Stderr, slog.Default()
+	prevLogWriter, prevLogFlags := stdlog.Writer(), stdlog.Flags()
 	outR, outW, pipeErr := os.Pipe()
 	require.NoError(t, pipeErr)
 	errR, errW, pipeErr := os.Pipe()
 	require.NoError(t, pipeErr)
+
+	drain := func(r *os.File) <-chan string {
+		done := make(chan string, 1)
+		go func() {
+			raw, _ := io.ReadAll(r)
+			done <- string(raw)
+		}()
+		return done
+	}
+	outDone, errDone := drain(outR), drain(errR)
 
 	os.Args = append([]string{"project-cli"}, args...)
 	os.Stdout, os.Stderr = outW, errW
 	defer func() {
 		os.Args, os.Stdout, os.Stderr = prevArgs, prevStdout, prevStderr
 		slog.SetDefault(prevLogger)
+		stdlog.SetOutput(prevLogWriter)
+		stdlog.SetFlags(prevLogFlags)
 	}()
 
 	err = run()
 
 	require.NoError(t, outW.Close())
 	require.NoError(t, errW.Close())
-	outBytes, readErr := io.ReadAll(outR)
-	require.NoError(t, readErr)
-	errBytes, readErr := io.ReadAll(errR)
-	require.NoError(t, readErr)
-	return string(outBytes), string(errBytes), err
+	return <-outDone, <-errDone, err
 }
 
 func TestRun(t *testing.T) {
@@ -202,48 +215,50 @@ func TestBuildRegistry(t *testing.T) {
 	assert.Contains(t, registry["sync"].Subcommands(), "reindex-projects")
 }
 
-func TestPrintUsage_ordering(t *testing.T) {
-	registry := map[string]commands.Command{}
-	for _, name := range []string{"zeta", "alpha", "mid"} {
-		registry[name] = stubCommand{name: name, subs: commands.IndexSubcommands(
-			stubSubcommand{name: "second"}, stubSubcommand{name: "first"}, stubSubcommand{name: "third"},
-		)}
-	}
-
-	var first bytes.Buffer
-	printUsage(&first, registry)
-	out := first.String()
-
-	assert.Less(t, strings.Index(out, "alpha"), strings.Index(out, "mid"))
-	assert.Less(t, strings.Index(out, "mid"), strings.Index(out, "zeta"))
-	assert.Less(t, strings.Index(out, "first"), strings.Index(out, "second"))
-	assert.Less(t, strings.Index(out, "second"), strings.Index(out, "third"))
-	assert.Contains(t, out, "version")
-	for i := 0; i < 20; i++ {
-		var again bytes.Buffer
-		printUsage(&again, registry)
-		require.Equal(t, out, again.String(), "usage output must not change between runs")
-	}
-}
-
 func TestPrintUsage(t *testing.T) {
-	registry := map[string]commands.Command{
-		"group": stubCommand{name: "group", subs: map[string]commands.Subcommand{
-			"first": stubSubcommand{name: "first"},
-		}},
-	}
+	t.Run("lists the environment, commands and subcommands", func(t *testing.T) {
+		registry := map[string]commands.Command{
+			"group": stubCommand{name: "group", subs: map[string]commands.Subcommand{
+				"first": stubSubcommand{name: "first"},
+			}},
+		}
 
-	var buf bytes.Buffer
-	printUsage(&buf, registry)
+		var buf bytes.Buffer
+		printUsage(&buf, registry)
 
-	out := buf.String()
-	assert.Contains(t, out, "usage: project-cli <command> <subcommand> [subcommand flags]")
-	for _, envVar := range []string{"NATS_URL", "OPENSEARCH_URL", "LOG_LEVEL", "JOB_RUN_ID"} {
-		assert.Contains(t, out, envVar)
-	}
-	assert.Contains(t, out, "cmd/project-cli/README.md")
-	assert.Contains(t, out, "group")
-	assert.Contains(t, out, "stub command help")
-	assert.Contains(t, out, "first")
-	assert.Contains(t, out, "stub subcommand help")
+		out := buf.String()
+		assert.Contains(t, out, "usage: project-cli <command> <subcommand> [subcommand flags]")
+		for _, envVar := range []string{"NATS_URL", "OPENSEARCH_URL", "LOG_LEVEL", "JOB_RUN_ID"} {
+			assert.Contains(t, out, envVar)
+		}
+		assert.Contains(t, out, "cmd/project-cli/README.md")
+		assert.Contains(t, out, "group")
+		assert.Contains(t, out, "stub command help")
+		assert.Contains(t, out, "first")
+		assert.Contains(t, out, "stub subcommand help")
+	})
+
+	t.Run("orders commands and subcommands and is stable between runs", func(t *testing.T) {
+		registry := map[string]commands.Command{}
+		for _, name := range []string{"zeta", "alpha", "mid"} {
+			registry[name] = stubCommand{name: name, subs: commands.IndexSubcommands(
+				stubSubcommand{name: "second"}, stubSubcommand{name: "first"}, stubSubcommand{name: "third"},
+			)}
+		}
+
+		var first bytes.Buffer
+		printUsage(&first, registry)
+		out := first.String()
+
+		assert.Less(t, strings.Index(out, "alpha"), strings.Index(out, "mid"))
+		assert.Less(t, strings.Index(out, "mid"), strings.Index(out, "zeta"))
+		assert.Less(t, strings.Index(out, "first"), strings.Index(out, "second"))
+		assert.Less(t, strings.Index(out, "second"), strings.Index(out, "third"))
+		assert.Contains(t, out, "version")
+		for i := 0; i < 20; i++ {
+			var again bytes.Buffer
+			printUsage(&again, registry)
+			require.Equal(t, out, again.String(), "usage output must not change between runs")
+		}
+	})
 }
