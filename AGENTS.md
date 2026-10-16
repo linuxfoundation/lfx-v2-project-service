@@ -713,7 +713,7 @@ NATS message payload types that other services consume belong in `pkg/events/`, 
 - Explicit converter functions in `internal/service/converters.go` map from domain → event type before publishing.
 - The service layer takes and returns domain types only. Goa request/response types are converted at the adapter boundary in `cmd/project-api/converters.go`; `internal/service` must not import the generated `api/project/v1/gen` package.
 - Example: `DomainSettingsToEvent(*models.ProjectSettings) events.ProjectSettings`
-- When a single `(base, settings)` domain pair needs to produce multiple output shapes, construct a `ProjectProjection` via `NewProjectProjection(base, settings)` and call the appropriate methods (`ToFull`, `ToFGAMessage`, `ToEventSettings`, etc.) rather than forwarding the pair to each standalone converter independently.
+- When a single `(base, settings)` domain pair needs to produce multiple output shapes, construct a `ProjectProjection` via `NewProjectProjection(base, settings)` and call the appropriate methods (`ToFGAMessage`, `ToEventSettings`, etc.; the Goa shapes are built in `cmd/project-api/converters.go`) rather than forwarding the pair to each standalone converter independently.
 
 **Rule:** if a struct appears in a NATS message payload, it belongs in `pkg/events/`, not `internal/`.
 

@@ -11,7 +11,9 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
-// ProjectsService implements the projsvc.Service interface and domain.MessageHandler
+// ProjectsService holds the project business logic and implements domain.MessageHandler.
+// It works in domain types only; the ProjectsAPI adapter in cmd/project-api implements
+// the generated projsvc.Service interface on top of it.
 type ProjectsService struct {
 	ProjectRepository  domain.ProjectRepository
 	DocumentRepository domain.DocumentRepository

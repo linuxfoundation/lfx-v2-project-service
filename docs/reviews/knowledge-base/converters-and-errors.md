@@ -28,7 +28,7 @@ mapping), or `cmd/project-api/service_endpoint_project.go` changed.
 
 **Failure message:** Converter collapses a nil slice to empty (`null` → `[]`) — wire-format change that breaks downstream diff/patch.
 
-**Fix:** guard with `if users == nil { return nil }` (use `== nil`, not `len == 0`) before the `make`, mirroring `domainUsersToEvent` / `convertUsersToAPI` (the latter now lives in `cmd/project-api/converters.go`).
+**Fix:** guard with `if users == nil { return nil }` (use `== nil`, not `len == 0`) before the `make`, mirroring `domainUsersToEvent` and `userInputsFromService` (`cmd/project-api/converters.go`).
 
 ---
 
