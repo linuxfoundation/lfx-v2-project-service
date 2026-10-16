@@ -234,6 +234,41 @@ go run ./cmd/project-cli sync verify-global-grants --concurrency=20
 For cluster execution, use the digest-pinned wrapper documented in
 `scripts/global-grant-backfill/README.md`.
 
+### Inspect commands
+
+The `inspect` group is read-only. It never writes to NATS, OpenSearch or OpenFGA. Each command prints a JSON report to stdout and exits nonzero when it finds a problem, so it can gate a Job. Findings name project UIDs, slugs and record UIDs, so keep the logs in an access-controlled system.
+
+#### `inspect project`
+
+Shows one project across every store: the KV base and settings records, the `slug/<slug>` index entry, whether the OpenSearch `project` and `project_settings` documents exist, the `global_*` OpenFGA grants against the expected set, and the number of links, folders and documents. Pass the project UID or its slug. Flags go before the argument.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--skip-opensearch` | `false` | Do not check the OpenSearch documents |
+| `--skip-fga` | `false` | Do not check the OpenFGA grants |
+
+The OpenFGA check runs when `OPENFGA_API_URL` and `OPENFGA_STORE_ID` are set, and is reported as skipped when both are unset. The hidden `ROOT` project is never indexed, so its OpenSearch check is skipped. A conditioned global grant is reported once, as conditioned, where `sync verify-global-grants` also counts it as missing and unexpected; both fail the run.
+
+```sh
+go run ./cmd/project-cli inspect project --skip-fga example-project
+```
+
+#### `inspect slug-index`
+
+Checks every `slug/<slug>` entry in the `projects` bucket against its project record, and every project against its slug entry. It reports `dangling_index` (the entry points at a UID with no record), `mismatched_index` (the record has a different slug), `missing_index` (the project has no entry), `wrong_index` (the entry points at another project) and `unreadable_record`. These are the states `sync rename-project-slug` repairs.
+
+#### `inspect orphans`
+
+Lists links, folders and documents whose project no longer exists (`orphan_link`, `orphan_folder`, `orphan_document`). `admin-delete-project` leaves these children behind on purpose, so they accumulate.
+
+#### `inspect index-drift`
+
+Lists projects whose `project` or `project_settings` OpenSearch document is missing (`missing_project_document`, `missing_settings_document`). It runs the same diff as `sync reindex-projects`, without publishing anything, and leaves out the hidden `ROOT` project. Needs `NATS_URL` and `OPENSEARCH_URL`.
+
+```sh
+go run ./cmd/project-cli inspect index-drift
+```
+
 ## Building
 
 ### Local binary
@@ -348,6 +383,7 @@ The Job is kept after completion so its logs and exit status remain accessible a
 3. In a subcommand's `Run`, use the shared helpers in `commands/` instead of repeating the boilerplate:
    - `commands.NewFlagSet`, `commands.ParseFlags` and `commands.RejectExtraArgs` for flags, `--help` and stray arguments.
    - `commands.ConnectRepository` to dial NATS and open the project repository, and `commands.WithServiceAuthorization` for code that reads the authorization from the context.
+   - `commands/osdiff` for the OpenSearch document diff and `commands/fgaread` for the OpenFGA global grant reader and its expected-grant contract.
    - `commands.NewStats` and `commands.Finish` to count records, log the summary, flush NATS and turn failures into a nonzero exit.
 4. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 
