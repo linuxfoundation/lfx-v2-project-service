@@ -13,8 +13,8 @@ mapping discipline that the repo deliberately uses.
 **Read when:** `internal/service/converters.go`,
 `internal/service/*_operations.go`, `internal/domain/errors.go`,
 `internal/domain/message.go`, `internal/infrastructure/nats/repository.go`,
-`pkg/events/**`, or `cmd/project-api/service_endpoint_project.go` (the
-`handleError` mapping) changed.
+`pkg/events/**`, `cmd/project-api/service_endpoint.go` (the `handleError`
+mapping), or `cmd/project-api/service_endpoint_project.go` changed.
 
 ---
 
@@ -50,7 +50,7 @@ mapping discipline that the repo deliberately uses.
 
 **Pattern:** a raw NATS / KV / upstream HTTP error is returned past the service layer toward the Goa boundary instead of being mapped to a domain sentinel from `internal/domain/errors.go`. `handleError` then can't map it to the correct HTTP status, and internal error text can leak.
 
-**Detect:** in service / repository code, find returns of raw `jetstream.*` / `nats.*` / upstream errors that flow up to `cmd/project-api/service_endpoint_project.go`. Confirm each is wrapped/translated to a `domain.Err*` sentinel (e.g. KV wrong-sequence → `domain.ErrRevisionMismatch`, key-not-found → `domain.ErrProjectNotFound`). New sentinels must be added to both `errors.go` and the `handleError` switch.
+**Detect:** in service / repository code, find returns of raw `jetstream.*` / `nats.*` / upstream errors that flow up to `handleError` in `cmd/project-api/service_endpoint.go`. Confirm each is wrapped/translated to a `domain.Err*` sentinel (e.g. KV wrong-sequence → `domain.ErrRevisionMismatch`, key-not-found → `domain.ErrProjectNotFound`). New sentinels must be added to both `errors.go` and the `handleError` switch.
 
 **Empirical citation:** anchored in `internal/domain/errors.go` and the `handleError` mapping the repo enforces; the sentinel approach was explicitly endorsed in PR #2 `internal/domain/errors.go:11` (mauriciozanettisalomao) — "I like this approach (separating internal error handling flow from the HTTP errors)." The `project-service-dev` skill: "Do not return raw NATS, KV, or upstream HTTP errors directly to the Goa layer; map them to a domain sentinel first."
 
