@@ -23,6 +23,8 @@ go build -o bin/project-cli ./cmd/project-cli
 go run ./cmd/project-cli <command> <subcommand> [subcommand flags]
 ```
 
+To print the build version, run `project-cli version` (or `project-cli --version`). A binary built with `make build-cli` or the `ko` workflow reports its version, git commit and build time; a plain `go build` reports `dev`.
+
 ### Environment variables (global)
 
 These env vars are read in `main` and passed to subcommands via `RunContext`. Subcommands establish connections in their own `Run()`.
@@ -48,7 +50,8 @@ For the `projects` bucket, the migration also keeps the secondary `slug/<slug>` 
 |---|---|---|
 | `--old-slug` | `""` | Current slug (or first positional arg) |
 | `--new-slug` | `""` | New slug (or second positional arg) |
-| `--dry-run` | `true` | Preview changes without writing |
+| `--update` | `false` | Write changes to OpenSearch and NATS KV (default is preview-only, like the other `sync` subcommands) |
+| `--dry-run` | `true` | Deprecated: previewing is the default. `--dry-run=false` still works and means `--update`; combining it with a contradictory `--update` is an error |
 | `--concurrency` | `50` | Max concurrent NATS KV record updates per bucket |
 | `--nats-buckets` | see below | Comma-separated KV bucket names |
 
@@ -58,7 +61,8 @@ Flag defaults can be overridden by environment variables (useful in Kubernetes J
 |---|---|---|
 | `OLD_SLUG` | — | Current slug (alternative to `--old-slug` or positional args) |
 | `NEW_SLUG` | — | New slug (alternative to `--new-slug` or positional args) |
-| `DRY_RUN` | `true` | Preview without writing (`true`/`false`) |
+| `UPDATE` | `false` | Write changes (`true`/`false`) |
+| `DRY_RUN` | `true` | Deprecated: `DRY_RUN=false` still means `UPDATE=true`. Setting `DRY_RUN` to any value logs a deprecation warning, and setting it together with `UPDATE` fails the run with "conflicting write mode" unless the two agree, so remove `DRY_RUN` when you add `UPDATE` |
 | `CONCURRENCY` | `50` | Max concurrent NATS KV updates per bucket |
 | `NATS_BUCKETS` | see below | Comma-separated KV bucket names |
 
@@ -74,7 +78,7 @@ Provide slugs either as two positional args **or** via `--old-slug` / `--new-slu
 
 **Examples**
 
-Dry-run across OpenSearch and NATS (safe first step):
+Preview across OpenSearch and NATS (safe first step, nothing is written):
 
 ```sh
 NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
@@ -85,18 +89,18 @@ NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
   go run ./cmd/project-cli sync rename-project-slug old-slug new-slug
 ```
 
-Apply changes (review dry-run logs first):
+Apply changes (review the preview logs first):
 
 ```sh
-./bin/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+./bin/project-cli sync rename-project-slug --update old-slug new-slug
 # Or:
-go run ./cmd/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+go run ./cmd/project-cli sync rename-project-slug --update old-slug new-slug
 ```
 
 Lower NATS KV concurrency:
 
 ```sh
-./bin/project-cli sync rename-project-slug --dry-run=false --concurrency=20 old-slug new-slug
+./bin/project-cli sync rename-project-slug --update --concurrency=20 old-slug new-slug
 ```
 
 #### `sync document-audit-users`
@@ -298,8 +302,8 @@ spec:
               value: old-slug
             - name: NEW_SLUG
               value: new-slug
-            - name: DRY_RUN
-              value: "true"
+            - name: UPDATE
+              value: "false"
             - name: CONCURRENCY
               value: "50"
           resources:
@@ -315,7 +319,7 @@ spec:
 kubectl apply -f rename-project-slug-job.yaml
 ```
 
-Run a live migration by setting `DRY_RUN` to `"false"` (and reviewing dry-run logs first).
+Run a live migration by setting `UPDATE` to `"true"` (and reviewing the preview logs first). Manifests that still set `DRY_RUN` keep working but log a deprecation warning for any value. When switching a manifest to `UPDATE`, delete its `DRY_RUN` entry: leaving `DRY_RUN: "true"` next to `UPDATE: "true"` fails the run with a conflicting-write-mode error rather than guessing.
 
 ### Quick start (`kubectl create job`)
 
@@ -339,8 +343,12 @@ The Job is kept after completion so its logs and exit status remain accessible a
 
 ## Adding new commands
 
-1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`.
+1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`. Build the group's `Subcommands()` with `commands.IndexSubcommands(...)` so each name is declared once, on the subcommand itself.
 2. Register the new command in `buildRegistry()` in `cmd/project-cli/main.go`.
-3. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
+3. In a subcommand's `Run`, use the shared helpers in `commands/` instead of repeating the boilerplate:
+   - `commands.NewFlagSet`, `commands.ParseFlags` and `commands.RejectExtraArgs` for flags, `--help` and stray arguments.
+   - `commands.ConnectRepository` to dial NATS and open the project repository, and `commands.WithServiceAuthorization` for code that reads the authorization from the context.
+   - `commands.NewStats` and `commands.Finish` to count records, log the summary, flush NATS and turn failures into a nonzero exit.
+4. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 
 No changes to the Helm chart are required. Document the new command here with a `kubectl create job` or Job manifest example when it is intended for in-cluster use.

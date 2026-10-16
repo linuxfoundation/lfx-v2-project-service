@@ -26,13 +26,23 @@ type Subcommand interface {
 	Run(ctx context.Context, rc RunContext) error
 }
 
+// IndexSubcommands keys subcommands by their own Name(), so a command group
+// declares each name once.
+func IndexSubcommands(subs ...Subcommand) map[string]Subcommand {
+	index := make(map[string]Subcommand, len(subs))
+	for _, sub := range subs {
+		index[sub.Name()] = sub
+	}
+	return index
+}
+
 // RunContext carries infrastructure configs and subcommand args. Connections are
 // not established here — each subcommand dials only what it needs in its Run().
 type RunContext struct {
 	NATSConfig       natsinfra.Config
 	OpenSearchConfig osinfra.Config
 	JobRunID         string
-	// DryRun is set by each subcommand after it parses its own --dry-run flag,
+	// DryRun is set by each subcommand after it parses its own flags,
 	// making the value available to any helper that receives a RunContext.
 	DryRun bool
 	Args   []string

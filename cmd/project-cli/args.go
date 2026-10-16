@@ -31,6 +31,18 @@ func splitArgs(args []string, positionalLimit int) parsedArgs {
 	return result
 }
 
+// isVersionRequest reports whether the invocation asks for version output:
+// "project-cli version" or "project-cli --version", with nothing else.
+func isVersionRequest(positionals, subArgs []string) bool {
+	switch {
+	case len(positionals) == 1 && positionals[0] == "version" && len(subArgs) == 0:
+		return true
+	case len(positionals) == 0 && len(subArgs) == 1 && subArgs[0] == "--version":
+		return true
+	}
+	return false
+}
+
 func hasHelpFlag(args []string) bool {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {

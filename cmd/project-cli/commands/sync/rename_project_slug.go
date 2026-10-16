@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
@@ -26,29 +27,29 @@ func (s *renameProjectSlugSubcommand) Help() string {
 }
 
 func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
-	fs := flag.NewFlagSet("rename-project-slug", flag.ContinueOnError)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync rename-project-slug [flags] [<old-slug> <new-slug>]\n\nflags:\n")
-		fs.PrintDefaults()
-	}
-	dryRun := fs.Bool("dry-run", env.GetBool("DRY_RUN", true), "preview changes without writing")
+	fs := commands.NewFlagSet(s.Name(), "sync rename-project-slug [flags] [<old-slug> <new-slug>]")
+	update := fs.Bool("update", env.GetBool("UPDATE", false), "write changes to OpenSearch and NATS KV (default is preview-only)")
+	dryRun := fs.Bool("dry-run", env.GetBool("DRY_RUN", true), "deprecated: preview is the default; use --update to write")
 	concurrency := fs.Int("concurrency", env.GetInt("CONCURRENCY", 50), "max concurrent NATS KV record updates per bucket")
-	natsBuckets := fs.String("nats-buckets", env.Get("NATS_BUCKETS", strings.Join(DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
+	natsBuckets := fs.String("nats-buckets", env.Get("NATS_BUCKETS", strings.Join(defaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
 	oldSlugFlag := fs.String("old-slug", env.Get("OLD_SLUG", ""), "current slug (alternative to first positional arg)")
 	newSlugFlag := fs.String("new-slug", env.Get("NEW_SLUG", ""), "new slug (alternative to second positional arg)")
-	if err := fs.Parse(rc.Args); err != nil {
-		if err == flag.ErrHelp {
-			return nil
-		}
+	if help, err := commands.ParseFlags(fs, rc.Args); help || err != nil {
 		return err
 	}
+
+	apply, err := resolveWriteMode(ctx, fs, *update, *dryRun)
+	if err != nil {
+		return err
+	}
+	isDryRun := !apply
 
 	oldSlug, newSlug, err := resolveSlugs(*oldSlugFlag, *newSlugFlag, fs.Args())
 	if err != nil {
 		return err
 	}
 
-	rc.DryRun = *dryRun
+	rc.DryRun = isDryRun
 
 	natsConn, js, err := natsinfra.Connect(ctx, rc.NATSConfig)
 	if err != nil {
@@ -61,7 +62,7 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 		return err
 	}
 
-	ctx = withSlugContext(ctx, oldSlug, newSlug, *dryRun)
+	ctx = withSlugContext(ctx, oldSlug, newSlug, isDryRun)
 
 	slog.InfoContext(ctx, "rename-project-slug configured",
 		"concurrency", *concurrency,
@@ -73,10 +74,48 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 	return runner.Run(ctx, RenameSlugOptions{
 		OldSlug:     oldSlug,
 		NewSlug:     newSlug,
-		DryRun:      *dryRun,
+		DryRun:      isDryRun,
 		Concurrency: *concurrency,
 		NATSBuckets: parseNATSBuckets(*natsBuckets),
 	})
+}
+
+// resolveWriteMode reports whether the run should write. --update is the
+// switch, as on the other sync subcommands (this one also reads UPDATE from
+// the environment, which they do not), and a run previews unless it is
+// given. --dry-run (or DRY_RUN) is the older spelling of the same choice and
+// is still honoured so existing invocations and Job manifests keep working.
+// Contradictory settings fail rather than guess which one was meant for a
+// command that rewrites data.
+func resolveWriteMode(ctx context.Context, fs *flag.FlagSet, update, dryRun bool) (bool, error) {
+	updateSet, dryRunSet := specified(fs, "update", "UPDATE"), specified(fs, "dry-run", "DRY_RUN")
+	if dryRunSet {
+		slog.WarnContext(ctx, "--dry-run and DRY_RUN are deprecated: previewing is the default; pass --update (or UPDATE=true) to write")
+	}
+	switch {
+	case updateSet && dryRunSet:
+		if update == dryRun {
+			return false, fmt.Errorf("conflicting write mode: update=%t and dry-run=%t; use --update alone", update, dryRun)
+		}
+		return update, nil
+	case updateSet:
+		return update, nil
+	case dryRunSet:
+		return !dryRun, nil
+	}
+	return false, nil
+}
+
+// specified reports whether a setting was given explicitly, as a flag on the
+// command line or through its environment variable.
+func specified(fs *flag.FlagSet, flagName, envName string) bool {
+	set := strings.TrimSpace(os.Getenv(envName)) != ""
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			set = true
+		}
+	})
+	return set
 }
 
 func resolveSlugs(oldSlugFlag, newSlugFlag string, slugArgs []string) (string, string, error) {

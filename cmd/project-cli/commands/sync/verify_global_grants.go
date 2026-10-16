@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +21,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 )
 
 const (
@@ -56,20 +54,13 @@ func (s *verifyGlobalGrantsSubcommand) Help() string {
 }
 
 func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
-	fs := flag.NewFlagSet(s.Name(), flag.ContinueOnError)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync %s [flags]\n\nflags:\n", s.Name())
-		fs.PrintDefaults()
-	}
+	fs := commands.NewFlagSet(s.Name(), "sync "+s.Name()+" [flags]")
 	concurrency := fs.Int("concurrency", 20, "max concurrent OpenFGA reads")
-	if err := fs.Parse(rc.Args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil
-		}
+	if help, err := commands.ParseFlags(fs, rc.Args); help || err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	if err := commands.RejectExtraArgs(fs); err != nil {
+		return err
 	}
 	if *concurrency < 1 || *concurrency > 100 {
 		return fmt.Errorf("concurrency must be between 1 and 100")
@@ -82,15 +73,11 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 	if err := fgaClient.checkStore(ctx); err != nil {
 		return err
 	}
-	natsConn, js, err := natsinfra.Connect(ctx, rc.NATSConfig)
+	natsConn, repo, err := commands.ConnectRepository(ctx, rc.NATSConfig)
 	if err != nil {
 		return err
 	}
 	defer natsConn.Close()
-	repo, err := natsinfra.OpenRepository(ctx, js)
-	if err != nil {
-		return fmt.Errorf("open repository: %w", err)
-	}
 	projects, err := repo.ListAllProjectsBase(ctx)
 	if err != nil {
 		return fmt.Errorf("list project bases: %w", err)

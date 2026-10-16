@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -40,6 +41,11 @@ func run() error {
 	const positionalLimit = 2
 	parsed := splitArgs(os.Args[1:], positionalLimit)
 	positionals := parsed.Positionals
+
+	if isVersionRequest(positionals, parsed.SubArgs) {
+		printVersion(os.Stdout)
+		return nil
+	}
 
 	if hasHelpFlag(parsed.SubArgs) {
 		switch len(positionals) {
@@ -109,6 +115,10 @@ func buildRegistry() map[string]commands.Command {
 	}
 }
 
+func printVersion(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "project-cli %s (commit %s, built %s)\n", Version, GitCommit, BuildTime)
+}
+
 func printUsage(w io.Writer, registry map[string]commands.Command) {
 	_, _ = fmt.Fprintln(w, "usage: project-cli <command> <subcommand> [subcommand flags]")
 	_, _ = fmt.Fprintln(w)
@@ -120,10 +130,23 @@ func printUsage(w io.Writer, registry map[string]commands.Command) {
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Subcommand-specific environment variables are documented in cmd/project-cli/README.md.")
 	_, _ = fmt.Fprintln(w, "commands:")
-	for _, cmd := range registry {
+	for _, cmdName := range sortedKeys(registry) {
+		cmd := registry[cmdName]
 		_, _ = fmt.Fprintf(w, "  %-30s %s\n", cmd.Name(), cmd.Help())
-		for _, sub := range cmd.Subcommands() {
-			_, _ = fmt.Fprintf(w, "    %-28s %s\n", sub.Name(), sub.Help())
+		subs := cmd.Subcommands()
+		for _, subName := range sortedKeys(subs) {
+			_, _ = fmt.Fprintf(w, "    %-28s %s\n", subs[subName].Name(), subs[subName].Help())
 		}
 	}
+	_, _ = fmt.Fprintf(w, "  %-30s %s\n", "version", "print the build version and exit")
+}
+
+// sortedKeys returns m's keys in order so help output is stable between runs.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

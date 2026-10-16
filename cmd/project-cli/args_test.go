@@ -133,3 +133,28 @@ func TestHasHelpFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestIsVersionRequest(t *testing.T) {
+	tests := []struct {
+		name        string
+		positionals []string
+		subArgs     []string
+		want        bool
+	}{
+		{name: "version command", positionals: []string{"version"}, want: true},
+		{name: "--version flag", subArgs: []string{"--version"}, want: true},
+		{name: "version command with extra flags", positionals: []string{"version"}, subArgs: []string{"--x"}, want: false},
+		{name: "version as a subcommand name is not a request", positionals: []string{"sync", "version"}, want: false},
+		{name: "--version after a command", positionals: []string{"sync"}, subArgs: []string{"--version"}, want: false},
+		{name: "--version with other flags", subArgs: []string{"--version", "--help"}, want: false},
+		{name: "nothing", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isVersionRequest(tt.positionals, tt.subArgs); got != tt.want {
+				t.Errorf("isVersionRequest(%v, %v) = %v, want %v", tt.positionals, tt.subArgs, got, tt.want)
+			}
+		})
+	}
+}

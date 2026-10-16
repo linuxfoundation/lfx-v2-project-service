@@ -14,12 +14,12 @@ func (c *command) Help() string {
 }
 
 func (c *command) Subcommands() map[string]commands.Subcommand {
-	return map[string]commands.Subcommand{
-		"rename-project-slug":  &renameProjectSlugSubcommand{},
-		"document-audit-users": &documentAuditUsersSubcommand{},
-		"reindex-projects":     &reindexProjectsSubcommand{},
-		"verify-global-grants": &verifyGlobalGrantsSubcommand{},
-	}
+	return commands.IndexSubcommands(
+		&renameProjectSlugSubcommand{},
+		&documentAuditUsersSubcommand{},
+		&reindexProjectsSubcommand{},
+		&verifyGlobalGrantsSubcommand{},
+	)
 }
 
 // NewCommand creates the sync command group.
