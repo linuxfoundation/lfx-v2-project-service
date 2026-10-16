@@ -113,7 +113,9 @@ func TestNewHTTPHandler(t *testing.T) {
 	})
 
 	t.Run("etag header is set from the result on get endpoints", func(t *testing.T) {
-		const uid = "787620d0-d7de-449a-b0bf-9d28b13da818"
+		// Sequential fixture UUID with the v4 version and variant bits set: the
+		// generated Goa validator rejects the all-zero testProjectUID in a path.
+		const uid = "00000000-0000-4000-8000-000000000001"
 
 		tests := []struct {
 			name     string
