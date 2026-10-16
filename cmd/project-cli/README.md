@@ -398,7 +398,7 @@ cmd/project-cli/
     sync/               a command group: what an operator runs as `project-cli sync ...`
     inspect/            a command group: `project-cli inspect ...` (read-only)
   internal/             libraries the command groups call; they are not commands
-    osdiff/  fgaread/  rootproject/
+    osdiff/  fgaread/
 ```
 
 Anything under `commands/<group>/` is something an operator can run. Code that more than one group needs goes in `internal/<name>/` (importable only inside `cmd/project-cli`), so a command group never imports another group's internals. Helpers that every subcommand needs (flags, NATS setup, stats) stay in `commands/`.
@@ -410,7 +410,7 @@ Anything under `commands/<group>/` is something an operator can run. Code that m
 3. In a subcommand's `Run`, use the shared helpers in `commands/` instead of repeating the boilerplate:
    - `commands.NewFlagSet`, `commands.ParseFlags` and `commands.RejectExtraArgs` for flags, `--help` and stray arguments.
    - `commands.ConnectRepository` to dial NATS and open the project repository, and `commands.WithServiceAuthorization` for code that reads the authorization from the context.
-   - `internal/osdiff` for the OpenSearch document diff, `internal/fgaread` for the OpenFGA grant reader and its expected-grant contract, and `internal/rootproject` for the hidden ROOT project's slug.
+   - `internal/osdiff` for the OpenSearch document diff, and `internal/fgaread` for the OpenFGA grant reader and its expected-grant contract. The hidden ROOT project's slug is `constants.RootProjectSlug` in `pkg/constants`.
    - `commands.NewStats` and `commands.Finish` to count records, log the summary, flush NATS and turn failures into a nonzero exit.
 4. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 

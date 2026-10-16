@@ -20,15 +20,14 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/rootproject"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
-// rootProjectSlug is the hidden ROOT project's slug (see rootproject.Slug).
-const rootProjectSlug = rootproject.Slug
+// rootProjectSlug is the hidden ROOT project's slug (see constants.RootProjectSlug).
+const rootProjectSlug = constants.RootProjectSlug
 
 // projectRecordRepo is the narrow slice of natsinfra.NatsRepository this
 // runner needs, so tests can fake it without a live NATS connection.
