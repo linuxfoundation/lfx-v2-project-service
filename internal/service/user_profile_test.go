@@ -148,6 +148,38 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 	})
 }
 
+func TestUserResolver_ResolveAuditUserProfile(t *testing.T) {
+	t.Run("blank username resolves to nil without a lookup", func(t *testing.T) {
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
+
+		assert.Nil(t, resolver.ResolveAuditUserProfile(context.Background(), ""))
+		assert.Nil(t, resolver.ResolveAuditUserProfile(context.Background(), "   "))
+	})
+
+	t.Run("resolves a trimmed username into a full profile", func(t *testing.T) {
+		mockUser := &domainmocks.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
+			Name:    "Alice Example",
+			Picture: "https://cdn.example/avatar.png",
+		}, nil)
+
+		got := NewUserResolver(mockUser).ResolveAuditUserProfile(context.Background(), "  alice ")
+
+		assert.Equal(t, &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "https://cdn.example/avatar.png"}, got)
+		mockUser.AssertExpectations(t)
+	})
+
+	t.Run("returns the username-only record when the lookup fails", func(t *testing.T) {
+		mockUser := &domainmocks.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
+
+		got := NewUserResolver(mockUser).ResolveAuditUserProfile(context.Background(), "alice")
+
+		assert.Equal(t, &models.UserInfo{Username: "alice"}, got)
+		mockUser.AssertExpectations(t)
+	})
+}
+
 func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	t.Run("returns actor name when present", func(t *testing.T) {
 		resolver := NewUserResolver(&domainmocks.MockUserReader{})

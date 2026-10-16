@@ -105,6 +105,18 @@ func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInf
 	return enriched
 }
 
+// ResolveAuditUserProfile best-effort resolves a bare username into a full UserInfo through
+// the user reader. It returns nil for a blank username; when the lookup fails it returns the
+// username-only record, so callers that need a complete profile must check the result (see
+// models.AuditUserNeedsMigration).
+func (r *UserResolver) ResolveAuditUserProfile(ctx context.Context, username string) *models.UserInfo {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil
+	}
+	return r.EnrichAuditUser(ctx, &models.UserInfo{Username: username})
+}
+
 // UsernameByEmail looks up the LFID username for the given email address.
 // Returns ("", nil) when the reader is nil (test/noop path).
 func (r *UserResolver) UsernameByEmail(ctx context.Context, email string) (string, error) {
