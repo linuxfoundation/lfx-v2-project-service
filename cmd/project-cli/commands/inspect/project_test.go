@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/fgaread"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -72,7 +71,13 @@ func (f *fakeProjectRepo) GetProjectUIDFromSlug(_ context.Context, slug string) 
 }
 
 func (f *fakeProjectRepo) ListAllLinks(context.Context, string) ([]*models.ProjectLink, error) {
-	return make([]*models.ProjectLink, f.links), f.fail("links")
+	links := make([]*models.ProjectLink, 0, f.links+1)
+	for i := 0; i < f.links; i++ {
+		links = append(links, &models.ProjectLink{ProjectUID: uid1})
+	}
+	// A link of another project must not be counted.
+	links = append(links, &models.ProjectLink{ProjectUID: uid2})
+	return links, f.fail("links")
 }
 
 func (f *fakeProjectRepo) ListFolders(context.Context, string) ([]*models.ProjectFolder, error) {
@@ -316,30 +321,17 @@ func without(tuples []fgaread.Tuple, relation string) []fgaread.Tuple {
 	return kept
 }
 
-func TestProjectSubcommand_Run_openfgaConfig(t *testing.T) {
+func TestProjectSubcommand_Run(t *testing.T) {
 	const storeID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-	tests := []struct {
-		name    string
-		url     string
-		store   string
-		wantErr string
-	}{
-		{name: "a half-configured client is a config error", url: "https://openfga.example.com", wantErr: "OPENFGA_API_URL and OPENFGA_STORE_ID are required"},
-		{name: "a bad store ID is a config error", url: "https://openfga.example.com", store: "nope", wantErr: "must be a ULID"},
-		{name: "an unreachable store fails the store check", url: "http://127.0.0.1:1", store: storeID, wantErr: "OpenFGA store check failed"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("OPENFGA_API_URL", tt.url)
-			t.Setenv("OPENFGA_STORE_ID", tt.store)
-
-			err := (&projectSubcommand{}).Run(context.Background(), commands.RunContext{
-				Args:       []string{"--skip-opensearch", "alpha"},
-				NATSConfig: unreachableNATS(),
-			})
-
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
-		})
-	}
+	runSubcommand(t, &projectSubcommand{}, []runCase{
+		{name: "needs one argument", wantErr: "exactly one project UID or slug"},
+		{name: "rejects two arguments", args: []string{"a", "b"}, wantErr: "exactly one project UID or slug"},
+		{name: "rejects a blank target", args: []string{"  "}, wantErr: "must not be empty"},
+		{name: "fails at the NATS connect", args: []string{"--skip-fga", "--skip-opensearch", "example"}},
+		{name: "skips OpenFGA when it is not configured", args: []string{"--skip-opensearch", "example"}, env: map[string]string{"OPENFGA_API_URL": "", "OPENFGA_STORE_ID": ""}},
+		{name: "a half-configured client is a config error", args: []string{"--skip-opensearch", "example"}, env: map[string]string{"OPENFGA_API_URL": "https://openfga.example.com", "OPENFGA_STORE_ID": ""}, wantErr: "OPENFGA_API_URL and OPENFGA_STORE_ID are required"},
+		{name: "a bad store ID is a config error", args: []string{"--skip-opensearch", "example"}, env: map[string]string{"OPENFGA_API_URL": "https://openfga.example.com", "OPENFGA_STORE_ID": "nope"}, wantErr: "must be a ULID"},
+		{name: "an unreachable store fails the store check", args: []string{"--skip-opensearch", "example"}, env: map[string]string{"OPENFGA_API_URL": "http://127.0.0.1:1", "OPENFGA_STORE_ID": storeID}, wantErr: "OpenFGA store check failed"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
 }

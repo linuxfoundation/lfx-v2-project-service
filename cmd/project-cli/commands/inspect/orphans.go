@@ -64,15 +64,6 @@ type orphansReport struct {
 // projects bucket. admin-delete-project leaves children behind on purpose, so
 // these accumulate.
 func runOrphans(ctx context.Context, repo orphanRepo, out io.Writer) error {
-	bases, err := repo.ListAllProjectsBase(ctx)
-	if err != nil {
-		return fmt.Errorf("list project bases: %w", err)
-	}
-	live := make(map[string]struct{}, len(bases))
-	for _, base := range bases {
-		live[base.UID] = struct{}{}
-	}
-
 	links, err := repo.ListAllLinks(ctx, "")
 	if err != nil {
 		return fmt.Errorf("list links: %w", err)
@@ -84,6 +75,17 @@ func runOrphans(ctx context.Context, repo orphanRepo, out io.Writer) error {
 	documents, err := repo.ListAllDocuments(ctx, "")
 	if err != nil {
 		return fmt.Errorf("list documents: %w", err)
+	}
+
+	// The projects are read last: one created after the children were listed can
+	// only be missed here, never reported as an orphan.
+	bases, err := repo.ListAllProjectsBase(ctx)
+	if err != nil {
+		return fmt.Errorf("list project bases: %w", err)
+	}
+	live := make(map[string]struct{}, len(bases))
+	for _, base := range bases {
+		live[base.UID] = struct{}{}
 	}
 
 	report := &orphansReport{Projects: len(bases), Counts: map[string]int{}, Findings: []finding{}}

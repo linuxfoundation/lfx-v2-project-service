@@ -303,9 +303,17 @@ func (p *projectInspector) checkGrants(ctx context.Context, base *models.Project
 func describeTuple(t fgaread.Tuple) string { return t.Relation + " " + t.User }
 
 func (p *projectInspector) countChildren(ctx context.Context, uid string, report *projectReport) error {
-	links, err := p.repo.ListAllLinks(ctx, uid)
+	// Links are counted from the records, not the per-project lookup keys, so a link
+	// whose lookup key is missing still shows up here (inspect children reports it).
+	allLinks, err := p.repo.ListAllLinks(ctx, "")
 	if err != nil {
 		return fmt.Errorf("list links: %w", err)
+	}
+	links := 0
+	for _, link := range allLinks {
+		if link.ProjectUID == uid {
+			links++
+		}
 	}
 	folders, err := p.repo.ListFolders(ctx, uid)
 	if err != nil {
@@ -315,6 +323,6 @@ func (p *projectInspector) countChildren(ctx context.Context, uid string, report
 	if err != nil {
 		return fmt.Errorf("list documents: %w", err)
 	}
-	report.Children = childCounts{Links: len(links), Folders: len(folders), Documents: len(documents)}
+	report.Children = childCounts{Links: links, Folders: len(folders), Documents: len(documents)}
 	return nil
 }

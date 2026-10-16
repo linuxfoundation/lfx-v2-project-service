@@ -91,3 +91,11 @@ func TestIndexOf(t *testing.T) {
 	assert.Equal(t, 1, indexOf([]string{"a", "b"}, "b"))
 	assert.Equal(t, -1, indexOf([]string{"a"}, "z"))
 }
+
+func TestParentsSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &parentsSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "fails at the NATS connect"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
+}

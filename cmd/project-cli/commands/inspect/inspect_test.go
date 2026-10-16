@@ -147,37 +147,24 @@ func TestProblemsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "inspect x found 3 problem(s)")
 }
 
-func TestSubcommandRun_flagsAndConnect(t *testing.T) {
-	rc := func(args ...string) commands.RunContext {
-		return commands.RunContext{Args: args, NATSConfig: unreachableNATS()}
-	}
-	tests := []struct {
-		name    string
-		sub     commands.Subcommand
-		args    []string
-		wantErr string
-	}{
-		{name: "slug-index rejects extra args", sub: &slugIndexSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "slug-index fails at the NATS connect", sub: &slugIndexSubcommand{}, wantErr: ""},
-		{name: "orphans rejects extra args", sub: &orphansSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "orphans fails at the NATS connect", sub: &orphansSubcommand{}, wantErr: ""},
-		{name: "index-drift rejects extra args", sub: &indexDriftSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "index-drift fails at the NATS connect", sub: &indexDriftSubcommand{}, wantErr: ""},
-		{name: "settings-access rejects extra args", sub: &settingsAccessSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "settings-access rejects a bad concurrency", sub: &settingsAccessSubcommand{}, args: []string{"--concurrency=0"}, wantErr: "concurrency must be between 1 and 100"},
-		{name: "children rejects extra args", sub: &childrenSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "children fails at the NATS connect", sub: &childrenSubcommand{}, wantErr: ""},
-		{name: "parents rejects extra args", sub: &parentsSubcommand{}, args: []string{"extra"}, wantErr: "unexpected argument"},
-		{name: "parents fails at the NATS connect", sub: &parentsSubcommand{}, wantErr: ""},
-		{name: "project needs one argument", sub: &projectSubcommand{}, wantErr: "exactly one project UID or slug"},
-		{name: "project rejects two arguments", sub: &projectSubcommand{}, args: []string{"a", "b"}, wantErr: "exactly one project UID or slug"},
-		{name: "project rejects a blank target", sub: &projectSubcommand{}, args: []string{"  "}, wantErr: "must not be empty"},
-		{name: "project fails at the NATS connect", sub: &projectSubcommand{}, args: []string{"--skip-fga", "--skip-opensearch", "example"}, wantErr: ""},
-		{name: "help is not an error", sub: &projectSubcommand{}, args: []string{"-h"}, wantErr: "-"},
-	}
-	for _, tt := range tests {
+// runCase is one Run call. wantErr "" means the run must fail at the NATS connect
+// (nothing before it can fail), "-" means success, anything else is an error substring.
+type runCase struct {
+	name    string
+	args    []string
+	env     map[string]string
+	wantErr string
+}
+
+// runSubcommand runs each case against sub with an unreachable NATS server.
+func runSubcommand(t *testing.T, sub commands.Subcommand, cases []runCase) {
+	t.Helper()
+	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.sub.Run(context.Background(), rc(tt.args...))
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			err := sub.Run(context.Background(), commands.RunContext{Args: tt.args, NATSConfig: unreachableNATS()})
 			switch tt.wantErr {
 			case "-":
 				assert.NoError(t, err)

@@ -77,3 +77,11 @@ func TestRunIndexDrift(t *testing.T) {
 		assert.Contains(t, err.Error(), "list project bases")
 	})
 }
+
+func TestIndexDriftSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &indexDriftSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "fails at the NATS connect"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
+}

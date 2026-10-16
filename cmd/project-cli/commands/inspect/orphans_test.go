@@ -107,3 +107,11 @@ func TestRunOrphans(t *testing.T) {
 		})
 	}
 }
+
+func TestOrphansSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &orphansSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "fails at the NATS connect"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
+}

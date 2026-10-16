@@ -189,3 +189,14 @@ func TestBuildExpectedAccess(t *testing.T) {
 func TestDescribeCounts(t *testing.T) {
 	assert.Equal(t, "auditor=1, writer=2", describeCounts(map[string]int{"writer": 2, "auditor": 1}))
 }
+
+func TestSettingsAccessSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &settingsAccessSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "rejects a low concurrency", args: []string{"--concurrency=0"}, wantErr: "concurrency must be between 1 and 100"},
+		{name: "rejects a high concurrency", args: []string{"--concurrency=101"}, wantErr: "concurrency must be between 1 and 100"},
+		{name: "needs the OpenFGA settings", env: map[string]string{"OPENFGA_API_URL": "", "OPENFGA_STORE_ID": ""}, wantErr: "OPENFGA_API_URL and OPENFGA_STORE_ID are required"},
+		{name: "an unreachable store fails the store check", env: map[string]string{"OPENFGA_API_URL": "http://127.0.0.1:1", "OPENFGA_STORE_ID": "01ARZ3NDEKTSV4RRFFQ69G5FAV"}, wantErr: "OpenFGA store check failed"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
+}

@@ -161,3 +161,11 @@ func TestSortFindings(t *testing.T) {
 		{Kind: "b", Slug: "z", UID: "1"},
 	}, findings)
 }
+
+func TestSlugIndexSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &slugIndexSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "fails at the NATS connect"},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
+}

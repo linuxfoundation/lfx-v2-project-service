@@ -24,23 +24,19 @@ const (
 	docUID    = "00000000-0000-4000-8000-0000000000c1"
 )
 
-type fakeObjectResult struct{ jetstream.ObjectResult }
-
-func (fakeObjectResult) Close() error { return nil }
-
 type fakeFileStore struct {
 	missing map[string]bool
 	errFor  string
 }
 
-func (f fakeFileStore) Get(_ context.Context, name string, _ ...jetstream.GetObjectOpt) (jetstream.ObjectResult, error) {
+func (f fakeFileStore) GetInfo(_ context.Context, name string, _ ...jetstream.GetObjectInfoOpt) (*jetstream.ObjectInfo, error) {
 	if name == f.errFor {
 		return nil, fmt.Errorf("boom")
 	}
 	if f.missing[name] {
 		return nil, jetstream.ErrObjectNotFound
 	}
-	return fakeObjectResult{}, nil
+	return &jetstream.ObjectInfo{}, nil
 }
 
 func rawJSON(t *testing.T, v any) string {
@@ -164,4 +160,13 @@ func TestRunChildren(t *testing.T) {
 			assert.Equal(t, tt.wantCounts, report.Counts)
 		})
 	}
+}
+
+func TestChildrenSubcommand_Run(t *testing.T) {
+	runSubcommand(t, &childrenSubcommand{}, []runCase{
+		{name: "rejects extra args", args: []string{"extra"}, wantErr: "unexpected argument"},
+		{name: "fails at the NATS connect"},
+		{name: "fails at the NATS connect with files skipped", args: []string{"--skip-files"}},
+		{name: "help is not an error", args: []string{"-h"}, wantErr: "-"},
+	})
 }

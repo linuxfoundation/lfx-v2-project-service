@@ -35,9 +35,10 @@ const (
 	resourceDocument    = "document"
 )
 
-// fileStore is the part of the document object store the file check reads.
+// fileStore is the part of the document object store the file check reads. It asks
+// for an object's metadata only, so no file content is streamed.
 type fileStore interface {
-	Get(ctx context.Context, name string, opts ...jetstream.GetObjectOpt) (jetstream.ObjectResult, error)
+	GetInfo(ctx context.Context, name string, opts ...jetstream.GetObjectInfoOpt) (*jetstream.ObjectInfo, error)
 }
 
 type childrenSubcommand struct{}
@@ -66,7 +67,12 @@ func (s *childrenSubcommand) Run(ctx context.Context, rc commands.RunContext) er
 
 	var files fileStore
 	if !*skipFiles {
-		files = repo.DocumentFiles
+		// The repository exposes the object store through a narrower interface; the
+		// jetstream store behind it also offers GetInfo.
+		var ok bool
+		if files, ok = repo.DocumentFiles.(fileStore); !ok {
+			return fmt.Errorf("the document object store cannot report object metadata; use --skip-files")
+		}
 	}
 	return runChildren(ctx, repo.Links, repo.Folders, repo.Documents, files, os.Stdout)
 }
@@ -217,15 +223,13 @@ func runChildren(ctx context.Context, links, folders, documents projectsKV, file
 
 	if files != nil {
 		for _, uid := range documentUIDs {
-			result, err := files.Get(ctx, uid)
-			if err != nil {
+			if _, err := files.GetInfo(ctx, uid); err != nil {
 				if errors.Is(err, jetstream.ErrObjectNotFound) {
 					add(finding{Kind: kindDocumentNoFile, UID: uid, Detail: "no file in the object store"})
 					continue
 				}
 				return fmt.Errorf("get document file %q: %w", uid, err)
 			}
-			_ = result.Close()
 		}
 	}
 	sortFindings(report.Findings)
