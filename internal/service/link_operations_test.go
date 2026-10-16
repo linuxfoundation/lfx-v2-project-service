@@ -150,7 +150,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, mockRepo, mockMsg, _ := setupServiceForTesting()
+			svc, mockRepo, mockMsg := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockLink, mockFolder, mockMsg)
@@ -208,7 +208,7 @@ func TestProjectsService_GetLink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, _, _ := setupServiceForTesting()
+			svc, _, _ := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			tt.setupMocks(mockLink)
 
@@ -278,7 +278,7 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, mockMsg, _ := setupServiceForTesting()
+			svc, _, mockMsg := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			tt.setupMocks(mockLink, mockMsg)
 

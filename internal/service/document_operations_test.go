@@ -153,7 +153,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, mockRepo, mockMsg, _ := setupServiceForTesting()
+			svc, mockRepo, mockMsg := setupServiceForTesting()
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockDoc, mockFolder, mockMsg)
@@ -211,7 +211,7 @@ func TestProjectsService_GetDocumentMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, _, _ := setupServiceForTesting()
+			svc, _, _ := setupServiceForTesting()
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockDoc)
 
@@ -268,7 +268,7 @@ func TestProjectsService_GetDocumentFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, _, _ := setupServiceForTesting()
+			svc, _, _ := setupServiceForTesting()
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockDoc)
 
@@ -351,7 +351,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, mockMsg, _ := setupServiceForTesting()
+			svc, _, mockMsg := setupServiceForTesting()
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			// suppress unused variable warning
 			_ = now

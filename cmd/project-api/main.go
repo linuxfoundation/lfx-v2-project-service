@@ -109,7 +109,7 @@ func run() int {
 	}
 
 	// Construct a fully valid service with all dependencies wired at once.
-	projectService := service.NewProjectsService(jwtAuth, service.ServiceConfig{
+	projectService := service.NewProjectsService(service.ServiceConfig{
 		SkipEtagValidation:  env.SkipEtagValidation,
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
 		EmailsEnabled:       env.EmailsEnabled,

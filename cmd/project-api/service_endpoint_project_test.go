@@ -47,7 +47,6 @@ func setupAPI() (*ProjectsAPI, *domainmocks.MockProjectRepository, *domainmocks.
 		FolderRepository:   &domainmocks.MockFolderRepository{},
 		Publisher:          mockMessageBuilder,
 		Sender:             mockMessageBuilder,
-		Auth:               mockJwtAuth,
 		UserReader:         mockUserReader,
 		Resolver:           service.NewUserResolver(mockUserReader),
 		Dispatcher:         service.NewNotificationDispatcher(mockMessageBuilder, service.NewUserResolver(mockUserReader), false, false),

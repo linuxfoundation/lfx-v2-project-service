@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -143,18 +144,41 @@ func TestNewHTTPHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("request bodies above the limit are rejected", func(t *testing.T) {
+	t.Run("request bodies above the limit are rejected before the endpoint runs", func(t *testing.T) {
 		api, _, _ := setupAPI()
+		mockAuth := api.auth.(*auth.MockJWTAuth)
+		// If the body were read in full, the request would reach the security
+		// handler, which fails the request with this error.
+		mockAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", errors.New("auth reached"))
 		handler := newHTTPHandler(api)
 
-		// Larger than the document size limit plus the multipart headroom.
-		body := strings.NewReader(strings.Repeat("a", 12<<20))
-		req := httptest.NewRequest(http.MethodPost, "/projects", body)
+		// A well-formed create-project body padded past the limit with an
+		// unknown field, so only the size limit can make the request fail.
+		padding := strings.Repeat("a", int(models.MaxDocumentFileSize)+(2<<20))
+		body := `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"","padding":"` + padding + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/projects?v=1", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-token")
 		res := httptest.NewRecorder()
 		handler.ServeHTTP(res, req)
 
-		assert.GreaterOrEqual(t, res.Code, http.StatusBadRequest)
-		assert.NotEqual(t, http.StatusCreated, res.Code)
+		assert.Equal(t, http.StatusBadRequest, res.Code)
+		mockAuth.AssertNotCalled(t, "ParsePrincipalAndEmail", mock.Anything, mock.Anything)
+	})
+
+	t.Run("request bodies within the limit reach the endpoint", func(t *testing.T) {
+		api, _, _ := setupAPI()
+		mockAuth := api.auth.(*auth.MockJWTAuth)
+		mockAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", errors.New("auth reached"))
+		handler := newHTTPHandler(api)
+
+		body := `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
+		req := httptest.NewRequest(http.MethodPost, "/projects?v=1", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-token")
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+
+		mockAuth.AssertCalled(t, "ParsePrincipalAndEmail", mock.Anything, mock.Anything)
 	})
 }

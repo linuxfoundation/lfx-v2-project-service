@@ -79,7 +79,7 @@ func TestProjectsService_CreateFolder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, mockRepo, mockMsg, _ := setupServiceForTesting()
+			svc, mockRepo, mockMsg := setupServiceForTesting()
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockFolder, mockMsg)
 
@@ -153,7 +153,7 @@ func TestProjectsService_GetFolder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, _, _ := setupServiceForTesting()
+			svc, _, _ := setupServiceForTesting()
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			if tt.name == "enriches legacy username on read" {
 				mockUser := svc.UserReader.(*domainmocks.MockUserReader)
@@ -259,7 +259,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, _, mockMsg, _ := setupServiceForTesting()
+			svc, _, mockMsg := setupServiceForTesting()
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)

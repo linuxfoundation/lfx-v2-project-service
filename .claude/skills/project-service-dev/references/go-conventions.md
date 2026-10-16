@@ -29,7 +29,7 @@ Contents: dependency-injection style and mock layout for lfx-v2-project-service.
 
 | Concern | File |
 | --- | --- |
-| New domain error | `internal/domain/errors.go` (and the switch in `cmd/project-api/service_endpoint_project.go::handleError`) |
+| New domain error | `internal/domain/errors.go` (and the switch in `cmd/project-api/service_endpoint.go::handleError`) |
 | New NATS subject or KV bucket name | `pkg/constants/nats.go` |
 | New HTTP header constant or context key | `pkg/constants/http.go` |
 | New repository method | interface in `internal/domain/repository.go`, implementation in `internal/infrastructure/nats/`, mock in `internal/domain/mock.go` |

@@ -25,73 +25,6 @@ import (
 	goahttp "goa.design/goa/v3/http"
 )
 
-func TestCreateProjectRejectsDuplicateCaseInsensitiveParentUID(t *testing.T) {
-	const validProjectBody = `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
-
-	tests := []struct {
-		name               string
-		body               string
-		contentType        string
-		wantStatus         int
-		wantEndpointCalled bool
-	}{
-		{
-			name:               "single parent uid key is accepted",
-			body:               validProjectBody,
-			contentType:        "application/json",
-			wantStatus:         http.StatusCreated,
-			wantEndpointCalled: true,
-		},
-		{
-			name:               "three case-insensitive parent uid keys are rejected",
-			body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":"", "Parent_Uid":""}`,
-			contentType:        "application/json",
-			wantStatus:         http.StatusBadRequest,
-			wantEndpointCalled: false,
-		},
-		{
-			name:               "nested parent uid keys are ignored",
-			body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "metadata":{"parent_uid":"nested", "PARENT_UID":"nested"}}`,
-			contentType:        "application/json",
-			wantStatus:         http.StatusCreated,
-			wantEndpointCalled: true,
-		},
-		{
-			name:               "duplicate parent uid keys are rejected without content type",
-			body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":""}`,
-			wantStatus:         http.StatusBadRequest,
-			wantEndpointCalled: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			endpointCalled := false
-			handler := projsvchttpserver.NewCreateProjectHandler(
-				func(context.Context, any) (any, error) {
-					endpointCalled = true
-					return &projsvc.ProjectFull{}, nil
-				},
-				goahttp.NewMuxer(),
-				projectRequestDecoder,
-				goahttp.ResponseEncoder,
-				nil,
-				nil,
-			)
-
-			req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(tt.body))
-			if tt.contentType != "" {
-				req.Header.Set("Content-Type", tt.contentType)
-			}
-			res := httptest.NewRecorder()
-			handler.ServeHTTP(res, req)
-
-			require.Equal(t, tt.wantStatus, res.Code)
-			assert.Equal(t, tt.wantEndpointCalled, endpointCalled)
-		})
-	}
-}
-
 // errReader is an io.Reader that always fails.
 type errReader struct{ err error }
 
@@ -164,6 +97,73 @@ func TestProjectRequestDecoder(t *testing.T) {
 
 		var dst map[string]any
 		assert.ErrorIs(t, projectRequestDecoder(req).Decode(&dst), readErr)
+	})
+
+	t.Run("create-project handler rejects duplicate parent_uid keys", func(t *testing.T) {
+		const validProjectBody = `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
+
+		tests := []struct {
+			name               string
+			body               string
+			contentType        string
+			wantStatus         int
+			wantEndpointCalled bool
+		}{
+			{
+				name:               "single parent uid key is accepted",
+				body:               validProjectBody,
+				contentType:        "application/json",
+				wantStatus:         http.StatusCreated,
+				wantEndpointCalled: true,
+			},
+			{
+				name:               "three case-insensitive parent uid keys are rejected",
+				body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":"", "Parent_Uid":""}`,
+				contentType:        "application/json",
+				wantStatus:         http.StatusBadRequest,
+				wantEndpointCalled: false,
+			},
+			{
+				name:               "nested parent uid keys are ignored",
+				body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "metadata":{"parent_uid":"nested", "PARENT_UID":"nested"}}`,
+				contentType:        "application/json",
+				wantStatus:         http.StatusCreated,
+				wantEndpointCalled: true,
+			},
+			{
+				name:               "duplicate parent uid keys are rejected without content type",
+				body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":""}`,
+				wantStatus:         http.StatusBadRequest,
+				wantEndpointCalled: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				endpointCalled := false
+				handler := projsvchttpserver.NewCreateProjectHandler(
+					func(context.Context, any) (any, error) {
+						endpointCalled = true
+						return &projsvc.ProjectFull{}, nil
+					},
+					goahttp.NewMuxer(),
+					projectRequestDecoder,
+					goahttp.ResponseEncoder,
+					nil,
+					nil,
+				)
+
+				req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(tt.body))
+				if tt.contentType != "" {
+					req.Header.Set("Content-Type", tt.contentType)
+				}
+				res := httptest.NewRecorder()
+				handler.ServeHTTP(res, req)
+
+				require.Equal(t, tt.wantStatus, res.Code)
+				assert.Equal(t, tt.wantEndpointCalled, endpointCalled)
+			})
+		}
 	})
 }
 

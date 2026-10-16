@@ -51,7 +51,7 @@ internal/domain/               models, ports, errors, mock factories
 internal/service/              business orchestration
 internal/infrastructure/nats/  KV repositories and message publishers
 internal/infrastructure/auth/  JWT auth integration
-internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit
+internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit, route_tagging
 internal/infrastructure/log/   slog context helpers
 pkg/constants/                 NATS, HTTP, app, access-control constants
 charts/lfx-v2-project-service/ Helm chart (owned by this repo)
@@ -82,7 +82,7 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
 ## Errors
 
 - All domain errors live in `internal/domain/errors.go` as named sentinels (`ErrProjectNotFound`, `ErrRevisionMismatch`, `ErrInvalidParentProject`, etc.). Add new error returns there, do not scatter sentinels across packages.
-- Translate sentinels to HTTP at the Goa boundary in `cmd/project-api/service_endpoint_project.go::handleError`. New errors must be added to that switch.
+- Translate sentinels to HTTP at the Goa boundary in `cmd/project-api/service_endpoint.go::handleError`. New errors must be added to that switch.
 - Standard mapping for this repo:
 
   | Error category | HTTP | Examples |

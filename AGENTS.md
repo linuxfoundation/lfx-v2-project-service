@@ -188,7 +188,7 @@ internal/                   # Core business logic
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
-    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
+    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger, route tagging)
     └── nats/             # NATS repository, object store, message builder, user reader
 
 pkg/                    # Shared packages across services
@@ -716,7 +716,7 @@ Important context values:
 
 ### 5. Error Handling
 
-Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint_project.go`:
+Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint.go`:
 
 - `ErrProjectNotFound` / `ErrDocumentNotFound` / `ErrLinkNotFound` / `ErrFolderNotFound` → 404
 - `ErrProjectSlugExists` / `ErrRevisionMismatch` / `ErrDocumentNameExists` / `ErrFolderNameExists` / `ErrFolderNotEmpty` → 409
