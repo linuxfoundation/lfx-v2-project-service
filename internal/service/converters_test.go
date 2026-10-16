@@ -1174,3 +1174,124 @@ func TestConvertAuditUserToAPI(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertToServiceDocument(t *testing.T) {
+	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	updated := time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)
+	user := &models.UserInfo{Name: "Alice Example", Username: "alice", Email: "alice@example.com"}
+
+	t.Run("nil input returns nil", func(t *testing.T) {
+		assert.Nil(t, ConvertToServiceDocument(nil))
+	})
+
+	t.Run("all fields are mapped", func(t *testing.T) {
+		got := ConvertToServiceDocument(&models.ProjectDocument{
+			UID:         "doc-1",
+			ProjectUID:  "proj-1",
+			FolderUID:   misc.StringPtr("folder-1"),
+			Name:        "Charter",
+			Description: "The charter",
+			FileName:    "charter.pdf",
+			FileSize:    1024,
+			ContentType: "application/pdf",
+			CreatedBy:   user,
+			UpdatedBy:   user,
+			CreatedAt:   created,
+			UpdatedAt:   updated,
+		})
+		require.NotNil(t, got)
+		assert.Equal(t, "doc-1", *got.UID)
+		assert.Equal(t, "proj-1", *got.ProjectUID)
+		assert.Equal(t, "folder-1", *got.FolderUID)
+		assert.Equal(t, "Charter", *got.Name)
+		assert.Equal(t, "The charter", *got.Description)
+		assert.Equal(t, "charter.pdf", *got.FileName)
+		assert.Equal(t, int64(1024), *got.FileSize)
+		assert.Equal(t, "application/pdf", *got.ContentType)
+		assert.Equal(t, "alice", *got.CreatedBy.Username)
+		assert.Equal(t, "alice", *got.UpdatedBy.Username)
+		assert.Equal(t, "2026-01-02T03:04:05Z", *got.CreatedAt)
+		assert.Equal(t, "2026-02-03T04:05:06Z", *got.UpdatedAt)
+	})
+
+	t.Run("empty optional fields are omitted", func(t *testing.T) {
+		got := ConvertToServiceDocument(&models.ProjectDocument{UID: "doc-1", CreatedAt: created, UpdatedAt: updated})
+		require.NotNil(t, got)
+		assert.Nil(t, got.Description)
+		assert.Nil(t, got.ContentType)
+		assert.Nil(t, got.FolderUID)
+		assert.Nil(t, got.CreatedBy)
+	})
+}
+
+func TestConvertToServiceLink(t *testing.T) {
+	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	updated := time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)
+	user := &models.UserInfo{Name: "Alice Example", Username: "alice", Email: "alice@example.com"}
+
+	t.Run("nil input returns nil", func(t *testing.T) {
+		assert.Nil(t, ConvertToServiceLink(nil))
+	})
+
+	t.Run("all fields are mapped", func(t *testing.T) {
+		got := ConvertToServiceLink(&models.ProjectLink{
+			UID:         "link-1",
+			ProjectUID:  "proj-1",
+			FolderUID:   misc.StringPtr("folder-1"),
+			Name:        "Website",
+			URL:         "https://example.com",
+			Description: "Project site",
+			CreatedBy:   user,
+			UpdatedBy:   user,
+			CreatedAt:   created,
+			UpdatedAt:   updated,
+		})
+		require.NotNil(t, got)
+		assert.Equal(t, "link-1", *got.UID)
+		assert.Equal(t, "proj-1", *got.ProjectUID)
+		assert.Equal(t, "folder-1", *got.FolderUID)
+		assert.Equal(t, "Website", *got.Name)
+		assert.Equal(t, "https://example.com", *got.URL)
+		assert.Equal(t, "Project site", *got.Description)
+		assert.Equal(t, "alice", *got.CreatedBy.Username)
+		assert.Equal(t, "2026-01-02T03:04:05Z", *got.CreatedAt)
+		assert.Equal(t, "2026-02-03T04:05:06Z", *got.UpdatedAt)
+	})
+
+	t.Run("empty description is omitted", func(t *testing.T) {
+		got := ConvertToServiceLink(&models.ProjectLink{UID: "link-1", CreatedAt: created, UpdatedAt: updated})
+		require.NotNil(t, got)
+		assert.Nil(t, got.Description)
+		assert.Nil(t, got.FolderUID)
+	})
+}
+
+func TestConvertToServiceFolder(t *testing.T) {
+	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	updated := time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)
+	user := &models.UserInfo{Name: "Alice Example", Username: "alice", Email: "alice@example.com"}
+
+	t.Run("nil input returns nil", func(t *testing.T) {
+		assert.Nil(t, ConvertToServiceFolder(nil))
+	})
+
+	t.Run("all fields are mapped", func(t *testing.T) {
+		got := ConvertToServiceFolder(&models.ProjectFolder{
+			UID:        "folder-1",
+			ProjectUID: "proj-1",
+			Name:       "Legal",
+			CreatedBy:  user,
+			UpdatedBy:  user,
+			CreatedAt:  created,
+			UpdatedAt:  updated,
+		})
+		require.NotNil(t, got)
+		assert.Equal(t, "folder-1", *got.UID)
+		assert.Equal(t, "proj-1", *got.ProjectUID)
+		assert.Equal(t, "Legal", *got.Name)
+		assert.Equal(t, "alice", *got.CreatedBy.Username)
+		assert.Equal(t, "alice", *got.UpdatedBy.Username)
+		assert.Equal(t, "2026-01-02T03:04:05Z", *got.CreatedAt)
+		assert.Equal(t, "2026-02-03T04:05:06Z", *got.UpdatedAt)
+	})
+}

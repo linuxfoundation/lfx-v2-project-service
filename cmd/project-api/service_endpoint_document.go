@@ -18,7 +18,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
 // maxTextPartSize caps the bytes read for text multipart fields (name, description, folder_uid,
@@ -143,31 +142,6 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 	return nil
 }
 
-func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
-	if d == nil {
-		return nil
-	}
-	doc := &projsvc.ProjectDocument{
-		UID:        &d.UID,
-		ProjectUID: &d.ProjectUID,
-		FolderUID:  d.FolderUID,
-		Name:       &d.Name,
-		FileName:   &d.FileName,
-		FileSize:   &d.FileSize,
-		CreatedBy:  service.ConvertAuditUserToAPI(d.CreatedBy),
-		UpdatedBy:  service.ConvertAuditUserToAPI(d.UpdatedBy),
-		CreatedAt:  misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
-		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
-	}
-	if d.Description != "" {
-		doc.Description = &d.Description
-	}
-	if d.ContentType != "" {
-		doc.ContentType = &d.ContentType
-	}
-	return doc
-}
-
 // UploadProjectDocument handles multipart document upload.
 func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsvc.UploadProjectDocumentPayload) (*projsvc.ProjectDocument, error) {
 	description := ""
@@ -189,7 +163,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 		return nil, handleError(ctx, err)
 	}
 
-	return toServiceDocument(doc), nil
+	return service.ConvertToServiceDocument(doc), nil
 }
 
 // GetProjectDocument gets project document metadata.
@@ -200,7 +174,7 @@ func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.G
 	}
 
 	return &projsvc.GetProjectDocumentResult{
-		Document: toServiceDocument(doc),
+		Document: service.ConvertToServiceDocument(doc),
 		Etag:     &etag,
 	}, nil
 }

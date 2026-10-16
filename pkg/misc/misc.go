@@ -12,3 +12,12 @@ func StringPtr(s string) *string {
 func BoolPtr(b bool) *bool {
 	return &b
 }
+
+// ValueOrZero returns the value p points to, or the zero value of T if p is nil.
+func ValueOrZero[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
+	}
+	return *p
+}

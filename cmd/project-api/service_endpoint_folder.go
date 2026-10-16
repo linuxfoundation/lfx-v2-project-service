@@ -7,25 +7,8 @@ import (
 	"context"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
-
-func toServiceFolder(f *models.ProjectFolder) *projsvc.ProjectFolder {
-	if f == nil {
-		return nil
-	}
-	return &projsvc.ProjectFolder{
-		UID:        &f.UID,
-		ProjectUID: &f.ProjectUID,
-		Name:       &f.Name,
-		CreatedBy:  service.ConvertAuditUserToAPI(f.CreatedBy),
-		UpdatedBy:  service.ConvertAuditUserToAPI(f.UpdatedBy),
-		CreatedAt:  misc.StringPtr(f.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
-		UpdatedAt:  misc.StringPtr(f.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
-	}
-}
 
 // CreateProjectFolder creates a new project folder.
 func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.CreateProjectFolderPayload) (*projsvc.ProjectFolder, error) {
@@ -34,7 +17,7 @@ func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.
 		return nil, handleError(ctx, err)
 	}
 
-	return toServiceFolder(folder), nil
+	return service.ConvertToServiceFolder(folder), nil
 }
 
 // GetProjectFolder gets a single project folder.
@@ -45,7 +28,7 @@ func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.Get
 	}
 
 	return &projsvc.GetProjectFolderResult{
-		Folder: toServiceFolder(folder),
+		Folder: service.ConvertToServiceFolder(folder),
 		Etag:   &etag,
 	}, nil
 }

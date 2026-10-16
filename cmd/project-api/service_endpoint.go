@@ -63,14 +63,6 @@ func handleError(ctx context.Context, err error) error {
 	return err
 }
 
-// nilStr returns empty string if pointer is nil, otherwise the value.
-func nilStr(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
 // createResponse creates a response error based on the HTTP status code.
 func createResponse(code int, err error) error {
 	switch code {
