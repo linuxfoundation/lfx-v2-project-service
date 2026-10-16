@@ -16,8 +16,9 @@ import (
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/fgaread"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/osdiff"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/fgaread"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/rootproject"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
@@ -230,7 +231,7 @@ func (p *projectInspector) checkOpenSearch(ctx context.Context, base *models.Pro
 	if p.openSearch == nil {
 		return nil
 	}
-	if base.Slug == commands.RootProjectSlug {
+	if base.Slug == rootproject.Slug {
 		report.Skipped = append(report.Skipped, "opensearch: the hidden ROOT project is never indexed")
 		return nil
 	}

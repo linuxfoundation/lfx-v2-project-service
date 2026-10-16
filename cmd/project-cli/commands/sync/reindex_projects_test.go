@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/osdiff"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"

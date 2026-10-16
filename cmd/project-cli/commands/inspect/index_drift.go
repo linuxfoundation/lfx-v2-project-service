@@ -12,7 +12,8 @@ import (
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/osdiff"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/rootproject"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
 )
@@ -74,7 +75,7 @@ func runIndexDrift(ctx context.Context, repo projectLister, client *opensearchgo
 	}
 	bases := make([]*models.ProjectBase, 0, len(all))
 	for _, base := range all {
-		if base.Slug != commands.RootProjectSlug {
+		if base.Slug != rootproject.Slug {
 			bases = append(bases, base)
 		}
 	}

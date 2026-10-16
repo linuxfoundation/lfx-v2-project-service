@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/rootproject"
 )
 
 // Project classes, which decide the global grants a project is expected to carry.
@@ -225,7 +225,7 @@ func hasTupleCondition(raw json.RawMessage) bool {
 // Class names the grant class of a project from its slug and stage.
 func Class(slug, stage string) string {
 	switch {
-	case slug == commands.RootProjectSlug:
+	case slug == rootproject.Slug:
 		return ClassSystemRoot
 	case stage == "Prospect":
 		return ClassProspect

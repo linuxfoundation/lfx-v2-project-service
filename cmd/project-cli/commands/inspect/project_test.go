@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/fgaread"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/fgaread"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )

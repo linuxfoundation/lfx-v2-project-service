@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/fgaread"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/fgaread"
 )
 
 type verifyGlobalGrantsSubcommand struct{}
