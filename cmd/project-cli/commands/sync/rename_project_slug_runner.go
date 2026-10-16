@@ -4,14 +4,12 @@
 package sync
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,8 +32,11 @@ var errSlugIndexCollision = errors.New("new slug is already indexed to a differe
 // field-rename path used by every other bucket.
 const projectsBucket = "projects"
 
-// DefaultNATSBuckets are the KV buckets scanned during a slug rename migration.
-var DefaultNATSBuckets = []string{
+// defaultNATSBuckets are the KV buckets scanned during a slug rename. Besides
+// the project buckets it includes the committee buckets, whose records
+// denormalise the owning project's slug in a project_slug field (see
+// bucketSlugFields) and would otherwise point at a slug that no longer exists.
+var defaultNATSBuckets = []string{
 	"committee-members",
 	"committees",
 	"committee-settings",
@@ -117,7 +118,7 @@ func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) erro
 
 	buckets := opts.NATSBuckets
 	if len(buckets) == 0 {
-		buckets = DefaultNATSBuckets
+		buckets = defaultNATSBuckets
 	}
 
 	slog.InfoContext(ctx, "starting rename-project-slug")
@@ -756,37 +757,4 @@ func parseNATSBuckets(s string) []string {
 		}
 	}
 	return out
-}
-
-func redactURL(raw string) string {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "<invalid>"
-	}
-	if u.User != nil {
-		u.User = url.User("REDACTED")
-	}
-	return u.String()
-}
-
-func jsonBody(v any) (io.Reader, error) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
-	}
-	return bytes.NewReader(b), nil
-}
-
-func sleepWithContext(ctx context.Context, d time.Duration) error {
-	if d <= 0 {
-		return nil
-	}
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }

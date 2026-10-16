@@ -468,7 +468,7 @@ func (r *documentAuditUsersRunner) throttle(ctx context.Context) error {
 	if r.sleep <= 0 {
 		return nil
 	}
-	return documentAuditSleep(ctx, r.sleep)
+	return sleepWithContext(ctx, r.sleep)
 }
 
 func parseDocumentResourceType(raw string) (folders, links, documents bool, err error) {
@@ -485,16 +485,5 @@ func parseDocumentResourceType(raw string) (folders, links, documents bool, err 
 		return false, false, true, nil
 	default:
 		return false, false, false, fmt.Errorf("invalid --resource-type %q: want folder, link, or document", raw)
-	}
-}
-
-func documentAuditSleep(ctx context.Context, d time.Duration) error {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
 	}
 }

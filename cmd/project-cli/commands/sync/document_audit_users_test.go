@@ -229,18 +229,6 @@ func TestDocumentAuditUsersRunner_resolveAuditProfile(t *testing.T) {
 	})
 }
 
-func TestDocumentAuditSleep(t *testing.T) {
-	t.Run("returns nil after the duration", func(t *testing.T) {
-		require.NoError(t, documentAuditSleep(context.Background(), time.Millisecond))
-	})
-
-	t.Run("returns the context error when cancelled first", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		require.ErrorIs(t, documentAuditSleep(ctx, time.Minute), context.Canceled)
-	})
-}
-
 // fakeAuditRepo is an in-memory documentAuditRepo that records writes and
 // lets a test inject a failure for any operation.
 type fakeAuditRepo struct {
