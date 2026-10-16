@@ -711,7 +711,8 @@ Important context values:
 
 - `request-id`: Unique request identifier
 - `authorization`: JWT token from header
-- `etag`: ETag value for optimistic concurrency (sent as If-Match header in requests)
+
+`If-Match` is not carried in context: generated Goa decoders place it on payload fields such as `payload.IfMatch`, and the `ETag` response header comes from the `Etag` field of the endpoint result.
 
 ### 5. Error Handling
 

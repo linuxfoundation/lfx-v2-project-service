@@ -105,7 +105,6 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
   - `constants.RequestIDContextID` for `X-REQUEST-ID`.
   - `constants.PrincipalContextID` for the Heimdall principal parsed by `ProjectsAPI.JWTAuth`.
   - `constants.AuthorizationContextID` for the inbound `Authorization` header captured by `AuthorizationMiddleware`.
-  - `constants.ETagContextID` for response `ETag` values set by the custom encoder in `cmd/project-api/main.go`.
 - Never introduce bare string context keys. Add a new typed alias to `pkg/constants/http.go` if a new key is needed.
 - Propagate `ctx` end to end: HTTP handler to service to repository to NATS publisher. Do not drop `ctx` in the middle.
 - `If-Match` is decoded by generated Goa code into payload fields such as `payload.IfMatch`; it is not read from context.

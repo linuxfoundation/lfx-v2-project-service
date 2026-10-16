@@ -27,7 +27,7 @@ The split exists because settings need stricter access than base data (settings 
 
 ## ETag and If-Match wiring
 
-- GET endpoints that return mutable project data set the `ETag` response header. The value is the NATS KV revision (as a string). Project base/settings set `constants.ETagContextID` so the custom encoder in `cmd/project-api/main.go` can write the header; link/folder/document handlers return the generated result header value directly.
+- GET endpoints that return mutable project data set the `ETag` response header. The value is the NATS KV revision (as a string). Every such handler returns the revision in the `Etag` field of its result, and the generated Goa encoder writes it as the `ETag` header (declared as `Header("etag:ETag")` in the design). There is no custom encoder and no context key for it.
 - PUT and DELETE endpoints accept `If-Match` and refuse the write when the revision does not match. Generated Goa decoders place the value on payload fields such as `payload.IfMatch`; service code parses that field and passes the expected revision to the repository.
 - A revision mismatch surfaces as `domain.ErrRevisionMismatch` and maps to HTTP 409 via `handleError`.
 - Goa design must declare both the `ETag` response header and the `If-Match` request header on the relevant endpoints; if either is missing, generated code will silently drop it.
