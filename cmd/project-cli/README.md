@@ -269,6 +269,18 @@ Lists projects whose `project` or `project_settings` OpenSearch document is miss
 go run ./cmd/project-cli inspect index-drift
 ```
 
+#### `inspect settings-access`
+
+Compares each project's direct OpenFGA tuples with what its settings call for: the `writer`, `auditor`, `meeting_coordinator`, `executive_director` and `mentorship_program_admin` rosters, plus the `parent` tuple. The expectation comes from the same message builder that `sync reindex-projects --include-access` publishes, so an email-only user, who has no username and no tuple, is not reported. Findings are `access_missing`, `access_unexpected` and `access_conditioned` with a count per relation and no usernames, plus `missing_settings` and `access_read_error`. A finding means `sync reindex-projects --include-access` would change that project's tuples. It needs `NATS_URL`, `OPENFGA_API_URL` and `OPENFGA_STORE_ID`, and takes `--concurrency` (default 20, at most 100). Global team grants are checked by `sync verify-global-grants`.
+
+#### `inspect children`
+
+Checks that every link, folder and document record has its lookup key, and that every lookup key has a record: `link_missing_lookup`, `link_stale_lookup`, `link_wrong_lookup` and the same for `folder` and `document`. A link without its key is invisible to the project's link list; a folder or document without one can have its name reused, and a stale key blocks its name. It also reports `document_missing_file` for a document with no file in the object store, and `<resource>_unreadable_record`. `--skip-files` leaves out the object store check, which reads one object per document.
+
+#### `inspect parents`
+
+Reports projects whose `parent_uid` names a project that does not exist (`missing_parent`), is the project itself (`self_parent`), or loops back through its own ancestors (`parent_cycle`, once per cycle). A bad parent breaks the access a project inherits.
+
 ## Building
 
 ### Local binary
