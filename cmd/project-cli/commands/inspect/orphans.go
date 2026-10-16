@@ -55,9 +55,13 @@ func (s *orphansSubcommand) Run(ctx context.Context, rc commands.RunContext) err
 }
 
 type orphansReport struct {
-	Projects int            `json:"projects"`
-	Counts   map[string]int `json:"counts"`
-	Findings []finding      `json:"findings"`
+	reportStatus
+	Projects  int            `json:"projects"`
+	Links     int            `json:"links"`
+	Folders   int            `json:"folders"`
+	Documents int            `json:"documents"`
+	Counts    map[string]int `json:"counts"`
+	Findings  []finding      `json:"findings"`
 }
 
 // runOrphans lists the child records that reference a project missing from the
@@ -88,7 +92,7 @@ func runOrphans(ctx context.Context, repo orphanRepo, out io.Writer) error {
 		live[base.UID] = struct{}{}
 	}
 
-	report := &orphansReport{Projects: len(bases), Counts: map[string]int{}, Findings: []finding{}}
+	report := &orphansReport{Projects: len(bases), Links: len(links), Folders: len(folders), Documents: len(documents), Counts: map[string]int{}, Findings: []finding{}}
 	add := func(kind, uid, projectUID, name string) {
 		if _, ok := live[projectUID]; ok {
 			return
@@ -111,8 +115,6 @@ func runOrphans(ctx context.Context, repo orphanRepo, out io.Writer) error {
 	}
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect orphans", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect orphans", out, report, len(report.Findings), fmt.Sprintf("%d projects, %d links, %d folders, %d documents", report.Projects, report.Links, report.Folders, report.Documents))
 }

@@ -63,6 +63,7 @@ func (s *slugIndexSubcommand) Run(ctx context.Context, rc commands.RunContext) e
 }
 
 type slugIndexReport struct {
+	reportStatus
 	Projects    int            `json:"projects"`
 	SlugEntries int            `json:"slug_entries"`
 	Counts      map[string]int `json:"counts"`
@@ -145,10 +146,8 @@ func runSlugIndex(ctx context.Context, kv projectsKV, out io.Writer) error {
 	}
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect slug-index", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect slug-index", out, report, len(report.Findings), fmt.Sprintf("%d projects, %d slug entries", report.Projects, report.SlugEntries))
 }
 
 // getValue reads one key. A key that vanished between the listing and the read

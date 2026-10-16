@@ -118,6 +118,7 @@ func TestRunSlugIndex(t *testing.T) {
 
 			var report slugIndexReport
 			require.NoError(t, json.Unmarshal(out.Bytes(), &report))
+			assert.Equal(t, wantStatus(err), report.Status)
 			assert.Equal(t, tt.wantStats[0], report.Projects)
 			assert.Equal(t, tt.wantStats[1], report.SlugEntries)
 			if tt.wantCounts == nil {

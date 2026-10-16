@@ -81,6 +81,7 @@ func (s *settingsAccessSubcommand) Run(ctx context.Context, rc commands.RunConte
 }
 
 type settingsAccessReport struct {
+	reportStatus
 	Projects int            `json:"projects"`
 	Counts   map[string]int `json:"counts"`
 	Findings []finding      `json:"findings"`
@@ -165,10 +166,8 @@ func runSettingsAccess(ctx context.Context, repo accessRepo, reader tupleReader,
 	_ = group.Wait()
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect settings-access", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect settings-access", out, report, len(report.Findings), fmt.Sprintf("%d projects", report.Projects))
 }
 
 func checkProjectAccess(ctx context.Context, reader tupleReader, base *models.ProjectBase, settings *models.ProjectSettings) []finding {

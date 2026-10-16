@@ -155,6 +155,7 @@ func TestRunIndexDrift(t *testing.T) {
 			}
 			var report indexDriftReport
 			require.NoError(t, json.Unmarshal(out.Bytes(), &report))
+			assert.Equal(t, wantStatus(err), report.Status)
 			if tt.wantChecked != nil {
 				assert.Equal(t, tt.wantChecked, report.Checked)
 			}

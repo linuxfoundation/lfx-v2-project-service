@@ -78,6 +78,7 @@ func (s *childrenSubcommand) Run(ctx context.Context, rc commands.RunContext) er
 }
 
 type childrenReport struct {
+	reportStatus
 	Links     int            `json:"links"`
 	Folders   int            `json:"folders"`
 	Documents int            `json:"documents"`
@@ -234,8 +235,6 @@ func runChildren(ctx context.Context, links, folders, documents projectsKV, file
 	}
 	sortFindings(report.Findings)
 
-	if err := writeReport(out, report); err != nil {
-		return err
-	}
-	return problemsError("inspect children", len(report.Findings))
+	report.reportStatus = statusFor(len(report.Findings))
+	return finishReport(ctx, "inspect children", out, report, len(report.Findings), fmt.Sprintf("%d links, %d folders, %d documents", report.Links, report.Folders, report.Documents))
 }

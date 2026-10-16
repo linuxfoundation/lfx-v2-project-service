@@ -155,6 +155,7 @@ func TestRunSettingsAccess(t *testing.T) {
 			}
 			var report settingsAccessReport
 			require.NoError(t, json.Unmarshal(out.Bytes(), &report))
+			assert.Equal(t, wantStatus(err), report.Status)
 			if tt.wantCounts == nil {
 				assert.Empty(t, report.Findings)
 				return
