@@ -5,9 +5,7 @@ package sync
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -21,27 +19,15 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
-// resourcesIndex is the shared OpenSearch index queried and written by the
-// indexer service. There is no exported constant for it (see
-// rename_project_slug_runner.go), so the literal is repeated here.
-const resourcesIndex = "resources"
-
-const osIDChunkSize = 1000
-
-// rootProjectSlug identifies the hidden ROOT project used for team permission
-// assignment. It is created by scripts/root-project-setup (package main, so that
-// script's own const is not importable) and must not appear in the search index.
-// Compared case-sensitively on purpose: API slugs are validated against
-// ^[a-z][a-z0-9_\-]*[a-z0-9]$ (api/project/v1/design/types.go), so "ROOT" cannot
-// collide with a user slug, while a case-insensitive match would wrongly exclude a
-// legitimate project slugged "root".
-const rootProjectSlug = "ROOT"
+// rootProjectSlug is the hidden ROOT project's slug (see constants.RootProjectSlug).
+const rootProjectSlug = constants.RootProjectSlug
 
 // projectRecordRepo is the narrow slice of natsinfra.NatsRepository this
 // runner needs, so tests can fake it without a live NATS connection.
@@ -64,14 +50,6 @@ type reindexProjectsRunner struct {
 	keepDirectUsers bool
 	concurrency     int
 	stats           *commands.Stats
-}
-
-// osMissing tracks, per project UID, whether the project and project_settings
-// OpenSearch documents are absent. The two are resolved independently since
-// a project can be missing one without the other.
-type osMissing struct {
-	project         bool
-	projectSettings bool
 }
 
 func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) error {
@@ -114,17 +92,17 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		bases = kept
 	}
 
-	missing := map[string]osMissing{}
+	missing := map[string]osdiff.Missing{}
 	// --force is only accepted alongside an explicit --project-uid (enforced at
 	// flag parse time in reindex_projects.go), so it never widens the diff skip
 	// beyond the single named project.
 	if r.all || r.force {
 		for _, base := range bases {
-			missing[base.UID] = osMissing{project: true, projectSettings: true}
+			missing[base.UID] = osdiff.Missing{Project: true, Settings: true}
 		}
 	} else {
 		var err error
-		missing, err = r.diffOpenSearch(ctx, bases)
+		missing, err = osdiff.Diff(ctx, r.openSearch, bases)
 		if err != nil {
 			return fmt.Errorf("diff opensearch: %w", err)
 		}
@@ -132,10 +110,10 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 
 	missingProject, missingSettings := 0, 0
 	for _, m := range missing {
-		if m.project {
+		if m.Project {
 			missingProject++
 		}
-		if m.projectSettings {
+		if m.Settings {
 			missingSettings++
 		}
 	}
@@ -177,7 +155,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	for _, base := range bases {
 		base := base
 		m := missing[base.UID]
-		if !m.project && !m.projectSettings {
+		if !m.Any() {
 			statsMu.Lock()
 			r.stats.Skipped++
 			statsMu.Unlock()
@@ -263,12 +241,12 @@ func (r *reindexProjectsRunner) accessMessage(base *models.ProjectBase, settings
 	return proj.ToFGAMessage()
 }
 
-func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osMissing) error {
+func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osdiff.Missing) error {
 	if r.dryRun {
 		slog.InfoContext(ctx, "dry-run: would reindex project",
 			"project_uid", base.UID,
-			"missing_project", m.project,
-			"missing_settings", m.projectSettings,
+			"missing_project", m.Project,
+			"missing_settings", m.Settings,
 			"include_access", r.includeAccess,
 		)
 		return nil
@@ -290,7 +268,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 	// (e.g. NATS not ready), not indexer processing outcomes.
 	g := new(errgroup.Group)
 
-	if m.project {
+	if m.Project {
 		g.Go(func() error {
 			msg := indexerTypes.IndexerMessageEnvelope{
 				Action:         action,
@@ -305,7 +283,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 	// above. CreateProject writes the base before settings and can return before
 	// settings ever land (internal/infrastructure/nats/repository.go), so a settings
 	// read failure here must not block an otherwise-repairable base publish.
-	if m.projectSettings || r.includeAccess {
+	if m.Settings || r.includeAccess {
 		g.Go(func() error {
 			settings, err := r.repo.GetProjectSettings(ctx, base.UID)
 			if err != nil {
@@ -316,7 +294,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 
 			sg := new(errgroup.Group)
 
-			if m.projectSettings {
+			if m.Settings {
 				sg.Go(func() error {
 					msg := indexerTypes.IndexerMessageEnvelope{
 						Action:         action,
@@ -342,118 +320,4 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		return err
 	}
 	return nil
-}
-
-// diffOpenSearch resolves, for every project UID, whether its "project" and
-// "project_settings" documents already exist in the resources index.
-func (r *reindexProjectsRunner) diffOpenSearch(ctx context.Context, bases []*models.ProjectBase) (map[string]osMissing, error) {
-	missing := make(map[string]osMissing, len(bases))
-	for _, base := range bases {
-		missing[base.UID] = osMissing{project: true, projectSettings: true}
-	}
-
-	var ids []string
-	for _, base := range bases {
-		ids = append(ids, "project:"+base.UID, "project_settings:"+base.UID)
-	}
-
-	for _, chunk := range chunkStrings(ids, osIDChunkSize) {
-		found, err := r.queryExistingIDs(ctx, chunk)
-		if err != nil {
-			return nil, err
-		}
-		for id := range found {
-			uid, docType, ok := splitResourceID(id)
-			if !ok {
-				continue
-			}
-			m := missing[uid]
-			switch docType {
-			case "project":
-				m.project = false
-			case "project_settings":
-				m.projectSettings = false
-			}
-			missing[uid] = m
-		}
-	}
-
-	return missing, nil
-}
-
-func (r *reindexProjectsRunner) queryExistingIDs(ctx context.Context, ids []string) (map[string]struct{}, error) {
-	body, err := jsonBody(map[string]any{
-		"size":    len(ids),
-		"_source": false,
-		"query": map[string]any{
-			"ids": map[string]any{"values": ids},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := r.openSearch.Search(
-		r.openSearch.Search.WithContext(ctx),
-		r.openSearch.Search.WithIndex(resourcesIndex),
-		r.openSearch.Search.WithBody(body),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("search request failed: %w", err)
-	}
-	defer func() { _ = res.Body.Close() }()
-
-	if res.IsError() {
-		raw, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("search error %s: %s", res.Status(), raw)
-	}
-
-	var result struct {
-		TimedOut bool `json:"timed_out"`
-		Shards   struct {
-			Failed int `json:"failed"`
-		} `json:"_shards"`
-		Hits struct {
-			Hits []struct {
-				ID string `json:"_id"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %w", err)
-	}
-	if result.TimedOut || result.Shards.Failed > 0 {
-		return nil, fmt.Errorf("opensearch returned partial result (timed_out=%v, shards_failed=%d)",
-			result.TimedOut, result.Shards.Failed)
-	}
-
-	found := make(map[string]struct{}, len(result.Hits.Hits))
-	for _, hit := range result.Hits.Hits {
-		found[hit.ID] = struct{}{}
-	}
-	return found, nil
-}
-
-func chunkStrings(items []string, size int) [][]string {
-	var chunks [][]string
-	for len(items) > 0 {
-		n := size
-		if n > len(items) {
-			n = len(items)
-		}
-		chunks = append(chunks, items[:n])
-		items = items[n:]
-	}
-	return chunks
-}
-
-// splitResourceID splits an OpenSearch "resources" index _id of the form
-// "<object_type>:<uid>" into its UID and object type.
-func splitResourceID(id string) (uid, docType string, ok bool) {
-	for _, prefix := range []string{"project_settings:", "project:"} {
-		if len(id) > len(prefix) && id[:len(prefix)] == prefix {
-			return id[len(prefix):], prefix[:len(prefix)-1], true
-		}
-	}
-	return "", "", false
 }

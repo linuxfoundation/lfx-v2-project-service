@@ -234,6 +234,55 @@ go run ./cmd/project-cli sync verify-global-grants --concurrency=20
 For cluster execution, use the digest-pinned wrapper documented in
 `scripts/global-grant-backfill/README.md`.
 
+### Inspect commands
+
+The `inspect` group is read-only. It never writes to NATS, OpenSearch or OpenFGA. Each command prints a JSON report to stdout and exits nonzero when it finds a problem, so it can gate a Job. Findings name project UIDs, slugs and record UIDs, so keep the logs in an access-controlled system.
+
+#### `inspect project`
+
+Shows one project across every store: the KV base and settings records, the `slug/<slug>` index entry, whether the OpenSearch `project` and `project_settings` documents exist, the `global_*` OpenFGA grants against the expected set, and the number of links, folders and documents. Pass the project UID or its slug. Flags go before the argument.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--skip-opensearch` | `false` | Do not check the OpenSearch documents |
+| `--skip-fga` | `false` | Do not check the OpenFGA grants |
+
+The OpenFGA check runs when `OPENFGA_API_URL` and `OPENFGA_STORE_ID` are set, and is reported as skipped when both are unset. The hidden `ROOT` project is never indexed, so its OpenSearch check is skipped. A conditioned global grant is reported once, as conditioned, where `sync verify-global-grants` also counts it as missing and unexpected; both fail the run.
+
+```sh
+go run ./cmd/project-cli inspect project --skip-fga example-project
+```
+
+#### `inspect slug-index`
+
+Checks every `slug/<slug>` entry in the `projects` bucket against its project record, and every project against its slug entry. It reports `dangling_index` (the entry points at a UID with no record), `mismatched_index` (the record has a different slug), `missing_index` (the project has no entry), `wrong_index` (the entry points at another project) and `unreadable_record`. These are the states `sync rename-project-slug` repairs.
+
+#### `inspect orphans`
+
+Lists links, folders and documents whose project no longer exists (`orphan_link`, `orphan_folder`, `orphan_document`). `admin-delete-project` leaves these children behind on purpose, so they accumulate.
+
+#### `inspect index-drift`
+
+Lists records whose OpenSearch document is missing, without publishing anything. It covers projects (the `project` and `project_settings` documents), links, folders and documents, and reports `missing_project`, `missing_project_settings`, `missing_project_link`, `missing_project_folder` and `missing_project_document`. The project diff is the one `sync reindex-projects` runs, and the hidden `ROOT` project is left out. `--resource` narrows the check to a comma-separated list of `project`, `link`, `folder` and `document` (default `all`). Needs `NATS_URL` and `OPENSEARCH_URL`.
+
+Only projects can be repaired with `sync reindex-projects`; a missing link, folder or document document has no repair command yet, so it is reported here for follow-up.
+
+```sh
+go run ./cmd/project-cli inspect index-drift --resource=link,folder,document
+```
+
+#### `inspect settings-access`
+
+Compares each project's direct OpenFGA tuples with what its settings call for: the `writer`, `auditor`, `meeting_coordinator`, `executive_director` and `mentorship_program_admin` rosters, plus the `parent` tuple. The expectation comes from the same message builder that `sync reindex-projects --include-access` publishes, so an email-only user, who has no username and no tuple, is not reported. Findings are `access_missing`, `access_unexpected` and `access_conditioned` with a count per relation and no usernames, plus `missing_settings` and `access_read_error`. To repair a project, run `sync reindex-projects --project-uid <uid> --force --include-access` (or `--all --include-access` for the fleet). Without `--all` or `--force`, reindex-projects skips a project whose OpenSearch documents both exist, and `--keep-direct-users` leaves `access_unexpected` tuples in place. It needs `NATS_URL`, `OPENFGA_API_URL` and `OPENFGA_STORE_ID`, and takes `--concurrency` (default 20, at most 100). Global team grants are checked by `sync verify-global-grants`.
+
+#### `inspect children`
+
+Checks that every link, folder and document record has its lookup key, and that every lookup key has a record: `link_missing_lookup`, `link_stale_lookup`, `link_wrong_lookup` and the same for `folder` and `document`. A link without its key is invisible to the project's link list; a folder or document without one can have its name reused, and a stale key blocks its name. It also reports `document_missing_file` for a document with no file in the object store, and `<resource>_unreadable_record`. `--skip-files` leaves out the object store check, which reads one object's metadata per document.
+
+#### `inspect parents`
+
+Reports projects whose `parent_uid` names a project that does not exist (`missing_parent`), is the project itself (`self_parent`), or loops back through its own ancestors (`parent_cycle`, once per cycle). A bad parent breaks the access a project inherits.
+
 ## Building
 
 ### Local binary
@@ -341,6 +390,21 @@ kubectl logs -f -n lfx job/<job-name>
 
 The Job is kept after completion so its logs and exit status remain accessible as a run record. Re-trigger by applying a new manifest (`generateName` assigns a unique name) or creating a new `kubectl create job`.
 
+## Code layout
+
+```text
+cmd/project-cli/
+  main.go, args.go      entry point, argument splitting, usage
+  commands/             the command framework and the command groups
+    command.go, flags.go, nats.go   interfaces and helpers every subcommand uses
+    sync/               a command group: what an operator runs as `project-cli sync ...`
+    inspect/            a command group: `project-cli inspect ...` (read-only)
+  internal/             libraries the command groups call; they are not commands
+    osdiff/  fgaread/
+```
+
+Anything under `commands/<group>/` is something an operator can run. Code that more than one group needs goes in `internal/<name>/` (importable only inside `cmd/project-cli`), so a command group never imports another group's internals. Helpers that every subcommand needs (flags, NATS setup, stats) stay in `commands/`.
+
 ## Adding new commands
 
 1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`. Build the group's `Subcommands()` with `commands.IndexSubcommands(...)` so each name is declared once, on the subcommand itself.
@@ -348,6 +412,7 @@ The Job is kept after completion so its logs and exit status remain accessible a
 3. In a subcommand's `Run`, use the shared helpers in `commands/` instead of repeating the boilerplate:
    - `commands.NewFlagSet`, `commands.ParseFlags` and `commands.RejectExtraArgs` for flags, `--help` and stray arguments.
    - `commands.ConnectRepository` to dial NATS and open the project repository, and `commands.WithServiceAuthorization` for code that reads the authorization from the context.
+   - `internal/osdiff` for the OpenSearch document diff, and `internal/fgaread` for the OpenFGA grant reader and its expected-grant contract. The hidden ROOT project's slug is `constants.RootProjectSlug` in `pkg/constants`.
    - `commands.NewStats` and `commands.Finish` to count records, log the summary, flush NATS and turn failures into a nonzero exit.
 4. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 

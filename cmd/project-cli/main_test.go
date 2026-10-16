@@ -213,6 +213,10 @@ func TestBuildRegistry(t *testing.T) {
 	require.Contains(t, registry, "sync")
 	assert.Equal(t, "sync", registry["sync"].Name())
 	assert.Contains(t, registry["sync"].Subcommands(), "reindex-projects")
+
+	require.Contains(t, registry, "inspect")
+	assert.Equal(t, "inspect", registry["inspect"].Name())
+	assert.Contains(t, registry["inspect"].Subcommands(), "slug-index")
 }
 
 func TestPrintUsage(t *testing.T) {

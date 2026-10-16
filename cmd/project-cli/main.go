@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/inspect"
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands/sync"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
@@ -109,10 +110,11 @@ func resolveJobRunID() string {
 }
 
 func buildRegistry() map[string]commands.Command {
-	syncCmd := sync.NewCommand()
-	return map[string]commands.Command{
-		syncCmd.Name(): syncCmd,
+	registry := map[string]commands.Command{}
+	for _, cmd := range []commands.Command{sync.NewCommand(), inspect.NewCommand()} {
+		registry[cmd.Name()] = cmd
 	}
+	return registry
 }
 
 func printVersion(w io.Writer) {

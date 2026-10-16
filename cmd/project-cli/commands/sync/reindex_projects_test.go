@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/osdiff"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -57,126 +58,11 @@ func settingsEnvelopeMatcher(action indexerConstants.MessageAction, base *models
 	}
 }
 
-func TestChunkStrings(t *testing.T) {
-	tests := []struct {
-		name  string
-		items []string
-		size  int
-		want  [][]string
-	}{
-		{
-			name:  "empty input",
-			items: nil,
-			size:  2,
-			want:  nil,
-		},
-		{
-			name:  "single chunk under size",
-			items: []string{"a", "b"},
-			size:  5,
-			want:  [][]string{{"a", "b"}},
-		},
-		{
-			name:  "exact multiple of size",
-			items: []string{"a", "b", "c", "d"},
-			size:  2,
-			want:  [][]string{{"a", "b"}, {"c", "d"}},
-		},
-		{
-			name:  "boundary plus remainder",
-			items: []string{"a", "b", "c"},
-			size:  2,
-			want:  [][]string{{"a", "b"}, {"c"}},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := chunkStrings(tt.items, tt.size)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestSplitResourceID(t *testing.T) {
-	tests := []struct {
-		name        string
-		id          string
-		wantUID     string
-		wantDocType string
-		wantOK      bool
-	}{
-		{
-			name:        "project doc",
-			id:          "project:00000000-0000-0000-0000-000000000001",
-			wantUID:     "00000000-0000-0000-0000-000000000001",
-			wantDocType: "project",
-			wantOK:      true,
-		},
-		{
-			name:        "project_settings doc",
-			id:          "project_settings:00000000-0000-0000-0000-000000000002",
-			wantUID:     "00000000-0000-0000-0000-000000000002",
-			wantDocType: "project_settings",
-			wantOK:      true,
-		},
-		{
-			name:   "unrecognized prefix",
-			id:     "project_folder:00000000-0000-0000-0000-000000000003",
-			wantOK: false,
-		},
-		{
-			name:   "empty uid after prefix",
-			id:     "project:",
-			wantOK: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uid, docType, ok := splitResourceID(tt.id)
-			assert.Equal(t, tt.wantOK, ok)
-			if tt.wantOK {
-				assert.Equal(t, tt.wantUID, uid)
-				assert.Equal(t, tt.wantDocType, docType)
-			}
-		})
-	}
-}
-
 // roundTripFunc lets a test stand up an *opensearchgo.Client backed by a
 // canned HTTP response instead of a live OpenSearch cluster.
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
-
-func newFakeOpenSearchClient(t *testing.T, hitIDs []string) *opensearchgo.Client {
-	t.Helper()
-
-	body := `{"hits":{"hits":[`
-	for i, id := range hitIDs {
-		if i > 0 {
-			body += ","
-		}
-		body += fmt.Sprintf(`{"_id":%q}`, id)
-	}
-	body += `]}}`
-
-	transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewBufferString(body)),
-			Header:     make(http.Header),
-		}, nil
-	})
-
-	client, err := opensearchgo.NewClient(opensearchgo.Config{
-		Addresses: []string{"http://opensearch.invalid"},
-		Transport: transport,
-	})
-	require.NoError(t, err)
-	return client
-}
 
 // newRecordingOpenSearchClient behaves like newFakeOpenSearchClient but also
 // appends each request body to requests, so a test can assert exactly which
@@ -223,140 +109,13 @@ func captureSlog(t *testing.T) *bytes.Buffer {
 	return &buf
 }
 
-func newFakeOpenSearchClientWithBody(t *testing.T, body string) *opensearchgo.Client {
-	t.Helper()
-
-	transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewBufferString(body)),
-			Header:     make(http.Header),
-		}, nil
-	})
-
-	client, err := opensearchgo.NewClient(opensearchgo.Config{
-		Addresses: []string{"http://opensearch.invalid"},
-		Transport: transport,
-	})
-	require.NoError(t, err)
-	return client
-}
-
-func TestReindexProjectsRunner_queryExistingIDs(t *testing.T) {
-	tests := []struct {
-		name    string
-		body    string
-		wantIDs map[string]struct{}
-		wantErr bool
-	}{
-		{
-			name:    "clean result",
-			body:    `{"timed_out":false,"_shards":{"failed":0},"hits":{"hits":[{"_id":"project:1"}]}}`,
-			wantIDs: map[string]struct{}{"project:1": {}},
-		},
-		{
-			name:    "timed out",
-			body:    `{"timed_out":true,"_shards":{"failed":0},"hits":{"hits":[]}}`,
-			wantErr: true,
-		},
-		{
-			name:    "shard failure",
-			body:    `{"timed_out":false,"_shards":{"failed":1},"hits":{"hits":[]}}`,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &reindexProjectsRunner{openSearch: newFakeOpenSearchClientWithBody(t, tt.body)}
-			got, err := r.queryExistingIDs(context.Background(), []string{"project:1"})
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantIDs, got)
-		})
-	}
-}
-
-func TestReindexProjectsRunner_diffOpenSearch(t *testing.T) {
-	tests := []struct {
-		name   string
-		bases  []*models.ProjectBase
-		hitIDs []string
-		want   map[string]osMissing
-	}{
-		{
-			name: "both docs present",
-			bases: []*models.ProjectBase{
-				{UID: "00000000-0000-0000-0000-000000000001"},
-			},
-			hitIDs: []string{
-				"project:00000000-0000-0000-0000-000000000001",
-				"project_settings:00000000-0000-0000-0000-000000000001",
-			},
-			want: map[string]osMissing{
-				"00000000-0000-0000-0000-000000000001": {project: false, projectSettings: false},
-			},
-		},
-		{
-			name: "both docs missing",
-			bases: []*models.ProjectBase{
-				{UID: "00000000-0000-0000-0000-000000000002"},
-			},
-			hitIDs: nil,
-			want: map[string]osMissing{
-				"00000000-0000-0000-0000-000000000002": {project: true, projectSettings: true},
-			},
-		},
-		{
-			name: "only settings doc missing",
-			bases: []*models.ProjectBase{
-				{UID: "00000000-0000-0000-0000-000000000003"},
-			},
-			hitIDs: []string{
-				"project:00000000-0000-0000-0000-000000000003",
-			},
-			want: map[string]osMissing{
-				"00000000-0000-0000-0000-000000000003": {project: false, projectSettings: true},
-			},
-		},
-		{
-			name: "only project doc missing across multiple projects",
-			bases: []*models.ProjectBase{
-				{UID: "00000000-0000-0000-0000-000000000004"},
-				{UID: "00000000-0000-0000-0000-000000000005"},
-			},
-			hitIDs: []string{
-				"project_settings:00000000-0000-0000-0000-000000000004",
-				"project:00000000-0000-0000-0000-000000000005",
-				"project_settings:00000000-0000-0000-0000-000000000005",
-			},
-			want: map[string]osMissing{
-				"00000000-0000-0000-0000-000000000004": {project: true, projectSettings: false},
-				"00000000-0000-0000-0000-000000000005": {project: false, projectSettings: false},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &reindexProjectsRunner{openSearch: newFakeOpenSearchClient(t, tt.hitIDs)}
-			got, err := r.diffOpenSearch(context.Background(), tt.bases)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 	base := &models.ProjectBase{UID: "00000000-0000-0000-0000-000000000010", Public: true}
 	settings := &models.ProjectSettings{UID: "00000000-0000-0000-0000-000000000010"}
 
 	tests := []struct {
 		name          string
-		missing       osMissing
+		missing       osdiff.Missing
 		all           bool
 		force         bool
 		includeAccess bool
@@ -368,7 +127,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 	}{
 		{
 			name:    "missing project only",
-			missing: osMissing{project: true},
+			missing: osdiff.Missing{Project: true},
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
 					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base))).
@@ -377,7 +136,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:        "missing settings only",
-			missing:     osMissing{projectSettings: true},
+			missing:     osdiff.Missing{Settings: true},
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
@@ -387,7 +146,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:          "missing both plus access",
-			missing:       osMissing{project: true, projectSettings: true},
+			missing:       osdiff.Missing{Project: true, Settings: true},
 			includeAccess: true,
 			getSettings:   true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
@@ -403,7 +162,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:        "all mode uses ActionUpdated",
-			missing:     osMissing{project: true, projectSettings: true},
+			missing:     osdiff.Missing{Project: true, Settings: true},
 			all:         true,
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
@@ -417,7 +176,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:        "force mode uses ActionUpdated",
-			missing:     osMissing{project: true, projectSettings: true},
+			missing:     osdiff.Missing{Project: true, Settings: true},
 			force:       true,
 			getSettings: true,
 			setupMock: func(m *domainmocks.MockMessageBuilder) {
@@ -431,7 +190,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:          "force mode with include-access publishes FGA message",
-			missing:       osMissing{project: true, projectSettings: true},
+			missing:       osdiff.Missing{Project: true, Settings: true},
 			force:         true,
 			includeAccess: true,
 			getSettings:   true,
@@ -448,7 +207,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:          "keep-direct-users publishes the access message with the user-relation exclusions",
-			missing:       osMissing{project: true, projectSettings: true},
+			missing:       osdiff.Missing{Project: true, Settings: true},
 			force:         true,
 			includeAccess: true,
 			keepDirect:    true,
@@ -461,7 +220,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		},
 		{
 			name:        "settings read failure still publishes an independently missing project doc",
-			missing:     osMissing{project: true, projectSettings: true},
+			missing:     osdiff.Missing{Project: true, Settings: true},
 			getSettings: true,
 			settingsErr: fmt.Errorf("settings kv record not found"),
 			setupMock: func(m *domainmocks.MockMessageBuilder) {

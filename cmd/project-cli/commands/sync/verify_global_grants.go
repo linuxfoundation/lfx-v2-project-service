@@ -4,46 +4,18 @@
 package sync
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
-	"regexp"
-	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
+	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/internal/fgaread"
 )
-
-const (
-	classOrdinary     = "ordinary"
-	classProspect     = "prospect"
-	classConfidential = "confidential"
-	classSystemRoot   = "system_root"
-	maxFGAReadPages   = 1000
-)
-
-var ulidPattern = regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{26}$`)
-var errRepeatedContinuationToken = errors.New("OpenFGA repeated a continuation token")
-var errTooManyReadPages = errors.New("OpenFGA read exceeded the page limit")
-
-// This verification contract is deliberately independent of the production
-// grant builder. A regression in that builder must not alter both sides of the
-// comparison in the same process.
-var expectedGlobalSubjects = map[string][]string{
-	"global_owner":         {"team:formation#member", "team:product-support#member"},
-	"global_writer":        {"team:global-project-writers#member"},
-	"global_auditor":       {"team:lf-staff#member", "team:global-project-auditors#member"},
-	"global_marketing_ops": {"team:marketing-ops#member"},
-}
 
 type verifyGlobalGrantsSubcommand struct{}
 
@@ -66,11 +38,11 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 		return fmt.Errorf("concurrency must be between 1 and 100")
 	}
 
-	fgaClient, err := newGlobalGrantFGAClientFromEnv()
+	fgaClient, err := fgaread.NewClientFromEnv()
 	if err != nil {
 		return err
 	}
-	if err := fgaClient.checkStore(ctx); err != nil {
+	if err := fgaClient.CheckStore(ctx); err != nil {
 		return err
 	}
 	natsConn, repo, err := commands.ConnectRepository(ctx, rc.NATSConfig)
@@ -90,9 +62,9 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 	for _, project := range projects {
 		project := project
 		group.Go(func() error {
-			class := globalGrantClass(project.Slug, project.Stage)
-			expected := expectedGlobalGrantTuples(project.Stage)
-			actual, readErr := fgaClient.readProjectGlobalTuples(groupCtx, project.UID)
+			class := fgaread.Class(project.Slug, project.Stage)
+			expected := fgaread.ExpectedTuples(project.Stage)
+			actual, readErr := fgaClient.ReadProjectGlobalTuples(groupCtx, project.UID)
 			mu.Lock()
 			defer mu.Unlock()
 			report.add(class, expected, actual, readErr)
@@ -110,192 +82,6 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 		return fmt.Errorf("global grant verification failed; see aggregate report")
 	}
 	return nil
-}
-
-type globalGrantTuple struct {
-	User        string
-	Relation    string
-	Conditioned bool
-}
-
-func (t globalGrantTuple) key() string {
-	return t.User + "\x00" + t.Relation
-}
-
-type globalGrantFGAClient struct {
-	baseURL string
-	storeID string
-	http    *http.Client
-}
-
-func newGlobalGrantFGAClientFromEnv() (*globalGrantFGAClient, error) {
-	rawURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OPENFGA_API_URL")), "/")
-	storeID := strings.TrimSpace(os.Getenv("OPENFGA_STORE_ID"))
-	if rawURL == "" || storeID == "" {
-		return nil, fmt.Errorf("OPENFGA_API_URL and OPENFGA_STORE_ID are required")
-	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return nil, fmt.Errorf("OPENFGA_API_URL must be an absolute HTTP(S) URL")
-	}
-	if !ulidPattern.MatchString(storeID) {
-		return nil, fmt.Errorf("OPENFGA_STORE_ID must be a ULID")
-	}
-	return &globalGrantFGAClient{
-		baseURL: rawURL,
-		storeID: storeID,
-		http:    &http.Client{Timeout: 30 * time.Second},
-	}, nil
-}
-
-// checkStore fails fast on an absent store. OpenFGA answers a read against an
-// unknown store ID with HTTP 200 and no tuples, which would otherwise surface as
-// every expected grant missing rather than as a configuration error.
-func (c *globalGrantFGAClient) checkStore(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/stores/%s", c.baseURL, c.storeID), nil)
-	if err != nil {
-		return fmt.Errorf("create OpenFGA store request: %w", err)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		// *url.Error embeds the request URL, which carries the store ID.
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) {
-			err = urlErr.Err
-		}
-		return fmt.Errorf("OpenFGA store check failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		return fmt.Errorf("OPENFGA_STORE_ID does not name an existing OpenFGA store")
-	case resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices:
-		return fmt.Errorf("OpenFGA store check returned HTTP %d", resp.StatusCode)
-	}
-	return nil
-}
-
-func (c *globalGrantFGAClient) readProjectGlobalTuples(ctx context.Context, projectUID string) ([]globalGrantTuple, error) {
-	var tuples []globalGrantTuple
-	token := ""
-	seenTokens := map[string]struct{}{}
-	for pageNumber := 0; pageNumber < maxFGAReadPages; pageNumber++ {
-		requestBody := map[string]any{
-			"tuple_key":   map[string]string{"object": "project:" + projectUID},
-			"consistency": "HIGHER_CONSISTENCY",
-			"page_size":   100,
-		}
-		if token != "" {
-			requestBody["continuation_token"] = token
-		}
-		raw, err := json.Marshal(requestBody)
-		if err != nil {
-			return nil, fmt.Errorf("marshal OpenFGA request: %w", err)
-		}
-		endpoint := fmt.Sprintf("%s/stores/%s/read", c.baseURL, c.storeID)
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
-		if err != nil {
-			return nil, fmt.Errorf("create OpenFGA request: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := c.http.Do(req)
-		if err != nil {
-			// *url.Error embeds the request URL, which carries the store ID.
-			var urlErr *url.Error
-			if errors.As(err, &urlErr) {
-				err = urlErr.Err
-			}
-			return nil, fmt.Errorf("OpenFGA read failed: %w", err)
-		}
-		page, err := decodeGlobalGrantPage(resp)
-		if err != nil {
-			return nil, err
-		}
-		for _, tuple := range page.Tuples {
-			if strings.HasPrefix(tuple.Key.Relation, "global_") {
-				tuples = append(tuples, globalGrantTuple{
-					User:        tuple.Key.User,
-					Relation:    tuple.Key.Relation,
-					Conditioned: hasTupleCondition(tuple.Key.Condition),
-				})
-			}
-		}
-		token = page.ContinuationToken
-		if token == "" {
-			return tuples, nil
-		}
-		if _, exists := seenTokens[token]; exists {
-			return nil, errRepeatedContinuationToken
-		}
-		seenTokens[token] = struct{}{}
-	}
-	return nil, errTooManyReadPages
-}
-
-type globalGrantReadPage struct {
-	Tuples []struct {
-		Key struct {
-			User      string          `json:"user"`
-			Relation  string          `json:"relation"`
-			Condition json.RawMessage `json:"condition"`
-		} `json:"key"`
-	} `json:"tuples"`
-	ContinuationToken string `json:"continuation_token"`
-}
-
-func decodeGlobalGrantPage(resp *http.Response) (*globalGrantReadPage, error) {
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-		return nil, globalGrantHTTPError{status: resp.StatusCode}
-	}
-	var page globalGrantReadPage
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, 8<<20))
-	if err := decoder.Decode(&page); err != nil {
-		return nil, fmt.Errorf("decode OpenFGA response: %w", err)
-	}
-	return &page, nil
-}
-
-type globalGrantHTTPError struct {
-	status int
-}
-
-func (e globalGrantHTTPError) Error() string {
-	return fmt.Sprintf("OpenFGA read returned HTTP %d", e.status)
-}
-
-func hasTupleCondition(raw json.RawMessage) bool {
-	trimmed := strings.TrimSpace(string(raw))
-	return trimmed != "" && trimmed != "null" && trimmed != "{}"
-}
-
-func globalGrantClass(slug, stage string) string {
-	switch {
-	case slug == rootProjectSlug:
-		return classSystemRoot
-	case stage == "Prospect":
-		return classProspect
-	case stage == "Formation - Confidential":
-		return classConfidential
-	default:
-		return classOrdinary
-	}
-}
-
-func expectedGlobalGrantTuples(stage string) []globalGrantTuple {
-	relations := []string{"global_owner"}
-	if stage != "Prospect" && stage != "Formation - Confidential" {
-		relations = append(relations, "global_writer", "global_auditor", "global_marketing_ops")
-	}
-	var tuples []globalGrantTuple
-	for _, relation := range relations {
-		for _, subject := range expectedGlobalSubjects[relation] {
-			tuples = append(tuples, globalGrantTuple{User: subject, Relation: relation})
-		}
-	}
-	return tuples
 }
 
 type globalGrantRelationCounts struct {
@@ -324,7 +110,7 @@ type globalGrantVerificationReport struct {
 
 func newGlobalGrantVerificationReport() *globalGrantVerificationReport {
 	classes := make(map[string]*globalGrantClassReport, 4)
-	for _, class := range []string{classOrdinary, classProspect, classConfidential, classSystemRoot} {
+	for _, class := range []string{fgaread.ClassOrdinary, fgaread.ClassProspect, fgaread.ClassConfidential, fgaread.ClassSystemRoot} {
 		classes[class] = newGlobalGrantClassReport()
 	}
 	return &globalGrantVerificationReport{
@@ -339,7 +125,7 @@ func (r *globalGrantVerificationReport) failed() bool {
 	return r.ReadErrors > 0 || r.Missing > 0 || r.Unexpected > 0 || r.Conditioned > 0
 }
 
-func (r *globalGrantVerificationReport) add(class string, expected, actual []globalGrantTuple, readErr error) {
+func (r *globalGrantVerificationReport) add(class string, expected, actual []fgaread.Tuple, readErr error) {
 	r.Projects++
 	classReport := r.Classes[class]
 	if classReport == nil {
@@ -385,17 +171,17 @@ func (r *globalGrantVerificationReport) add(class string, expected, actual []glo
 }
 
 func globalGrantReadErrorKind(err error) string {
-	var httpErr globalGrantHTTPError
+	var httpErr fgaread.HTTPError
 	switch {
 	case errors.As(err, &httpErr):
-		return fmt.Sprintf("http_%d", httpErr.status)
+		return fmt.Sprintf("http_%d", httpErr.Status)
 	case errors.Is(err, context.DeadlineExceeded):
 		return "timeout"
 	case errors.Is(err, context.Canceled):
 		return "canceled"
-	case errors.Is(err, errRepeatedContinuationToken):
+	case errors.Is(err, fgaread.ErrRepeatedContinuationToken):
 		return "repeated_continuation_token"
-	case errors.Is(err, errTooManyReadPages):
+	case errors.Is(err, fgaread.ErrTooManyReadPages):
 		return "page_limit"
 	default:
 		return "transport_or_decode"
@@ -404,16 +190,16 @@ func globalGrantReadErrorKind(err error) string {
 
 func newGlobalGrantClassReport() *globalGrantClassReport {
 	report := &globalGrantClassReport{Relations: map[string]*globalGrantRelationCounts{}}
-	for relation := range expectedGlobalSubjects {
+	for relation := range fgaread.ExpectedSubjects {
 		report.Relations[relation] = &globalGrantRelationCounts{}
 	}
 	return report
 }
 
-func tupleSet(tuples []globalGrantTuple) map[string]globalGrantTuple {
-	set := make(map[string]globalGrantTuple, len(tuples))
+func tupleSet(tuples []fgaread.Tuple) map[string]fgaread.Tuple {
+	set := make(map[string]fgaread.Tuple, len(tuples))
 	for _, tuple := range tuples {
-		set[tuple.key()] = tuple
+		set[tuple.Key()] = tuple
 	}
 	return set
 }
