@@ -14,6 +14,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service/email"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,6 +31,8 @@ type projectContentItem struct {
 
 // HandleProjectDocumentCreated handles project_document.created events and notifies all
 // LFID writers and auditors of the project when a new file document is uploaded.
+// The event is only a pointer to the stored record: it is dropped unless the document exists
+// and matches the event exactly, and the notification is built from the stored values.
 // Best-effort: send errors are logged but not returned.
 func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, rawMsg domain.Message) error {
 	if !s.Config.EmailsEnabled {
@@ -43,19 +46,33 @@ func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, rawM
 		return nil
 	}
 
+	doc, _, err := s.DocumentRepository.GetDocumentMetadata(ctx, event.ProjectUID, event.DocumentUID)
+	if err != nil {
+		slog.WarnContext(ctx, "document_subscriber: dropping project_document.created event — stored document not found",
+			constants.ErrKey, err, "project_uid", event.ProjectUID, "document_uid", event.DocumentUID)
+		return nil
+	}
+	if stored := DomainDocumentToEvent(doc); stored != event {
+		slog.WarnContext(ctx, "document_subscriber: dropping project_document.created event — does not match stored document",
+			"project_uid", event.ProjectUID, "document_uid", event.DocumentUID)
+		return nil
+	}
+
 	s.handleProjectContentCreated(ctx, projectContentItem{
-		projectUID: event.ProjectUID,
-		folderUID:  event.FolderUID,
+		projectUID: doc.ProjectUID,
+		folderUID:  misc.ValueOrZero(doc.FolderUID),
 		itemType:   "file",
-		itemName:   event.Name,
-		fileName:   event.FileName,
-		createdBy:  event.CreatedBy,
+		itemName:   doc.Name,
+		fileName:   doc.FileName,
+		createdBy:  models.AuditCreatorUsername(doc.CreatedBy),
 	})
 	return nil
 }
 
 // HandleProjectLinkCreated handles project_link.created events and notifies all
 // LFID writers and auditors of the project when a new link is added.
+// The event is only a pointer to the stored record: it is dropped unless the link exists
+// and matches the event exactly, and the notification is built from the stored values.
 // Best-effort: send errors are logged but not returned.
 func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, rawMsg domain.Message) error {
 	if !s.Config.EmailsEnabled {
@@ -69,13 +86,25 @@ func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, rawMsg d
 		return nil
 	}
 
+	link, _, err := s.LinkRepository.GetLink(ctx, event.ProjectUID, event.LinkUID)
+	if err != nil {
+		slog.WarnContext(ctx, "document_subscriber: dropping project_link.created event — stored link not found",
+			constants.ErrKey, err, "project_uid", event.ProjectUID, "link_uid", event.LinkUID)
+		return nil
+	}
+	if stored := DomainLinkToEvent(link); stored != event {
+		slog.WarnContext(ctx, "document_subscriber: dropping project_link.created event — does not match stored link",
+			"project_uid", event.ProjectUID, "link_uid", event.LinkUID)
+		return nil
+	}
+
 	s.handleProjectContentCreated(ctx, projectContentItem{
-		projectUID: event.ProjectUID,
-		folderUID:  event.FolderUID,
+		projectUID: link.ProjectUID,
+		folderUID:  misc.ValueOrZero(link.FolderUID),
 		itemType:   "link",
-		itemName:   event.Name,
-		url:        event.URL,
-		createdBy:  event.CreatedBy,
+		itemName:   link.Name,
+		url:        link.URL,
+		createdBy:  models.AuditCreatorUsername(link.CreatedBy),
 	})
 	return nil
 }
