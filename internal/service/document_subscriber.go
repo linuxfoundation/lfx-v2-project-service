@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -48,8 +49,11 @@ func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, rawM
 
 	doc, _, err := s.DocumentRepository.GetDocumentMetadata(ctx, event.ProjectUID, event.DocumentUID)
 	if err != nil {
-		slog.WarnContext(ctx, "document_subscriber: dropping project_document.created event — stored document not found",
-			constants.ErrKey, err, "project_uid", event.ProjectUID, "document_uid", event.DocumentUID)
+		msg := "document_subscriber: dropping project_document.created event — failed to load stored document"
+		if errors.Is(err, domain.ErrDocumentNotFound) {
+			msg = "document_subscriber: dropping project_document.created event — stored document not found"
+		}
+		slog.WarnContext(ctx, msg, constants.ErrKey, err, "project_uid", event.ProjectUID, "document_uid", event.DocumentUID)
 		return nil
 	}
 	if stored := DomainDocumentToEvent(doc); stored != event {
@@ -88,8 +92,11 @@ func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, rawMsg d
 
 	link, _, err := s.LinkRepository.GetLink(ctx, event.ProjectUID, event.LinkUID)
 	if err != nil {
-		slog.WarnContext(ctx, "document_subscriber: dropping project_link.created event — stored link not found",
-			constants.ErrKey, err, "project_uid", event.ProjectUID, "link_uid", event.LinkUID)
+		msg := "document_subscriber: dropping project_link.created event — failed to load stored link"
+		if errors.Is(err, domain.ErrLinkNotFound) {
+			msg = "document_subscriber: dropping project_link.created event — stored link not found"
+		}
+		slog.WarnContext(ctx, msg, constants.ErrKey, err, "project_uid", event.ProjectUID, "link_uid", event.LinkUID)
 		return nil
 	}
 	if stored := DomainLinkToEvent(link); stored != event {
