@@ -269,6 +269,13 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			mutate: func(*events.ProjectDocumentCreatedMessage) {},
 		},
 		{
+			name: "repository error — dropped",
+			stored: func(events.ProjectDocumentCreatedMessage) (*models.ProjectDocument, error) {
+				return nil, assert.AnError
+			},
+			mutate: func(*events.ProjectDocumentCreatedMessage) {},
+		},
+		{
 			name: "forged name — dropped",
 			stored: func(e events.ProjectDocumentCreatedMessage) (*models.ProjectDocument, error) {
 				return storedDocumentFor(e), nil
@@ -430,6 +437,11 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 			stored: func(events.ProjectLinkCreatedMessage) (*models.ProjectLink, error) {
 				return nil, domain.ErrLinkNotFound
 			},
+			mutate: func(*events.ProjectLinkCreatedMessage) {},
+		},
+		{
+			name:   "repository error — dropped",
+			stored: func(events.ProjectLinkCreatedMessage) (*models.ProjectLink, error) { return nil, assert.AnError },
 			mutate: func(*events.ProjectLinkCreatedMessage) {},
 		},
 		{
