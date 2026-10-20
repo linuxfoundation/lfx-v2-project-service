@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -27,9 +28,56 @@ func TestProjectsService_CreateLink(t *testing.T) {
 		url         string
 		description string
 		folderUID   *string
+		notReady    bool
 		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder)
 		wantErr     error
 	}{
+		{
+			name:       "service not ready",
+			projectUID: "proj-1",
+			linkName:   "LFX",
+			url:        "https://example.com",
+			notReady:   true,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrServiceUnavailable,
+		},
+		{
+			name:       "empty folder uid is treated as no folder",
+			projectUID: "proj-1",
+			linkName:   "LFX",
+			url:        "https://example.com",
+			folderUID:  misc.StringPtr(""),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
+				mockLink.On("CreateLink", mock.Anything, mock.MatchedBy(func(l *models.ProjectLink) bool { return l.FolderUID == nil })).Return(nil)
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject, mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:       "folder lookup fails with unexpected error",
+			projectUID: "proj-1",
+			linkName:   "LFX",
+			url:        "https://example.com",
+			folderUID:  misc.StringPtr("00000000-0000-0000-0000-0000000000f3"),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
+				mockFolder.On("GetFolder", mock.Anything, "proj-1", "00000000-0000-0000-0000-0000000000f3").Return(nil, uint64(0), errors.New("kv unavailable"))
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
+			name:       "repository create failure is returned",
+			projectUID: "proj-1",
+			linkName:   "LFX",
+			url:        "https://example.com",
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockLink *domainmocks.MockLinkRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
+				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(domain.ErrInternal)
+			},
+			wantErr: domain.ErrInternal,
+		},
 		{
 			name:        "success without folder",
 			projectUID:  "proj-1",
@@ -153,6 +201,9 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			svc, mockRepo, mockMsg := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
 			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
+			if tt.notReady {
+				svc.Resolver = nil
+			}
 			tt.setupMocks(mockRepo, mockLink, mockFolder, mockMsg)
 
 			result, err := svc.CreateLink(context.Background(), tt.projectUID, tt.linkName, tt.url, tt.description, tt.folderUID)
@@ -181,9 +232,27 @@ func TestProjectsService_GetLink(t *testing.T) {
 		name       string
 		projectUID string
 		linkUID    string
+		notReady   bool
 		setupMocks func(*domainmocks.MockLinkRepository)
 		wantErr    error
 	}{
+		{
+			name:       "service not ready",
+			projectUID: "proj-1",
+			linkUID:    "link-1",
+			notReady:   true,
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository) {},
+			wantErr:    domain.ErrServiceUnavailable,
+		},
+		{
+			name:       "unexpected repository error maps to internal",
+			projectUID: "proj-1",
+			linkUID:    "link-1",
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository) {
+				mockLink.On("GetLink", mock.Anything, "proj-1", "link-1").Return(nil, uint64(0), errors.New("kv unavailable"))
+			},
+			wantErr: domain.ErrInternal,
+		},
 		{
 			name:       "success",
 			projectUID: "proj-1",
@@ -210,6 +279,9 @@ func TestProjectsService_GetLink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, _ := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
+			if tt.notReady {
+				svc.Resolver = nil
+			}
 			tt.setupMocks(mockLink)
 
 			link, etag, err := svc.GetLink(context.Background(), tt.projectUID, tt.linkUID)
@@ -235,9 +307,51 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 		projectUID string
 		linkUID    string
 		ifMatch    *string
+		notReady   bool
+		skipEtag   bool
 		setupMocks func(*domainmocks.MockLinkRepository, *domainmocks.MockMessageBuilder)
 		wantErr    error
 	}{
+		{
+			name:       "service not ready",
+			projectUID: "proj-1",
+			linkUID:    "link-1",
+			ifMatch:    misc.StringPtr("3"),
+			notReady:   true,
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository, mockMsg *domainmocks.MockMessageBuilder) {},
+			wantErr:    domain.ErrServiceUnavailable,
+		},
+		{
+			name:       "skip etag validation fetches the current revision",
+			projectUID: "proj-1",
+			linkUID:    "link-1",
+			skipEtag:   true,
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockLink.On("GetLink", mock.Anything, "proj-1", "link-1").Return(&models.ProjectLink{UID: "link-1", ProjectUID: "proj-1"}, uint64(7), nil)
+				mockLink.On("DeleteLink", mock.Anything, "proj-1", "link-1", uint64(7)).Return(nil)
+				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:       "skip etag validation returns not found from revision fetch",
+			projectUID: "proj-1",
+			linkUID:    "missing",
+			skipEtag:   true,
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockLink.On("GetLink", mock.Anything, "proj-1", "missing").Return(nil, uint64(0), domain.ErrLinkNotFound)
+			},
+			wantErr: domain.ErrLinkNotFound,
+		},
+		{
+			name:       "link not found on delete",
+			projectUID: "proj-1",
+			linkUID:    "missing",
+			ifMatch:    misc.StringPtr("2"),
+			setupMocks: func(mockLink *domainmocks.MockLinkRepository, mockMsg *domainmocks.MockMessageBuilder) {
+				mockLink.On("DeleteLink", mock.Anything, "proj-1", "missing", uint64(2)).Return(domain.ErrLinkNotFound)
+			},
+			wantErr: domain.ErrLinkNotFound,
+		},
 		{
 			name:       "success with etag",
 			projectUID: "proj-1",
@@ -280,6 +394,10 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, mockMsg := setupServiceForTesting()
 			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
+			if tt.notReady {
+				svc.Resolver = nil
+			}
+			svc.Config.SkipEtagValidation = tt.skipEtag
 			tt.setupMocks(mockLink, mockMsg)
 
 			err := svc.DeleteLink(context.Background(), tt.projectUID, tt.linkUID, tt.ifMatch)

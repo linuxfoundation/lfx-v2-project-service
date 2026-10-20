@@ -380,6 +380,71 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:    "slug existence check fails",
+			payload: &projsvc.CreateProjectPayload{Slug: "slug-check-fails", Name: "Slug Check Fails"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "slug-check-fails").Return(false, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "parent existence check fails",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:      "parent-check-fails",
+				Name:      "Parent Check Fails",
+				ParentUID: "11111111-2222-3333-4444-555555555555",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "parent-check-fails").Return(false, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "11111111-2222-3333-4444-555555555555").Return(false, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "parent project not found",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:      "missing-parent",
+				Name:      "Missing Parent",
+				ParentUID: "11111111-2222-3333-4444-555555555555",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "missing-parent").Return(false, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "11111111-2222-3333-4444-555555555555").Return(false, nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInvalidParentProject,
+		},
+		{
+			name: "role enrichment fails when auth lookup errors",
+			payload: &projsvc.CreateProjectPayload{
+				Slug: "enrich-fails",
+				Name: "Enrich Fails",
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Test User"), Email: misc.StringPtr("test.user@example.com")},
+				},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "enrich-fails").Return(false, nil)
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "test.user@example.com").Return("", errors.New("auth unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository reports slug conflict during creation",
+			payload: &projsvc.CreateProjectPayload{Slug: "slug-race", Name: "Slug Race"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "slug-race").Return(false, nil)
+				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(domain.ErrProjectSlugExists)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectSlugExists,
+		},
 	}
 
 	for _, tt := range tests {
@@ -496,11 +561,22 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
 		},
+		{
+			name:        "service not ready",
+			payload:     &projsvc.GetOneProjectBasePayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks:  func(_ *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {},
+			wantErr:     true,
+			expectedErr: domain.ErrServiceUnavailable,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
+
+			if tt.expectedErr == domain.ErrServiceUnavailable {
+				service.ProjectRepository = nil
+			}
 			tt.setupMocks(mockRepo, mockBuilder)
 
 			result, err := service.GetOneProjectBase(context.Background(), tt.payload)
@@ -602,11 +678,21 @@ func TestProjectsService_GetOneProjectSettings(t *testing.T) {
 			},
 			expectedErr: domain.ErrInternal,
 		},
+		{
+			name:        "service not ready",
+			payload:     &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks:  func(_ *domainmocks.MockProjectRepository) {},
+			expectedErr: domain.ErrServiceUnavailable,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, _ := setupServiceForTesting()
+
+			if tt.expectedErr == domain.ErrServiceUnavailable {
+				service.ProjectRepository = nil
+			}
 			tt.setupMocks(mockRepo)
 
 			result, err := service.GetOneProjectSettings(context.Background(), tt.payload)
@@ -892,6 +978,74 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrProjectNotFound,
 		},
+		{
+			name:               "skip etag — revision fetch reports project not found",
+			payload:            &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid")},
+			skipEtagValidation: true,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(nil, uint64(0), domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:               "skip etag — revision fetch fails",
+			payload:            &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid")},
+			skipEtagValidation: true,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(nil, uint64(0), errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "project not found when loading funding model",
+			payload: &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid"), IfMatch: misc.StringPtr("123")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(nil, domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "project read fails when loading funding model",
+			payload: &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid"), IfMatch: misc.StringPtr("123")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(nil, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository reports project not found on delete",
+			payload: &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid"), IfMatch: misc.StringPtr("123")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(&models.ProjectBase{UID: "test-project-uid", FundingModel: []string{"Crowdfunding"}}, nil)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "repository delete fails with internal error",
+			payload: &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid"), IfMatch: misc.StringPtr("123")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(&models.ProjectBase{UID: "test-project-uid", FundingModel: []string{"Crowdfunding"}}, nil)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(domain.ErrInternal)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository delete fails with unclassified error",
+			payload: &projsvc.DeleteProjectPayload{UID: misc.StringPtr("test-project-uid"), IfMatch: misc.StringPtr("123")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(&models.ProjectBase{UID: "test-project-uid", FundingModel: []string{"Crowdfunding"}}, nil)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
 	}
 
 	for _, tt := range tests {
@@ -988,6 +1142,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		payload     *projsvc.UpdateProjectBasePayload
 		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
 		fgaChecker  *domainmocks.MockAccessChecker
+		skipEtag    bool
 		wantErr     bool
 		expectedErr error
 		validate    func(*testing.T, *projsvc.ProjectBase)
@@ -1476,11 +1631,170 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
 		},
+		{
+			name:     "skip etag — revision fetch reports project not found",
+			skipEtag: true,
+			payload:  &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:     "skip etag — revision fetch fails",
+			skipEtag: true,
+			payload:  &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "existing project not found",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(nil, domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "existing project read fails",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "new slug existence check fails",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "renamed-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("ProjectSlugExists", mock.Anything, "renamed-project").Return(false, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "new slug already taken",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "taken-slug", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("ProjectSlugExists", mock.Anything, "taken-slug").Return(true, nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectSlugExists,
+		},
+		{
+			name:    "parent UID is not a valid UUID",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project", ParentUID: "not-a-uuid"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name:    "parent existence check fails",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project", ParentUID: "11111111-2222-3333-4444-555555555555"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "11111111-2222-3333-4444-555555555555").Return(false, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "parent project not found",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project", ParentUID: "11111111-2222-3333-4444-555555555555"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "11111111-2222-3333-4444-555555555555").Return(false, nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInvalidParentProject,
+		},
+		{
+			name:    "repository reports revision mismatch",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:    "repository update fails with internal error",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(domain.ErrInternal)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository update fails with unclassified error",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "settings read fails when FGA state changed",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project", Public: misc.BoolPtr(true)},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "indexer publish failure returns internal error",
+			payload: &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything).Return(errors.New("nats unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:     "skip etag — uses fetched revision and preserves created_at",
+			skipEtag: true,
+			payload:  &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), Slug: "test-project", Name: "Test Project"},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				createdAt := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+				existing := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project", CreatedAt: &createdAt}
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "project-uid-1").Return(existing, uint64(9), nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(existing, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(9)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything).Return(nil)
+			},
+			validate: func(t *testing.T, result *projsvc.ProjectBase) {
+				require.NotNil(t, result)
+				require.NotNil(t, result.CreatedAt)
+				assert.Equal(t, "2024-01-02T03:04:05Z", *result.CreatedAt)
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
+
+			service.Config.SkipEtagValidation = tt.skipEtag
 
 			if tt.fgaChecker != nil {
 				service.FGAChecker = tt.fgaChecker
@@ -1521,6 +1835,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 		payload         *projsvc.UpdateProjectSettingsPayload
 		setupMocks      func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
 		setupUserReader func(*domainmocks.MockUserReader)
+		skipEtag        bool
 		wantErr         bool
 		expectedErr     error
 		validate        func(*testing.T, *projsvc.ProjectSettings)
@@ -1992,12 +2307,123 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrProjectNotFound,
 		},
+		{
+			name:     "skip etag — revision fetch reports settings not found",
+			skipEtag: true,
+			payload:  &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:     "skip etag — revision fetch fails",
+			skipEtag: true,
+			payload:  &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "project existence check fails",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(false, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "existing settings not found",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "existing settings read fails",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository reports revision mismatch",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:    "repository update fails with internal error",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(domain.ErrInternal)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "repository update fails with unclassified error",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "project read fails after settings update",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "indexer publish failure returns internal error",
+			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(errors.New("nats unavailable"))
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
 			mockUserReader := service.UserReader.(*domainmocks.MockUserReader)
+
+			service.Config.SkipEtagValidation = tt.skipEtag
 
 			if tt.expectedErr == domain.ErrServiceUnavailable {
 				service.ProjectRepository = nil
@@ -2224,6 +2650,51 @@ func TestValidateProjectName(t *testing.T) {
 			err := validateProjectName(tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateProjectFields(t *testing.T) {
+	tests := []struct {
+		name            string
+		stage           *string
+		dissolutionDate *string
+		projectName     string
+		wantErr         error
+	}{
+		{name: "valid fields", stage: misc.StringPtr("Active"), projectName: "Test Project"},
+		{name: "nil stage and valid name", projectName: "Test Project"},
+		{
+			name:        "archived without dissolution date",
+			stage:       misc.StringPtr("Archived"),
+			projectName: "Test Project",
+			wantErr:     domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name:            "archived with dissolution date",
+			stage:           misc.StringPtr("Archived"),
+			dissolutionDate: misc.StringPtr("2025-01-01"),
+			projectName:     "Test Project",
+		},
+		{name: "blank name", stage: misc.StringPtr("Active"), projectName: "   ", wantErr: domain.ErrValidationFailed},
+		{name: "brace-prefixed name", stage: misc.StringPtr("Active"), projectName: "{oops}", wantErr: domain.ErrValidationFailed},
+		{
+			name:        "archived check runs before name check",
+			stage:       misc.StringPtr("Archived"),
+			projectName: "",
+			wantErr:     domain.ErrArchivedRequiresDissolutionDate,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProjectFields(context.Background(), tt.stage, tt.dissolutionDate, tt.projectName)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
 			} else {
 				assert.NoError(t, err)
 			}
