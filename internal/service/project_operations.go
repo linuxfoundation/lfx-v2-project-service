@@ -545,6 +545,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return nil, domain.ErrRevisionMismatch
 		}
+		slog.ErrorContext(ctx, "error updating project in store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
 
