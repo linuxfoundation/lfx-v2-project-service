@@ -282,7 +282,7 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
 				"project_uid", projectUID, "invite_uid", inviteUID, "username", username)
-			s.publishInvitePromotionSideEffects(ctx, projectUID)
+			s.republishProjectSettings(ctx, projectUID, "invite acceptance")
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
@@ -292,71 +292,6 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		}
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
 			"attempt", attempt+1, "project_uid", projectUID, "invite_uid", inviteUID)
-	}
-}
-
-// publishInvitePromotionSideEffects reindexes promoted settings and refreshes OpenFGA access
-// tuples. Each attempt reloads the current KV record before publishing; indexer and FGA
-// projections are full-state and idempotent. ProjectSettingsUpdatedSubject is omitted so the
-// identity-shape change (email-only → LFID) does not fan out as a role-change notification.
-func (s *ProjectsService) publishInvitePromotionSideEffects(ctx context.Context, projectUID string) {
-	ctx = ctxWithServiceAuth(ctx)
-	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
-		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-		if err != nil {
-			if attempt == scrubMaxRetries-1 {
-				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for invite-promotion side effects",
-					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubMaxRetries)
-				return
-			}
-			slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after settings reload failure",
-				"attempt", attempt+1, "project_uid", projectUID)
-			continue
-		}
-		if settings == nil {
-			return
-		}
-
-		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-		if baseErr != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after invite acceptance",
-				constants.ErrKey, baseErr, "project_uid", projectUID)
-			if attempt == scrubMaxRetries-1 {
-				return
-			}
-			slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after project load failure",
-				"attempt", attempt+1, "project_uid", projectUID)
-			continue
-		}
-
-		indexMsg := indexerTypes.IndexerMessageEnvelope{
-			Action:         indexerConstants.ActionUpdated,
-			Data:           *settings,
-			IndexingConfig: settings.IndexingConfig(projectUID),
-		}
-		indexErr := s.Publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg)
-
-		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-		accessErr := s.Publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
-
-		if indexErr == nil && accessErr == nil {
-			return
-		}
-
-		if attempt == scrubMaxRetries-1 {
-			if indexErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
-					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
-			}
-			if accessErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after invite acceptance",
-					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
-			}
-			return
-		}
-
-		slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after reload",
-			"attempt", attempt+1, "project_uid", projectUID)
 	}
 }
 
@@ -408,49 +343,41 @@ func usernameMatches(deletedUsername, storedUsername string) bool {
 	return strings.EqualFold(deleted, stored)
 }
 
+// forEachSettingsUser calls fn with a pointer to every role-bearing user entry in settings
+// (list roles and the singular named roles), so callers need not re-enumerate the fields.
+func forEachSettingsUser(s *models.ProjectSettings, fn func(*models.UserInfo)) {
+	if s == nil {
+		return
+	}
+	for _, list := range [][]models.UserInfo{s.Writers, s.Auditors, s.MeetingCoordinators, s.MentorshipProgramAdmins} {
+		for i := range list {
+			fn(&list[i])
+		}
+	}
+	for _, u := range []*models.UserInfo{s.ExecutiveDirector, s.ProgramManager, s.OpportunityOwner} {
+		if u != nil {
+			fn(u)
+		}
+	}
+}
+
 // projectSettingsHasUsername reports whether any role-bearing field in settings carries username.
 func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool {
-	if s == nil {
-		return false
-	}
-	for _, u := range s.Writers {
+	found := false
+	forEachSettingsUser(s, func(u *models.UserInfo) {
 		if usernameMatches(username, u.Username) {
-			return true
+			found = true
 		}
-	}
-	for _, u := range s.Auditors {
-		if usernameMatches(username, u.Username) {
-			return true
-		}
-	}
-	for _, u := range s.MeetingCoordinators {
-		if usernameMatches(username, u.Username) {
-			return true
-		}
-	}
-	for _, u := range s.MentorshipProgramAdmins {
-		if usernameMatches(username, u.Username) {
-			return true
-		}
-	}
-	if s.ExecutiveDirector != nil && usernameMatches(username, s.ExecutiveDirector.Username) {
-		return true
-	}
-	if s.ProgramManager != nil && usernameMatches(username, s.ProgramManager.Username) {
-		return true
-	}
-	if s.OpportunityOwner != nil && usernameMatches(username, s.OpportunityOwner.Username) {
-		return true
-	}
-	return false
+	})
+	return found
 }
 
 // clearUsernameInSettings clears username on every matching entry in settings
 // that still represents the deleted account. Returns true when at least one field was changed.
 func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings *models.ProjectSettings, username, deletedEmail string) bool {
 	changed := false
-	clearIfMatch := func(u *models.UserInfo) {
-		if u == nil || !usernameMatches(username, u.Username) {
+	forEachSettingsUser(settings, func(u *models.UserInfo) {
+		if !usernameMatches(username, u.Username) {
 			return
 		}
 		if !s.shouldScrubSettingsUsername(ctx, *u, username, deletedEmail) {
@@ -460,23 +387,7 @@ func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings 
 		}
 		u.Username = ""
 		changed = true
-	}
-
-	for i := range settings.Writers {
-		clearIfMatch(&settings.Writers[i])
-	}
-	for i := range settings.Auditors {
-		clearIfMatch(&settings.Auditors[i])
-	}
-	for i := range settings.MeetingCoordinators {
-		clearIfMatch(&settings.MeetingCoordinators[i])
-	}
-	for i := range settings.MentorshipProgramAdmins {
-		clearIfMatch(&settings.MentorshipProgramAdmins[i])
-	}
-	clearIfMatch(settings.ExecutiveDirector)
-	clearIfMatch(settings.ProgramManager)
-	clearIfMatch(settings.OpportunityOwner)
+	})
 	return changed
 }
 
@@ -493,13 +404,8 @@ func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u mod
 	entryEmail := strings.ToLower(strings.TrimSpace(u.Email))
 	deletedEmailNorm := strings.ToLower(strings.TrimSpace(deletedEmail))
 	if deletedEmailNorm != "" {
-		if entryEmail == "" {
-			return false
-		}
-		if entryEmail != deletedEmailNorm {
-			return false
-		}
-		return true // definitive match — scrub without auth lookup
+		// A matching entry email is a definitive identification — scrub without auth lookup.
+		return entryEmail != "" && entryEmail == deletedEmailNorm
 	}
 	if entryEmail == "" {
 		return true
@@ -545,7 +451,7 @@ func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, proj
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
 				"project_uid", projectUID)
-			s.publishProjectSettingsScrubSideEffects(ctx, projectUID)
+			s.republishProjectSettings(ctx, projectUID, "username scrub")
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == scrubMaxRetries-1 {
@@ -558,37 +464,40 @@ func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, proj
 	}
 }
 
-// publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
-// access tuples. Each attempt reloads the current KV record before publishing; indexer and FGA
-// projections are full-state and idempotent. ProjectSettingsUpdatedSubject is intentionally
-// omitted to avoid role-change emails.
-func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
+// republishProjectSettings reindexes the current project settings and refreshes OpenFGA
+// access tuples after a subscriber-driven settings write. reason names the trigger in logs.
+// Each attempt reloads the current KV records before publishing; indexer and FGA projections
+// are full-state and idempotent. ProjectSettingsUpdatedSubject is intentionally omitted so
+// identity-shape changes (email-only → LFID, username scrub) do not fan out as role-change emails.
+func (s *ProjectsService) republishProjectSettings(ctx context.Context, projectUID, reason string) {
 	ctx = ctxWithServiceAuth(ctx)
 	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
+		last := attempt == scrubMaxRetries-1
+
 		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
-			if attempt == scrubMaxRetries-1 {
-				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
-					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubMaxRetries)
+			if last {
+				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for side effects",
+					constants.ErrKey, err, "project_uid", projectUID, "reason", reason, "attempts", scrubMaxRetries)
 				return
 			}
-			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after settings reload failure",
-				"attempt", attempt+1, "project_uid", projectUID)
+			slog.DebugContext(ctx, "project_subscriber: retrying side effects after settings reload failure",
+				"attempt", attempt+1, "project_uid", projectUID, "reason", reason)
 			continue
 		}
 		if settings == nil {
 			return
 		}
 
-		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-		if baseErr != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
-				constants.ErrKey, baseErr, "project_uid", projectUID)
-			if attempt == scrubMaxRetries-1 {
+		projectBase, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if err != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh",
+				constants.ErrKey, err, "project_uid", projectUID, "reason", reason)
+			if last {
 				return
 			}
-			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after project load failure",
-				"attempt", attempt+1, "project_uid", projectUID)
+			slog.DebugContext(ctx, "project_subscriber: retrying side effects after project load failure",
+				"attempt", attempt+1, "project_uid", projectUID, "reason", reason)
 			continue
 		}
 
@@ -606,20 +515,20 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 			return
 		}
 
-		if attempt == scrubMaxRetries-1 {
+		if last {
 			if indexErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
-					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings",
+					constants.ErrKey, indexErr, "project_uid", projectUID, "reason", reason, "attempts", scrubMaxRetries)
 			}
 			if accessErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
-					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update",
+					constants.ErrKey, accessErr, "project_uid", projectUID, "reason", reason, "attempts", scrubMaxRetries)
 			}
 			return
 		}
 
-		slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after reload",
-			"attempt", attempt+1, "project_uid", projectUID)
+		slog.DebugContext(ctx, "project_subscriber: retrying side effects after reload",
+			"attempt", attempt+1, "project_uid", projectUID, "reason", reason)
 	}
 }
 

@@ -1970,3 +1970,108 @@ var (
 	_ emailapi.SendEmailRequest
 	_ inviteapi.SendInviteRequest
 )
+
+func TestProjectsService_republishProjectSettings(t *testing.T) {
+	const projectUID = "proj-1"
+	settings := &models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Username: "alice"}}}
+	base := &models.ProjectBase{UID: projectUID, Slug: "test-project"}
+	errBoom := errors.New("boom")
+
+	tests := []struct {
+		name          string
+		setup         func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
+		wantSettings  int // GetProjectSettingsWithRevision calls
+		wantBase      int // GetProjectBase calls
+		wantIndex     int // SendIndexerMessage calls
+		wantAccess    int // PublishAccessMessage calls
+		checkAuthzCtx bool
+	}{
+		{
+			name: "publishes both messages on first attempt with service auth",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(base, nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything).Return(nil)
+			},
+			wantSettings: 1, wantBase: 1, wantIndex: 1, wantAccess: 1,
+			checkAuthzCtx: true,
+		},
+		{
+			name: "nil settings stops without publishing",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), nil)
+			},
+			wantSettings: 1,
+		},
+		{
+			name: "settings reload failure retries until exhausted",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), errBoom)
+			},
+			wantSettings: scrubMaxRetries,
+		},
+		{
+			name: "project load failure retries until exhausted without publishing",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(nil, errBoom)
+			},
+			wantSettings: scrubMaxRetries, wantBase: scrubMaxRetries,
+		},
+		{
+			name: "index failure retries until exhausted",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(base, nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(errBoom)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything).Return(nil)
+			},
+			wantSettings: scrubMaxRetries, wantBase: scrubMaxRetries, wantIndex: scrubMaxRetries, wantAccess: scrubMaxRetries,
+		},
+		{
+			name: "FGA failure retries until exhausted",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(base, nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything).Return(errBoom)
+			},
+			wantSettings: scrubMaxRetries, wantBase: scrubMaxRetries, wantIndex: scrubMaxRetries, wantAccess: scrubMaxRetries,
+		},
+		{
+			name: "recovers when a retry succeeds",
+			setup: func(r *domainmocks.MockProjectRepository, m *domainmocks.MockMessageBuilder) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(base, nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(errBoom).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(nil).Once()
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything).Return(nil)
+			},
+			wantSettings: 2, wantBase: 2, wantIndex: 2, wantAccess: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
+			tt.setup(mockRepo, mockMsg)
+			svc := &ProjectsService{ProjectRepository: mockRepo, Publisher: mockMsg}
+
+			svc.republishProjectSettings(context.Background(), projectUID, "test")
+
+			mockRepo.AssertNumberOfCalls(t, "GetProjectSettingsWithRevision", tt.wantSettings)
+			mockRepo.AssertNumberOfCalls(t, "GetProjectBase", tt.wantBase)
+			mockMsg.AssertNumberOfCalls(t, "SendIndexerMessage", tt.wantIndex)
+			mockMsg.AssertNumberOfCalls(t, "PublishAccessMessage", tt.wantAccess)
+			if tt.checkAuthzCtx {
+				for _, c := range mockMsg.Calls {
+					ctx, ok := c.Arguments.Get(0).(context.Context)
+					require.True(t, ok)
+					assert.Equal(t, serviceAuthBearer, ctx.Value(constants.AuthorizationContextID))
+				}
+			}
+		})
+	}
+}

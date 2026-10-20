@@ -74,7 +74,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
    - Re-read settings with revision (optimistic concurrency).
    - Set `username` to the auth-resolved username from step 2 (never the event's `accepted_by` string) and clear any legacy `invite` field on every matching email-only entry.
    - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.
-   - Re-index the project settings so the promoted user appears as an LFID user, and publish `lfx.fga-sync.update_access` so OpenFGA receives the new grant. `publishInvitePromotionSideEffects` reloads settings and retries indexer/FGA publishes (same `scrubMaxRetries` budget as username scrub). The repository write alone does not emit FGA or `project_settings.updated`.
+   - Re-index the project settings so the promoted user appears as an LFID user, and publish `lfx.fga-sync.update_access` so OpenFGA receives the new grant. `republishProjectSettings` reloads settings and retries indexer/FGA publishes (shared with the username scrub path, same `scrubMaxRetries` budget). The repository write alone does not emit FGA or `project_settings.updated`.
 
 Accepting a single invite intentionally reconciles **every** project where the same email has a pending email-only entry for the same role, not only the project that issued the invite. The operation is idempotent: entries already promoted are skipped.
 
@@ -87,7 +87,7 @@ Accepting a single invite intentionally reconciles **every** project where the s
 - Invite-service request/reply and auth-service actor lookups run under `notificationTimeout` (5 seconds), scoped per operation.
 - `HandleInviteAccepted` uses `settingsScanTimeout` (2 minutes) for both `ListAllProjectsSettings` and each per-project promotion, because a full settings-bucket scan is not a single RPC.
 - `promoteInvitedUserInProjectSettings` retries up to 3 times on `ErrRevisionMismatch` within its project's window. This handles concurrent writers racing on the same KV revision.
-- `publishInvitePromotionSideEffects` retries indexer and FGA publishes up to `scrubMaxRetries` times, reloading settings on each attempt, so a transient NATS or project-base read failure does not permanently omit the new grant.
+- `republishProjectSettings` retries indexer and FGA publishes up to `scrubMaxRetries` times, reloading settings on each attempt, so a transient NATS or project-base read failure does not permanently omit the new grant.
 - If a promotion fails (timeout or exhausted retries), the email-only entry remains pending until another acceptance event for the same email/role arrives or the settings are corrected manually.
 - Errors from individual sends are logged but never propagated — the handler is entirely best-effort and always returns `nil`.
 
@@ -95,4 +95,4 @@ Accepting a single invite intentionally reconciles **every** project where the s
 
 ## Notification Suppression on Promotion
 
-Invite promotion writes settings through the repository, not the HTTP `UpdateProjectSettings` operation, so it does **not** publish `lfx.projects-api.project_settings.updated`. Role-change emails and further invites are therefore not retriggered. FGA and indexer side effects are published directly by `publishInvitePromotionSideEffects`.
+Invite promotion writes settings through the repository, not the HTTP `UpdateProjectSettings` operation, so it does **not** publish `lfx.projects-api.project_settings.updated`. Role-change emails and further invites are therefore not retriggered. FGA and indexer side effects are published directly by `republishProjectSettings`.

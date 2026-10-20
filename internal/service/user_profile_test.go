@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
@@ -256,4 +257,37 @@ func TestProjectsService_normalizeAuditUsers(t *testing.T) {
 	assert.NotNil(t, updatedBy)
 	assert.Equal(t, createdBy.Name, updatedBy.Name)
 	mockUser.AssertExpectations(t)
+}
+
+func TestResolveAuditUserProfile(t *testing.T) {
+	t.Run("blank username returns nil without a lookup", func(t *testing.T) {
+		got := ResolveAuditUserProfile(context.Background(), &domainmocks.MockUserReader{}, "   ")
+
+		assert.Nil(t, got)
+	})
+
+	t.Run("trims username and enriches profile", func(t *testing.T) {
+		mockUser := &domainmocks.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
+			Name:    "Alice Example",
+			Picture: "https://cdn.example/avatar.png",
+		}, nil)
+
+		got := ResolveAuditUserProfile(context.Background(), mockUser, " alice ")
+
+		require.NotNil(t, got)
+		assert.Equal(t, "alice", got.Username)
+		assert.Equal(t, "Alice Example", got.Name)
+		mockUser.AssertExpectations(t)
+	})
+
+	t.Run("lookup failure falls back to username-only profile", func(t *testing.T) {
+		mockUser := &domainmocks.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
+
+		got := ResolveAuditUserProfile(context.Background(), mockUser, "alice")
+
+		assert.Equal(t, &models.UserInfo{Username: "alice"}, got)
+		mockUser.AssertExpectations(t)
+	})
 }

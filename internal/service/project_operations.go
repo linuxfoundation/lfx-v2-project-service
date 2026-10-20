@@ -235,7 +235,8 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Create the project in the repository
-	slog.With("project_uid", projectDB.UID, "project_slug", projectDB.Slug)
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectDB.UID))
+	ctx = log.AppendCtx(ctx, slog.String("project_slug", projectDB.Slug))
 	err = s.ProjectRepository.CreateProject(ctx, projectDB, projectSettingsDB)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectSlugExists) {
@@ -544,10 +545,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return nil, domain.ErrRevisionMismatch
 		}
-		if errors.Is(err, domain.ErrInternal) {
-			slog.ErrorContext(ctx, "error updating project in store", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
+		slog.ErrorContext(ctx, "error updating project in store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
 

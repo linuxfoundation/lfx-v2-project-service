@@ -525,6 +525,105 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 	}
 }
 
+func TestProjectsService_GetOneProjectSettings(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     *projsvc.GetOneProjectSettingsPayload
+		setupMocks  func(*domainmocks.MockProjectRepository)
+		expectedErr error
+		validate    func(*testing.T, *projsvc.GetOneProjectSettingsResult)
+	}{
+		{
+			name:    "successful get project settings",
+			payload: &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				mockRepo.On("ProjectExists", mock.Anything, "test-project-uid").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "test-project-uid").Return(
+					&models.ProjectSettings{UID: "test-project-uid", MissionStatement: "Test Mission"},
+					uint64(7),
+					nil,
+				)
+			},
+			validate: func(t *testing.T, result *projsvc.GetOneProjectSettingsResult) {
+				require.NotNil(t, result.ProjectSettings)
+				assert.Equal(t, "test-project-uid", *result.ProjectSettings.UID)
+				assert.Equal(t, "Test Mission", *result.ProjectSettings.MissionStatement)
+				require.NotNil(t, result.Etag)
+				assert.Equal(t, "7", *result.Etag)
+			},
+		},
+		{
+			name:        "nil payload",
+			payload:     nil,
+			setupMocks:  func(*domainmocks.MockProjectRepository) {},
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name:        "nil UID",
+			payload:     &projsvc.GetOneProjectSettingsPayload{},
+			setupMocks:  func(*domainmocks.MockProjectRepository) {},
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name:    "existence check fails",
+			payload: &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				mockRepo.On("ProjectExists", mock.Anything, "test-project-uid").Return(false, errors.New("kv down"))
+			},
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:    "project does not exist",
+			payload: &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("missing-uid")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				mockRepo.On("ProjectExists", mock.Anything, "missing-uid").Return(false, nil)
+			},
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "settings not found",
+			payload: &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				mockRepo.On("ProjectExists", mock.Anything, "test-project-uid").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "test-project-uid").Return(
+					nil, uint64(0), domain.ErrProjectNotFound,
+				)
+			},
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:    "settings read fails",
+			payload: &projsvc.GetOneProjectSettingsPayload{UID: misc.StringPtr("test-project-uid")},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				mockRepo.On("ProjectExists", mock.Anything, "test-project-uid").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "test-project-uid").Return(
+					nil, uint64(0), errors.New("kv down"),
+				)
+			},
+			expectedErr: domain.ErrInternal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, _ := setupServiceForTesting()
+			tt.setupMocks(mockRepo)
+
+			result, err := service.GetOneProjectSettings(context.Background(), tt.payload)
+
+			if tt.expectedErr != nil {
+				assert.Equal(t, tt.expectedErr, err)
+				assert.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				tt.validate(t, result)
+			}
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
 func TestProjectsService_DeleteProject(t *testing.T) {
 	tests := []struct {
 		name               string
