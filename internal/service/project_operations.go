@@ -126,19 +126,8 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	// An Archived project must carry an entity dissolution date.
 	// Checked before any DB calls so invalid payloads are rejected cheaply.
-	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
-		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
-		return nil, err
-	}
-
-	// Reject names that are blank after trimming or whose trimmed form starts
-	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
-	// JSON error envelope on the NATS wire and would make every get_name read
-	// permanently fail for all consumers using ParseRPCError / brace discrimination.
-	if err := validateProjectName(payload.Name); err != nil {
-		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
+	if err := validateProjectFields(ctx, payload.Stage, payload.EntityDissolutionDate, payload.Name); err != nil {
 		return nil, err
 	}
 
@@ -388,20 +377,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrValidationFailed
 	}
 
-	// An Archived project must carry an entity dissolution date.
 	// Validated before any repository access so invalid payloads are rejected cheaply,
 	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
-	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
-		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
-		return nil, err
-	}
-
-	// Reject names that are blank after trimming or whose trimmed form starts
-	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
-	// JSON error envelope on the NATS wire and would make every get_name read
-	// permanently fail for all consumers using ParseRPCError / brace discrimination.
-	if err := validateProjectName(payload.Name); err != nil {
-		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
+	if err := validateProjectFields(ctx, payload.Stage, payload.EntityDissolutionDate, payload.Name); err != nil {
 		return nil, err
 	}
 
@@ -882,6 +860,24 @@ func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, payload *projs
 	return &projsvc.ResolveProjectSlugResult{
 		UID: uid,
 	}, nil
+}
+
+// validateProjectFields applies the field rules shared by create and update: an
+// Archived project must carry an entity dissolution date, and the name must be
+// non-blank and must not start with '{'. A '{'-prefixed name is structurally
+// indistinguishable from a JSON error envelope on the NATS wire and would make
+// every get_name read permanently fail for all consumers using ParseRPCError /
+// brace discrimination.
+func validateProjectFields(ctx context.Context, stage, dissolutionDate *string, name string) error {
+	if err := validateArchivedRequiresDissolutionDate(stage, dissolutionDate); err != nil {
+		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
+		return err
+	}
+	if err := validateProjectName(name); err != nil {
+		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
+		return err
+	}
+	return nil
 }
 
 // isCrowdfundingOnly checks if the funding model is exactly ["Crowdfunding"] and nothing else.
