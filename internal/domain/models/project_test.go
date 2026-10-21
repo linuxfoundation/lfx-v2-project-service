@@ -223,17 +223,39 @@ func TestProjectBase_IndexingConfig(t *testing.T) {
 }
 
 func TestProjectBase_TagsTemplatized(t *testing.T) {
-	var nilProject *ProjectBase
-	assert.Nil(t, nilProject.TagsTemplatized())
-	assert.Nil(t, (&ProjectBase{}).TagsTemplatized())
-	assert.Equal(t, []string{"project_slug:{{ slug }}"}, (&ProjectBase{Slug: "test-project"}).TagsTemplatized())
+	tests := []struct {
+		name string
+		obj  *ProjectBase
+		want []string
+	}{
+		{name: "nil project", obj: nil, want: nil},
+		{name: "empty project", obj: &ProjectBase{}, want: nil},
+		{name: "slug set", obj: &ProjectBase{Slug: "test-project"}, want: []string{"project_slug:{{ slug }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.TagsTemplatized())
+		})
+	}
 }
 
 func TestProjectBase_ParentRefsTemplatized(t *testing.T) {
-	var nilProject *ProjectBase
-	assert.Nil(t, nilProject.ParentRefsTemplatized())
-	assert.Nil(t, (&ProjectBase{}).ParentRefsTemplatized())
-	assert.Equal(t, []string{"project:{{ parent_uid }}"}, (&ProjectBase{ParentUID: "parent-1"}).ParentRefsTemplatized())
+	tests := []struct {
+		name string
+		obj  *ProjectBase
+		want []string
+	}{
+		{name: "nil project", obj: nil, want: nil},
+		{name: "no parent", obj: &ProjectBase{}, want: nil},
+		{name: "parent set", obj: &ProjectBase{ParentUID: "parent-1"}, want: []string{"project:{{ parent_uid }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+		})
+	}
 }
 
 func TestProjectBase_NameAndAliasesTemplatized(t *testing.T) {
@@ -298,10 +320,21 @@ func TestProjectSettings_TagsTemplatized(t *testing.T) {
 }
 
 func TestProjectSettings_ParentRefsTemplatized(t *testing.T) {
-	var nilSettings *ProjectSettings
-	assert.Nil(t, nilSettings.ParentRefsTemplatized())
-	assert.Nil(t, (&ProjectSettings{}).ParentRefsTemplatized())
-	assert.Equal(t, []string{"project:{{ uid }}"}, (&ProjectSettings{UID: "p1"}).ParentRefsTemplatized())
+	tests := []struct {
+		name string
+		obj  *ProjectSettings
+		want []string
+	}{
+		{name: "nil settings", obj: nil, want: nil},
+		{name: "no uid", obj: &ProjectSettings{}, want: nil},
+		{name: "uid set", obj: &ProjectSettings{UID: "p1"}, want: []string{"project:{{ uid }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+		})
+	}
 }
 
 func TestProjectSettings_IndexingConfig(t *testing.T) {
