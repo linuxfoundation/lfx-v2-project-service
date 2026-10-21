@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -233,60 +234,79 @@ func TestNatsRepository_GetProjectSettings(t *testing.T) {
 // GetProjectSettings. Covered separately because the two are distinct entry
 // points, and callers of this one test for the domain sentinel too.
 func TestNatsRepository_GetProjectSettingsWithRevision(t *testing.T) {
-	t.Run("missing settings reports the domain not-found sentinel", func(t *testing.T) {
-		mockProjectsKV := &MockKeyValue{}
-		mockSettingsKV := &MockKeyValue{}
-		mockSettingsKV.On("Get", mock.Anything, "non-existent-uid").Return(nil, jetstream.ErrKeyNotFound)
+	storeErr := errors.New("nats connection error")
 
-		repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+	tests := []struct {
+		name         string
+		setupMocks   func(*MockKeyValue)
+		wantMission  string
+		wantRev      uint64
+		wantErr      bool
+		wantErrIs    error
+		wantNotErrIs error
+	}{
+		{
+			name: "missing settings reports the domain not-found sentinel",
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, "test-project-uid").Return(nil, jetstream.ErrKeyNotFound)
+			},
+			wantErr:   true,
+			wantErrIs: domain.ErrProjectNotFound,
+		},
+		{
+			name: "success returns settings with revision",
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, "test-project-uid").Return(
+					NewMockKeyValueEntry(mustMarshal(t, &models.ProjectSettings{UID: "test-project-uid", MissionStatement: "Test mission"}), 12), nil)
+			},
+			wantMission: "Test mission",
+			wantRev:     12,
+		},
+		{
+			name: "key-value store error is returned as-is, not as not-found",
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, "test-project-uid").Return(nil, storeErr)
+			},
+			wantErr:      true,
+			wantErrIs:    storeErr,
+			wantNotErrIs: domain.ErrProjectNotFound,
+		},
+		{
+			name: "invalid stored json returns the unmarshal error",
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, "test-project-uid").Return(NewMockKeyValueEntry([]byte("{not json"), 1), nil)
+			},
+			wantErr: true,
+		},
+	}
 
-		settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "non-existent-uid")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSettingsKV := &MockKeyValue{}
+			tt.setupMocks(mockSettingsKV)
+			repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
 
-		assert.ErrorIs(t, err, domain.ErrProjectNotFound)
-		assert.Nil(t, settings)
-		assert.Zero(t, revision)
-		mockSettingsKV.AssertExpectations(t)
-	})
+			settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "test-project-uid")
 
-	t.Run("success returns settings with revision", func(t *testing.T) {
-		mockSettingsKV := &MockKeyValue{}
-		mockSettingsKV.On("Get", mock.Anything, "test-project-uid").Return(
-			NewMockKeyValueEntry(mustMarshal(t, &models.ProjectSettings{UID: "test-project-uid", MissionStatement: "Test mission"}), 12), nil)
-		repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
-
-		settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "test-project-uid")
-
-		require.NoError(t, err)
-		require.NotNil(t, settings)
-		assert.Equal(t, "Test mission", settings.MissionStatement)
-		assert.Equal(t, uint64(12), revision)
-	})
-
-	t.Run("key-value store error is returned as-is, not as not-found", func(t *testing.T) {
-		storeErr := errors.New("nats connection error")
-		mockSettingsKV := &MockKeyValue{}
-		mockSettingsKV.On("Get", mock.Anything, "test-project-uid").Return(nil, storeErr)
-		repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
-
-		settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "test-project-uid")
-
-		assert.ErrorIs(t, err, storeErr)
-		assert.NotErrorIs(t, err, domain.ErrProjectNotFound)
-		assert.Nil(t, settings)
-		assert.Zero(t, revision)
-	})
-
-	t.Run("invalid stored json returns the unmarshal error", func(t *testing.T) {
-		mockSettingsKV := &MockKeyValue{}
-		mockSettingsKV.On("Get", mock.Anything, "test-project-uid").Return(NewMockKeyValueEntry([]byte("{not json"), 1), nil)
-		repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
-
-		settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "test-project-uid")
-
-		require.Error(t, err)
-		assert.Nil(t, settings)
-		assert.Zero(t, revision)
-	})
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrIs != nil {
+					assert.ErrorIs(t, err, tt.wantErrIs)
+				}
+				if tt.wantNotErrIs != nil {
+					assert.NotErrorIs(t, err, tt.wantNotErrIs)
+				}
+				assert.Nil(t, settings)
+				assert.Zero(t, revision)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, settings)
+				assert.Equal(t, tt.wantMission, settings.MissionStatement)
+				assert.Equal(t, tt.wantRev, revision)
+			}
+			mockSettingsKV.AssertExpectations(t)
+		})
+	}
 }
 
 func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
@@ -1470,6 +1490,21 @@ func TestNatsRepository_GetDocumentMetadata(t *testing.T) {
 }
 
 // mustMarshal marshals v to JSON, failing the test on error.
+// forwardedRevision matches a jetstream.LastRevision delete option carrying the
+// given revision. The option is opaque, so apply it to a fresh options struct
+// via reflection and read the revision back.
+func forwardedRevision(want uint64) any {
+	return mock.MatchedBy(func(opt jetstream.KVDeleteOpt) bool {
+		fn := reflect.ValueOf(opt)
+		if fn.Kind() != reflect.Func {
+			return false
+		}
+		target := reflect.New(fn.Type().In(0).Elem())
+		fn.Call([]reflect.Value{target})
+		return target.Elem().FieldByName("revision").Uint() == want
+	})
+}
+
 func mustMarshal(t *testing.T, v any) []byte {
 	t.Helper()
 	data, err := json.Marshal(v)
@@ -1714,7 +1749,7 @@ func TestNatsRepository_DeleteLink(t *testing.T) {
 	)
 	lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, projectUID, linkUID)
 	linkEntry := func() *MockKeyValueEntry {
-		return NewMockKeyValueEntry(mustMarshal(t, &models.ProjectLink{UID: linkUID, ProjectUID: projectUID}), 4)
+		return NewMockKeyValueEntry(mustMarshal(t, &models.ProjectLink{UID: linkUID, ProjectUID: projectUID}), 9)
 	}
 
 	tests := []struct {
@@ -1733,7 +1768,7 @@ func TestNatsRepository_DeleteLink(t *testing.T) {
 			name: "revision mismatch",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, linkUID).Return(linkEntry(), nil)
-				kv.On("Delete", mock.Anything, linkUID, mock.Anything).Return(errors.New("wrong last sequence"))
+				kv.On("Delete", mock.Anything, linkUID, forwardedRevision(4)).Return(errors.New("wrong last sequence"))
 			},
 			wantErr: domain.ErrRevisionMismatch,
 		},
@@ -1741,7 +1776,7 @@ func TestNatsRepository_DeleteLink(t *testing.T) {
 			name: "other delete error",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, linkUID).Return(linkEntry(), nil)
-				kv.On("Delete", mock.Anything, linkUID, mock.Anything).Return(errors.New("nats error"))
+				kv.On("Delete", mock.Anything, linkUID, forwardedRevision(4)).Return(errors.New("nats error"))
 			},
 			wantErr: domain.ErrInternal,
 		},
@@ -1749,7 +1784,7 @@ func TestNatsRepository_DeleteLink(t *testing.T) {
 			name: "success purges the index key",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, linkUID).Return(linkEntry(), nil)
-				kv.On("Delete", mock.Anything, linkUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, linkUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, lookupKey).Return(nil)
 			},
 		},
@@ -1757,7 +1792,7 @@ func TestNatsRepository_DeleteLink(t *testing.T) {
 			name: "index key purge failure only warns",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, linkUID).Return(linkEntry(), nil)
-				kv.On("Delete", mock.Anything, linkUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, linkUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, lookupKey).Return(errors.New("purge failed"))
 			},
 		},
@@ -1810,7 +1845,7 @@ func TestNatsRepository_DeleteFolder(t *testing.T) {
 	)
 	folder := &models.ProjectFolder{UID: folderUID, ProjectUID: projectUID, Name: "Reports"}
 	uniqueKey := fmt.Sprintf(constants.KVLookupFolderPrefix, folder.BuildIndexKey(context.Background()))
-	folderEntry := func() *MockKeyValueEntry { return NewMockKeyValueEntry(mustMarshal(t, folder), 4) }
+	folderEntry := func() *MockKeyValueEntry { return NewMockKeyValueEntry(mustMarshal(t, folder), 9) }
 
 	tests := []struct {
 		name       string
@@ -1828,7 +1863,7 @@ func TestNatsRepository_DeleteFolder(t *testing.T) {
 			name: "revision mismatch",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, folderUID).Return(folderEntry(), nil)
-				kv.On("Delete", mock.Anything, folderUID, mock.Anything).Return(errors.New("wrong last sequence"))
+				kv.On("Delete", mock.Anything, folderUID, forwardedRevision(4)).Return(errors.New("wrong last sequence"))
 			},
 			wantErr: domain.ErrRevisionMismatch,
 		},
@@ -1836,7 +1871,7 @@ func TestNatsRepository_DeleteFolder(t *testing.T) {
 			name: "other delete error",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, folderUID).Return(folderEntry(), nil)
-				kv.On("Delete", mock.Anything, folderUID, mock.Anything).Return(errors.New("nats error"))
+				kv.On("Delete", mock.Anything, folderUID, forwardedRevision(4)).Return(errors.New("nats error"))
 			},
 			wantErr: domain.ErrInternal,
 		},
@@ -1844,7 +1879,7 @@ func TestNatsRepository_DeleteFolder(t *testing.T) {
 			name: "success purges the name reservation",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, folderUID).Return(folderEntry(), nil)
-				kv.On("Delete", mock.Anything, folderUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, folderUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, uniqueKey).Return(nil)
 			},
 		},
@@ -1852,7 +1887,7 @@ func TestNatsRepository_DeleteFolder(t *testing.T) {
 			name: "name reservation purge failure only warns",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, folderUID).Return(folderEntry(), nil)
-				kv.On("Delete", mock.Anything, folderUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, folderUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, uniqueKey).Return(errors.New("purge failed"))
 			},
 		},
@@ -1964,9 +1999,10 @@ func TestNatsRepository_ListDocuments(t *testing.T) {
 			wantErr: domain.ErrInternal,
 		},
 		{
-			// Unlike ListLinks, a record that disappears between the key listing and
-			// the read is not skipped; it fails the whole list.
-			name: "document deleted between list and get fails the list",
+			// Known gap: unlike ListLinks and ListAllDocuments, a record that
+			// disappears between the key listing and the read is not skipped; it
+			// fails the whole list. This pins current behavior, not the intended one.
+			name: "document deleted between list and get currently fails the list",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("ListKeys", mock.Anything).Return(NewMockKeyLister([]string{docUID}), nil)
 				kv.On("Get", mock.Anything, docUID).Return(nil, jetstream.ErrKeyNotFound)
@@ -2040,7 +2076,7 @@ func TestNatsRepository_DeleteDocumentMetadata(t *testing.T) {
 	)
 	doc := &models.ProjectDocument{UID: docUID, ProjectUID: projectUID, Name: "Charter"}
 	uniqueKey := fmt.Sprintf(constants.KVLookupDocumentPrefix, doc.BuildIndexKey(context.Background()))
-	docEntry := func() *MockKeyValueEntry { return NewMockKeyValueEntry(mustMarshal(t, doc), 4) }
+	docEntry := func() *MockKeyValueEntry { return NewMockKeyValueEntry(mustMarshal(t, doc), 9) }
 
 	tests := []struct {
 		name       string
@@ -2058,7 +2094,7 @@ func TestNatsRepository_DeleteDocumentMetadata(t *testing.T) {
 			name: "revision mismatch",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, docUID).Return(docEntry(), nil)
-				kv.On("Delete", mock.Anything, docUID, mock.Anything).Return(errors.New("wrong last sequence"))
+				kv.On("Delete", mock.Anything, docUID, forwardedRevision(4)).Return(errors.New("wrong last sequence"))
 			},
 			wantErr: domain.ErrRevisionMismatch,
 		},
@@ -2066,7 +2102,7 @@ func TestNatsRepository_DeleteDocumentMetadata(t *testing.T) {
 			name: "other delete error",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, docUID).Return(docEntry(), nil)
-				kv.On("Delete", mock.Anything, docUID, mock.Anything).Return(errors.New("nats error"))
+				kv.On("Delete", mock.Anything, docUID, forwardedRevision(4)).Return(errors.New("nats error"))
 			},
 			wantErr: domain.ErrInternal,
 		},
@@ -2074,7 +2110,7 @@ func TestNatsRepository_DeleteDocumentMetadata(t *testing.T) {
 			name: "success purges the name reservation",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, docUID).Return(docEntry(), nil)
-				kv.On("Delete", mock.Anything, docUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, docUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, uniqueKey).Return(nil)
 			},
 		},
@@ -2082,7 +2118,7 @@ func TestNatsRepository_DeleteDocumentMetadata(t *testing.T) {
 			name: "name reservation purge failure only warns",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, docUID).Return(docEntry(), nil)
-				kv.On("Delete", mock.Anything, docUID, mock.Anything).Return(nil)
+				kv.On("Delete", mock.Anything, docUID, forwardedRevision(4)).Return(nil)
 				kv.On("Purge", mock.Anything, uniqueKey).Return(errors.New("purge failed"))
 			},
 		},

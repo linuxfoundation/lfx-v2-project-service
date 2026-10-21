@@ -602,7 +602,9 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		req        inviteapi.SendInviteRequest
 		setupMocks func(*MockNATSConn)
 		wantErr    bool
-		wantResult domain.InviteResult
+		// wantErrContains, when set, pins which error branch produced the failure.
+		wantErrContains string
+		wantResult      domain.InviteResult
 	}{
 		{
 			name: "successful request — correct subject, payload, and invite result returned",
@@ -674,7 +676,8 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "invalid JSON in reply — parse error returned",
+			name:            "invalid JSON in reply — parse error returned",
+			wantErrContains: "invite service response:",
 			req: inviteapi.SendInviteRequest{
 				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
 				Resource:  &inviteapi.Resource{UID: "proj-123"},
@@ -687,7 +690,8 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "empty reply body — missing invite uid error returned",
+			name:            "empty reply body — missing invite uid error returned",
+			wantErrContains: "invite_uid is empty",
 			req: inviteapi.SendInviteRequest{
 				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
 				Resource:  &inviteapi.Resource{UID: "proj-123"},
@@ -700,7 +704,8 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "reply without invite data — missing invite uid error returned",
+			name:            "reply without invite data — missing invite uid error returned",
+			wantErrContains: "invite_uid is empty",
 			req: inviteapi.SendInviteRequest{
 				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
 				Resource:  &inviteapi.Resource{UID: "proj-123"},
@@ -736,7 +741,10 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			result, err := mb.SendInviteRequest(context.Background(), tt.req)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
+				if tt.wantErrContains != "" {
+					assert.Contains(t, err.Error(), tt.wantErrContains)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantResult.InviteUID, result.InviteUID)
