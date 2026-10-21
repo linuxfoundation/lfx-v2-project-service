@@ -5,9 +5,12 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectLink_BuildIndexKey(t *testing.T) {
@@ -146,4 +149,103 @@ func TestProjectLink_Tags(t *testing.T) {
 			assert.Equal(t, tt.wantTags, tt.link.Tags())
 		})
 	}
+}
+
+func TestProjectLink_UnmarshalJSON(t *testing.T) {
+	created := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+	tests := []struct {
+		name    string
+		input   string
+		want    ProjectLink
+		wantErr bool
+	}{
+		{
+			name:  "current format keeps audit users",
+			input: `{"uid":"l1","project_uid":"p1","name":"Docs","url":"https://example.com","created_by":{"username":"alice"},"updated_by":{"username":"bob"}}`,
+			want: ProjectLink{
+				UID: "l1", ProjectUID: "p1", Name: "Docs", URL: "https://example.com",
+				CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "bob"},
+			},
+		},
+		{
+			name:  "legacy created_by_username migrates to created_by and updated_by",
+			input: `{"uid":"l1","project_uid":"p1","name":"Docs","url":"https://example.com","created_by_username":"alice"}`,
+			want: ProjectLink{
+				UID: "l1", ProjectUID: "p1", Name: "Docs", URL: "https://example.com",
+				CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "alice"},
+			},
+		},
+		{
+			name:  "folder uid and timestamps are preserved",
+			input: `{"uid":"l1","project_uid":"p1","folder_uid":"f1","name":"Docs","url":"https://example.com","description":"d","created_at":"2024-01-02T03:04:05Z"}`,
+			want: ProjectLink{
+				UID: "l1", ProjectUID: "p1", FolderUID: func() *string { s := "f1"; return &s }(),
+				Name: "Docs", URL: "https://example.com", Description: "d", CreatedAt: created,
+			},
+		},
+		{
+			name:    "invalid json returns error",
+			input:   `{"uid":`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got ProjectLink
+			err := json.Unmarshal([]byte(tt.input), &got)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestProjectLink_MarshalJSON(t *testing.T) {
+	t.Run("nil link marshals to null", func(t *testing.T) {
+		var l *ProjectLink
+		out, err := json.Marshal(l)
+		require.NoError(t, err)
+		assert.Equal(t, "null", string(out))
+	})
+
+	t.Run("round trip preserves fields and drops legacy key", func(t *testing.T) {
+		folder := "f1"
+		in := &ProjectLink{
+			UID: "l1", ProjectUID: "p1", FolderUID: &folder, Name: "Docs", URL: "https://example.com",
+			Description: "d", CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "bob"},
+			CreatedAt: time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
+		}
+		out, err := json.Marshal(in)
+		require.NoError(t, err)
+		assert.NotContains(t, string(out), "created_by_username")
+
+		var got ProjectLink
+		require.NoError(t, json.Unmarshal(out, &got))
+		assert.Equal(t, *in, got)
+	})
+}
+
+func TestProjectLink_IndexingConfig(t *testing.T) {
+	t.Run("nil link returns nil", func(t *testing.T) {
+		var l *ProjectLink
+		assert.Nil(t, l.IndexingConfig())
+	})
+
+	t.Run("populates access, parent and tags from the link", func(t *testing.T) {
+		l := &ProjectLink{UID: "l1", ProjectUID: "p1", Name: "Docs"}
+		cfg := l.IndexingConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, "l1", cfg.ObjectID)
+		assert.Equal(t, "project:p1", cfg.AccessCheckObject)
+		assert.Equal(t, "viewer", cfg.AccessCheckRelation)
+		assert.Equal(t, "project:p1", cfg.HistoryCheckObject)
+		assert.Equal(t, "auditor_guard", cfg.HistoryCheckRelation)
+		assert.Equal(t, "Docs", cfg.SortName)
+		assert.Equal(t, []string{"project:p1"}, cfg.ParentRefs)
+		assert.Equal(t, l.Tags(), cfg.Tags)
+	})
 }

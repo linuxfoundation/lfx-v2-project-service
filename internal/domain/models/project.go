@@ -76,12 +76,11 @@ type ProjectSettings struct {
 // IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
 // to ensure consumers understand how to use these tags for searching.
 func (p *ProjectBase) Tags() []string {
-
-	var tags []string
-
 	if p == nil {
 		return nil
 	}
+
+	var tags []string
 
 	if p.Slug != "" {
 		tag := fmt.Sprintf("project_slug:%s", p.Slug)
@@ -114,9 +113,9 @@ func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 	return &indexerTypes.IndexingConfig{
 		ObjectID:             "{{ uid }}",
 		Public:               &p.Public,
-		AccessCheckObject:    fmt.Sprintf("project:%s", "{{ uid }}"),
+		AccessCheckObject:    "project:{{ uid }}",
 		AccessCheckRelation:  "viewer",
-		HistoryCheckObject:   fmt.Sprintf("project:%s", "{{ uid }}"),
+		HistoryCheckObject:   "project:{{ uid }}",
 		HistoryCheckRelation: "writer_guard",
 		SortName:             "{{ name }}",
 		NameAndAliases:       p.NameAndAliasesTemplatized(),
@@ -124,22 +123,6 @@ func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 		Fulltext:             p.FulltextTemplatized(),
 		Tags:                 p.TagsTemplatized(),
 	}
-}
-
-// ParentRefs generates a list of parent references for the project base.
-// This is used to index the project as a child of its parent project.
-func (p *ProjectBase) ParentRefs() []string {
-	if p == nil {
-		return nil
-	}
-
-	var parentRefs []string
-
-	if p.ParentUID != "" {
-		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", p.ParentUID))
-	}
-
-	return parentRefs
 }
 
 // ParentRefsTemplatized generates a list of templatized parent references for the project base.
@@ -151,29 +134,10 @@ func (p *ProjectBase) ParentRefsTemplatized() []string {
 	var parentRefs []string
 
 	if p.ParentUID != "" {
-		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", "{{ parent_uid }}"))
+		parentRefs = append(parentRefs, "project:{{ parent_uid }}")
 	}
 
 	return parentRefs
-}
-
-// NameAndAliases generates a list of name and aliases for the project base.
-// This is used to index the project with searchable names.
-func (p *ProjectBase) NameAndAliases() []string {
-	if p == nil {
-		return nil
-	}
-
-	var nameAndAliases []string
-
-	if p.Name != "" {
-		nameAndAliases = append(nameAndAliases, p.Name)
-	}
-	if p.Slug != "" {
-		nameAndAliases = append(nameAndAliases, p.Slug)
-	}
-
-	return nameAndAliases
 }
 
 // NameAndAliasesTemplatized generates a list of templatized name and aliases for the project base.
@@ -192,28 +156,6 @@ func (p *ProjectBase) NameAndAliasesTemplatized() []string {
 	}
 
 	return nameAndAliases
-}
-
-// Fulltext generates a fulltext string for the project base.
-// This is used to index the project text that is full-text searchable.
-func (p *ProjectBase) Fulltext() string {
-	if p == nil {
-		return ""
-	}
-
-	var fulltext []string
-
-	if p.Name != "" {
-		fulltext = append(fulltext, p.Name)
-	}
-	if p.Slug != "" {
-		fulltext = append(fulltext, p.Slug)
-	}
-	if p.Description != "" {
-		fulltext = append(fulltext, p.Description)
-	}
-
-	return strings.Join(fulltext, " ")
 }
 
 // FulltextTemplatized generates a fulltext string for the project base.
@@ -285,22 +227,6 @@ func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.Indexi
 	}
 }
 
-// ParentRefs generates a list of parent references for the project settings.
-// This is used to index the project settings as a child of its project.
-func (p *ProjectSettings) ParentRefs() []string {
-	if p == nil {
-		return nil
-	}
-
-	var parentRefs []string
-
-	if p.UID != "" {
-		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", p.UID))
-	}
-
-	return parentRefs
-}
-
 // ParentRefsTemplatized generates a list of templatized parent references for the project settings.
 func (p *ProjectSettings) ParentRefsTemplatized() []string {
 	if p == nil {
@@ -310,7 +236,7 @@ func (p *ProjectSettings) ParentRefsTemplatized() []string {
 	var parentRefs []string
 
 	if p.UID != "" {
-		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", "{{ uid }}"))
+		parentRefs = append(parentRefs, "project:{{ uid }}")
 	}
 
 	return parentRefs

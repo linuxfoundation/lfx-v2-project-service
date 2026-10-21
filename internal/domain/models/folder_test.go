@@ -5,9 +5,12 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectFolder_BuildIndexKey(t *testing.T) {
@@ -114,4 +117,93 @@ func TestProjectFolder_Tags(t *testing.T) {
 			assert.Equal(t, tt.wantTags, tt.folder.Tags())
 		})
 	}
+}
+
+func TestProjectFolder_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    ProjectFolder
+		wantErr bool
+	}{
+		{
+			name:  "current format keeps audit users",
+			input: `{"uid":"f1","project_uid":"p1","name":"Reports","created_by":{"username":"alice"},"updated_by":{"username":"bob"}}`,
+			want: ProjectFolder{
+				UID: "f1", ProjectUID: "p1", Name: "Reports",
+				CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "bob"},
+			},
+		},
+		{
+			name:  "legacy created_by_username migrates to created_by and updated_by",
+			input: `{"uid":"f1","project_uid":"p1","name":"Reports","created_by_username":"alice"}`,
+			want: ProjectFolder{
+				UID: "f1", ProjectUID: "p1", Name: "Reports",
+				CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "alice"},
+			},
+		},
+		{
+			name:    "invalid json returns error",
+			input:   `{"uid":`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got ProjectFolder
+			err := json.Unmarshal([]byte(tt.input), &got)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestProjectFolder_MarshalJSON(t *testing.T) {
+	t.Run("nil folder marshals to null", func(t *testing.T) {
+		var f *ProjectFolder
+		out, err := json.Marshal(f)
+		require.NoError(t, err)
+		assert.Equal(t, "null", string(out))
+	})
+
+	t.Run("round trip preserves fields and drops legacy key", func(t *testing.T) {
+		in := &ProjectFolder{
+			UID: "f1", ProjectUID: "p1", Name: "Reports",
+			CreatedBy: &UserInfo{Username: "alice"}, UpdatedBy: &UserInfo{Username: "bob"},
+			CreatedAt: time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
+		}
+		out, err := json.Marshal(in)
+		require.NoError(t, err)
+		assert.NotContains(t, string(out), "created_by_username")
+
+		var got ProjectFolder
+		require.NoError(t, json.Unmarshal(out, &got))
+		assert.Equal(t, *in, got)
+	})
+}
+
+func TestProjectFolder_IndexingConfig(t *testing.T) {
+	t.Run("nil folder returns nil", func(t *testing.T) {
+		var f *ProjectFolder
+		assert.Nil(t, f.IndexingConfig())
+	})
+
+	t.Run("populates access, parent and tags from the folder", func(t *testing.T) {
+		f := &ProjectFolder{UID: "f1", ProjectUID: "p1", Name: "Reports"}
+		cfg := f.IndexingConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, "f1", cfg.ObjectID)
+		assert.Equal(t, "project:p1", cfg.AccessCheckObject)
+		assert.Equal(t, "viewer", cfg.AccessCheckRelation)
+		assert.Equal(t, "project:p1", cfg.HistoryCheckObject)
+		assert.Equal(t, "auditor_guard", cfg.HistoryCheckRelation)
+		assert.Equal(t, "Reports", cfg.SortName)
+		assert.Equal(t, []string{"project:p1"}, cfg.ParentRefs)
+		assert.Equal(t, f.Tags(), cfg.Tags)
+	})
 }
