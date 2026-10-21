@@ -109,6 +109,68 @@ func TestMessageBuilder_SendIndexerMessage(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name:    "delete envelope with string data publishes the raw uid",
+			subject: constants.IndexProjectSubject,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionDeleted,
+				Data:   "test-uid-to-delete",
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					var m indexerTypes.IndexerMessageEnvelope
+					if err := json.Unmarshal(msg.Data, &m); err != nil {
+						return false
+					}
+					return msg.Subject == constants.IndexProjectSubject &&
+						m.Action == indexerConstants.ActionDeleted &&
+						m.Data == "test-uid-to-delete"
+				})).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
+		},
+		{
+			name:    "delete envelope with non-string data is JSON-encoded before publishing",
+			subject: constants.IndexProjectSubject,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionDeleted,
+				Data:   map[string]string{"uid": "test-uid"},
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					var m indexerTypes.IndexerMessageEnvelope
+					if err := json.Unmarshal(msg.Data, &m); err != nil {
+						return false
+					}
+					return m.Action == indexerConstants.ActionDeleted && m.Data == `{"uid":"test-uid"}`
+				})).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
+		},
+		{
+			name:    "delete envelope with unmarshalable data returns error without publishing",
+			subject: constants.IndexProjectSubject,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionDeleted,
+				Data:   make(chan int),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {},
+			setupCtx:   backgroundCtx,
+			wantErr:    true,
+		},
+		{
+			name:    "created envelope with unmarshalable data returns error without publishing",
+			subject: constants.IndexProjectSubject,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionCreated,
+				Data:   make(chan int),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {},
+			setupCtx:   backgroundCtx,
+			wantErr:    true,
+		},
+		{
 			name:    "unsupported message type",
 			subject: constants.IndexProjectSubject,
 			message: 123, // Invalid type
@@ -487,6 +549,13 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:       "unmarshalable message returns error without publishing",
+			subject:    constants.ProjectSettingsUpdatedSubject,
+			message:    make(chan int),
+			setupMocks: func(mockConn *MockNATSConn) {},
+			wantErr:    true,
+		},
+		{
 			name:    "nats publish error",
 			subject: constants.ProjectSettingsUpdatedSubject,
 			message: events.ProjectSettingsUpdatedMessage{
@@ -601,6 +670,45 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{Error: "recipient not found"})
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
 					Return(&nats.Msg{Data: replyData}, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid JSON in reply — parse error returned",
+			req: inviteapi.SendInviteRequest{
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+					Return(&nats.Msg{Data: []byte("not-json")}, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty reply body — missing invite uid error returned",
+			req: inviteapi.SendInviteRequest{
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+					Return(&nats.Msg{Data: nil}, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "reply without invite data — missing invite uid error returned",
+			req: inviteapi.SendInviteRequest{
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+					Return(&nats.Msg{Data: []byte(`{}`)}, nil)
 			},
 			wantErr: true,
 		},
