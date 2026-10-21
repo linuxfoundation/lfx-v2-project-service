@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectBaseTags(t *testing.T) {
@@ -194,4 +195,164 @@ func TestProjectSettingsTags(t *testing.T) {
 			assert.Equal(t, tt.expected, tags)
 		})
 	}
+}
+
+func TestProjectBase_IndexingConfig(t *testing.T) {
+	t.Run("nil project returns nil", func(t *testing.T) {
+		var p *ProjectBase
+		assert.Nil(t, p.IndexingConfig())
+	})
+
+	t.Run("populates templatized fields", func(t *testing.T) {
+		p := &ProjectBase{Public: true, Name: "Test Project", Slug: "test-project", Description: "desc", ParentUID: "parent-1"}
+		cfg := p.IndexingConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, "{{ uid }}", cfg.ObjectID)
+		require.NotNil(t, cfg.Public)
+		assert.True(t, *cfg.Public)
+		assert.Equal(t, "project:{{ uid }}", cfg.AccessCheckObject)
+		assert.Equal(t, "viewer", cfg.AccessCheckRelation)
+		assert.Equal(t, "project:{{ uid }}", cfg.HistoryCheckObject)
+		assert.Equal(t, "writer_guard", cfg.HistoryCheckRelation)
+		assert.Equal(t, "{{ name }}", cfg.SortName)
+		assert.Equal(t, []string{"{{ name }}", "{{ slug }}"}, cfg.NameAndAliases)
+		assert.Equal(t, []string{"project:{{ parent_uid }}"}, cfg.ParentRefs)
+		assert.Equal(t, "{{ name }} {{ slug }} {{ description }}", cfg.Fulltext)
+		assert.Equal(t, []string{"project_slug:{{ slug }}"}, cfg.Tags)
+	})
+}
+
+func TestProjectBase_TagsTemplatized(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  *ProjectBase
+		want []string
+	}{
+		{name: "nil project", obj: nil, want: nil},
+		{name: "empty project", obj: &ProjectBase{}, want: nil},
+		{name: "slug set", obj: &ProjectBase{Slug: "test-project"}, want: []string{"project_slug:{{ slug }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.TagsTemplatized())
+		})
+	}
+}
+
+func TestProjectBase_ParentRefsTemplatized(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  *ProjectBase
+		want []string
+	}{
+		{name: "nil project", obj: nil, want: nil},
+		{name: "no parent", obj: &ProjectBase{}, want: nil},
+		{name: "parent set", obj: &ProjectBase{ParentUID: "parent-1"}, want: []string{"project:{{ parent_uid }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+		})
+	}
+}
+
+func TestProjectBase_NameAndAliasesTemplatized(t *testing.T) {
+	tests := []struct {
+		name    string
+		project *ProjectBase
+		want    []string
+	}{
+		{name: "nil project", project: nil, want: nil},
+		{name: "empty project", project: &ProjectBase{}, want: nil},
+		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: []string{"{{ name }}"}},
+		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: []string{"{{ slug }}"}},
+		{name: "name and slug", project: &ProjectBase{Name: "Test Project", Slug: "test-project"}, want: []string{"{{ name }}", "{{ slug }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.project.NameAndAliasesTemplatized())
+		})
+	}
+}
+
+func TestProjectBase_FulltextTemplatized(t *testing.T) {
+	tests := []struct {
+		name    string
+		project *ProjectBase
+		want    string
+	}{
+		{name: "nil project", project: nil, want: ""},
+		{name: "empty project", project: &ProjectBase{}, want: ""},
+		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: "{{ name }}"},
+		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: "{{ slug }}"},
+		{name: "description only", project: &ProjectBase{Description: "desc"}, want: "{{ description }}"},
+		{name: "all fields", project: &ProjectBase{Name: "Test Project", Slug: "test-project", Description: "desc"}, want: "{{ name }} {{ slug }} {{ description }}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.project.FulltextTemplatized())
+		})
+	}
+}
+
+func TestProjectSettings_TagsTemplatized(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings *ProjectSettings
+		want     []string
+	}{
+		{name: "nil settings", settings: nil, want: nil},
+		{name: "empty settings", settings: &ProjectSettings{}, want: nil},
+		{name: "uid only", settings: &ProjectSettings{UID: "p1"}, want: []string{"{{ uid }}"}},
+		{name: "mission statement only", settings: &ProjectSettings{MissionStatement: "m"}, want: []string{"{{ mission_statement }}"}},
+		{name: "uid and mission statement", settings: &ProjectSettings{UID: "p1", MissionStatement: "m"}, want: []string{"{{ uid }}", "{{ mission_statement }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.settings.TagsTemplatized())
+		})
+	}
+}
+
+func TestProjectSettings_ParentRefsTemplatized(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  *ProjectSettings
+		want []string
+	}{
+		{name: "nil settings", obj: nil, want: nil},
+		{name: "no uid", obj: &ProjectSettings{}, want: nil},
+		{name: "uid set", obj: &ProjectSettings{UID: "p1"}, want: []string{"project:{{ uid }}"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+		})
+	}
+}
+
+func TestProjectSettings_IndexingConfig(t *testing.T) {
+	t.Run("nil settings returns nil", func(t *testing.T) {
+		var p *ProjectSettings
+		assert.Nil(t, p.IndexingConfig("p1"))
+	})
+
+	t.Run("access checks use the project uid, not the settings uid", func(t *testing.T) {
+		p := &ProjectSettings{UID: "settings-1", MissionStatement: "m"}
+		cfg := p.IndexingConfig("p1")
+		require.NotNil(t, cfg)
+		assert.Equal(t, "{{ uid }}", cfg.ObjectID)
+		assert.Equal(t, "project:p1", cfg.AccessCheckObject)
+		assert.Equal(t, "auditor_guard", cfg.AccessCheckRelation)
+		assert.Equal(t, "project:p1", cfg.HistoryCheckObject)
+		assert.Equal(t, "writer_guard", cfg.HistoryCheckRelation)
+		assert.Equal(t, []string{"project:{{ uid }}"}, cfg.ParentRefs)
+		assert.Equal(t, []string{"{{ uid }}", "{{ mission_statement }}"}, cfg.Tags)
+	})
 }
