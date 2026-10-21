@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
@@ -119,6 +120,10 @@ func TestNatsRepository_ListFolders(t *testing.T) {
 
 			got, err := repo.ListFolders(context.Background(), tt.projectUID)
 
+			// Assert before the error branch returns so error cases also prove the expected store calls happened.
+			if kv != nil {
+				kv.AssertExpectations(t)
+			}
 			if tt.wantErr != nil {
 				assert.Equal(t, tt.wantErr, err)
 				assert.Nil(t, got)
@@ -130,7 +135,6 @@ func TestNatsRepository_ListFolders(t *testing.T) {
 				uids = append(uids, f.UID)
 			}
 			assert.Equal(t, tt.wantUIDs, uids)
-			kv.AssertExpectations(t)
 		})
 	}
 }
@@ -192,6 +196,10 @@ func TestNatsRepository_ListAllLinks(t *testing.T) {
 
 			got, err := repo.ListAllLinks(context.Background(), tt.projectUID)
 
+			// Assert before the error branch returns so error cases also prove the expected store calls happened.
+			if kv != nil {
+				kv.AssertExpectations(t)
+			}
 			if tt.wantErr != nil {
 				assert.Equal(t, tt.wantErr, err)
 				assert.Nil(t, got)
@@ -203,7 +211,6 @@ func TestNatsRepository_ListAllLinks(t *testing.T) {
 				uids = append(uids, l.UID)
 			}
 			assert.Equal(t, tt.wantUIDs, uids)
-			kv.AssertExpectations(t)
 		})
 	}
 }
@@ -269,6 +276,10 @@ func TestNatsRepository_ListAllDocuments(t *testing.T) {
 
 			got, err := repo.ListAllDocuments(context.Background(), tt.projectUID)
 
+			// Assert before the error branch returns so error cases also prove the expected store calls happened.
+			if kv != nil {
+				kv.AssertExpectations(t)
+			}
 			if tt.wantErr != nil {
 				assert.Equal(t, tt.wantErr, err)
 				assert.Nil(t, got)
@@ -280,7 +291,6 @@ func TestNatsRepository_ListAllDocuments(t *testing.T) {
 				uids = append(uids, d.UID)
 			}
 			assert.Equal(t, tt.wantUIDs, uids)
-			kv.AssertExpectations(t)
 		})
 	}
 }
@@ -299,19 +309,28 @@ var updateCases = []updateCase{
 	{name: "other update error maps to internal error", updateErr: errors.New("boom"), wantErr: domain.ErrInternal},
 }
 
-func newUpdateKV(uid string, revision uint64, updateErr error) *MockKeyValue {
+// payloadEquals matches a KV write whose JSON body decodes to the wanted record.
+func payloadEquals[T any](want T) any {
+	return mock.MatchedBy(func(data []byte) bool {
+		var got T
+		return json.Unmarshal(data, &got) == nil && reflect.DeepEqual(got, want)
+	})
+}
+
+func newUpdateKV(uid string, revision uint64, payload any, updateErr error) *MockKeyValue {
 	kv := &MockKeyValue{}
-	kv.On("Update", mock.Anything, uid, mock.Anything, revision).Return(uint64(revision+1), updateErr)
+	kv.On("Update", mock.Anything, uid, payload, revision).Return(uint64(revision+1), updateErr)
 	return kv
 }
 
 func TestNatsRepository_UpdateFolder(t *testing.T) {
 	for _, tt := range updateCases {
 		t.Run(tt.name, func(t *testing.T) {
-			kv := newUpdateKV("f1", 4, tt.updateErr)
+			folder := models.ProjectFolder{UID: "f1", ProjectUID: "p1", Name: "Folder"}
+			kv := newUpdateKV("f1", 4, payloadEquals(folder), tt.updateErr)
 			repo := &NatsRepository{Folders: kv}
 
-			err := repo.UpdateFolder(context.Background(), &models.ProjectFolder{UID: "f1", ProjectUID: "p1", Name: "Folder"}, 4)
+			err := repo.UpdateFolder(context.Background(), &folder, 4)
 
 			assert.Equal(t, tt.wantErr, err)
 			kv.AssertExpectations(t)
@@ -322,10 +341,11 @@ func TestNatsRepository_UpdateFolder(t *testing.T) {
 func TestNatsRepository_UpdateLink(t *testing.T) {
 	for _, tt := range updateCases {
 		t.Run(tt.name, func(t *testing.T) {
-			kv := newUpdateKV("l1", 4, tt.updateErr)
+			link := models.ProjectLink{UID: "l1", ProjectUID: "p1", Name: "Link", URL: "https://example.com"}
+			kv := newUpdateKV("l1", 4, payloadEquals(link), tt.updateErr)
 			repo := &NatsRepository{Links: kv}
 
-			err := repo.UpdateLink(context.Background(), &models.ProjectLink{UID: "l1", ProjectUID: "p1", Name: "Link", URL: "https://example.com"}, 4)
+			err := repo.UpdateLink(context.Background(), &link, 4)
 
 			assert.Equal(t, tt.wantErr, err)
 			kv.AssertExpectations(t)
@@ -336,10 +356,11 @@ func TestNatsRepository_UpdateLink(t *testing.T) {
 func TestNatsRepository_UpdateDocumentMetadata(t *testing.T) {
 	for _, tt := range updateCases {
 		t.Run(tt.name, func(t *testing.T) {
-			kv := newUpdateKV("d1", 4, tt.updateErr)
+			doc := models.ProjectDocument{UID: "d1", ProjectUID: "p1", Name: "Doc"}
+			kv := newUpdateKV("d1", 4, payloadEquals(doc), tt.updateErr)
 			repo := &NatsRepository{Documents: kv}
 
-			err := repo.UpdateDocumentMetadata(context.Background(), &models.ProjectDocument{UID: "d1", ProjectUID: "p1", Name: "Doc"}, 4)
+			err := repo.UpdateDocumentMetadata(context.Background(), &doc, 4)
 
 			assert.Equal(t, tt.wantErr, err)
 			kv.AssertExpectations(t)

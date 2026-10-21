@@ -328,6 +328,7 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 		expected    *models.ProjectBase
 		expectedRev uint64
 		wantErr     bool
+		expectedErr error
 	}{
 		{
 			name:       "successful get with revision",
@@ -353,6 +354,25 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 			expected:    nil,
 			expectedRev: 0,
 			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:       "key-value store error returns internal error",
+			projectUID: "test-project-uid",
+			setupMocks: func(mockKV *MockKeyValue) {
+				mockKV.On("Get", mock.Anything, "test-project-uid").Return(nil, errors.New("nats error"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:       "invalid stored json returns unmarshal error",
+			projectUID: "test-project-uid",
+			setupMocks: func(mockKV *MockKeyValue) {
+				mockKV.On("Get", mock.Anything, "test-project-uid").Return(NewMockKeyValueEntry([]byte("{not json"), 1), nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrUnmarshal,
 		},
 	}
 
@@ -368,7 +388,7 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 			result, revision, err := repo.GetProjectBaseWithRevision(context.Background(), tt.projectUID)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErr, err)
 				assert.Nil(t, result)
 				assert.Equal(t, uint64(0), revision)
 			} else {
@@ -381,30 +401,6 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 			mockProjectsKV.AssertExpectations(t)
 		})
 	}
-
-	t.Run("key-value store error returns internal error", func(t *testing.T) {
-		mockKV := &MockKeyValue{}
-		mockKV.On("Get", mock.Anything, "test-project-uid").Return(nil, errors.New("nats error"))
-		repo := NewNatsRepository(mockKV, &MockKeyValue{})
-
-		got, rev, err := repo.GetProjectBaseWithRevision(context.Background(), "test-project-uid")
-
-		assert.Equal(t, domain.ErrInternal, err)
-		assert.Nil(t, got)
-		assert.Zero(t, rev)
-	})
-
-	t.Run("invalid stored json returns unmarshal error", func(t *testing.T) {
-		mockKV := &MockKeyValue{}
-		mockKV.On("Get", mock.Anything, "test-project-uid").Return(NewMockKeyValueEntry([]byte("{not json"), 1), nil)
-		repo := NewNatsRepository(mockKV, &MockKeyValue{})
-
-		got, rev, err := repo.GetProjectBaseWithRevision(context.Background(), "test-project-uid")
-
-		assert.Equal(t, domain.ErrUnmarshal, err)
-		assert.Nil(t, got)
-		assert.Zero(t, rev)
-	})
 }
 
 func TestNatsRepository_CreateProject(t *testing.T) {
@@ -2261,10 +2257,14 @@ func TestNatsRepository_PutDocumentFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockOS := &MockObjectStore{}
+			wantContents := mock.MatchedBy(func(r io.Reader) bool {
+				data, err := io.ReadAll(r)
+				return err == nil && string(data) == "file contents"
+			})
 			if tt.putErr != nil {
-				mockOS.On("Put", mock.Anything, jetstream.ObjectMeta{Name: docUID}, mock.Anything).Return(nil, tt.putErr)
+				mockOS.On("Put", mock.Anything, jetstream.ObjectMeta{Name: docUID}, wantContents).Return(nil, tt.putErr)
 			} else {
-				mockOS.On("Put", mock.Anything, jetstream.ObjectMeta{Name: docUID}, mock.Anything).Return(&jetstream.ObjectInfo{}, nil)
+				mockOS.On("Put", mock.Anything, jetstream.ObjectMeta{Name: docUID}, wantContents).Return(&jetstream.ObjectInfo{}, nil)
 			}
 			repo := &NatsRepository{DocumentFiles: mockOS}
 
