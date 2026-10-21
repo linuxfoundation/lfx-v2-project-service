@@ -258,6 +258,16 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 			wantErrStr: "user metadata not found",
 		},
 		{
+			name:       "success=false without error message returns generic not-found error",
+			reply:      replyMsg([]byte(`{"success":false}`)),
+			wantErrStr: "user metadata not found",
+		},
+		{
+			name:       "success=true with no data returns not-found error",
+			reply:      replyMsg([]byte(`{"success":true}`)),
+			wantErrStr: "user metadata not found",
+		},
+		{
 			name:       "malformed JSON returns parse error",
 			reply:      replyMsg([]byte(`not-json`)),
 			wantErrStr: "failed to parse user_metadata response",
