@@ -153,6 +153,10 @@ spec:
               value: {{ .Values.rootProject.writers | join "," | quote }}
             - name: ROOT_PROJECT_AUDITORS
               value: {{ .Values.rootProject.auditors | join "," | quote }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       {{- with .Values.topologySpreadConstraints }}
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
