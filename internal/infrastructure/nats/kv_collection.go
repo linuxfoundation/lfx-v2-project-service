@@ -106,12 +106,12 @@ func (c kvCollection[T]) list(ctx context.Context, keep func(*T) bool) ([]*T, er
 func (c kvCollection[T]) put(ctx context.Context, uid string, record *T) error {
 	data, err := json.Marshal(record)
 	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling "+c.noun+" into JSON", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error marshalling "+c.noun+" into JSON", constants.ErrKey, err, c.noun+"_uid", uid)
 		return domain.ErrInternal
 	}
 
 	if _, err = c.kv.Put(ctx, uid, data); err != nil {
-		slog.ErrorContext(ctx, "error putting "+c.noun+" into NATS KV store", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error putting "+c.noun+" into NATS KV store", constants.ErrKey, err, c.noun+"_uid", uid)
 		return domain.ErrInternal
 	}
 
@@ -123,16 +123,16 @@ func (c kvCollection[T]) put(ctx context.Context, uid string, record *T) error {
 func (c kvCollection[T]) update(ctx context.Context, uid string, record *T, revision uint64) error {
 	data, err := json.Marshal(record)
 	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling "+c.noun+" into JSON", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error marshalling "+c.noun+" into JSON", constants.ErrKey, err, c.noun+"_uid", uid)
 		return domain.ErrInternal
 	}
 
 	if _, err = c.kv.Update(ctx, uid, data, revision); err != nil {
 		if isJetStreamCASConflict(err) {
-			slog.WarnContext(ctx, "revision mismatch updating "+c.noun, constants.ErrKey, err)
+			slog.WarnContext(ctx, "revision mismatch updating "+c.noun, constants.ErrKey, err, c.noun+"_uid", uid)
 			return domain.ErrRevisionMismatch
 		}
-		slog.ErrorContext(ctx, "error updating "+c.noun+" in NATS KV store", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error updating "+c.noun+" in NATS KV store", constants.ErrKey, err, c.noun+"_uid", uid)
 		return domain.ErrInternal
 	}
 
@@ -144,10 +144,10 @@ func (c kvCollection[T]) update(ctx context.Context, uid string, record *T, revi
 func (c kvCollection[T]) deleteAt(ctx context.Context, uid string, revision uint64) error {
 	if err := c.kv.Delete(ctx, uid, jetstream.LastRevision(revision)); err != nil {
 		if isJetStreamCASConflict(err) {
-			slog.WarnContext(ctx, "revision mismatch deleting "+c.noun, constants.ErrKey, err)
+			slog.WarnContext(ctx, "revision mismatch deleting "+c.noun, constants.ErrKey, err, c.noun+"_uid", uid)
 			return domain.ErrRevisionMismatch
 		}
-		slog.ErrorContext(ctx, "error deleting "+c.noun+" from NATS KV store", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error deleting "+c.noun+" from NATS KV store", constants.ErrKey, err, c.noun+"_uid", uid)
 		return domain.ErrInternal
 	}
 
