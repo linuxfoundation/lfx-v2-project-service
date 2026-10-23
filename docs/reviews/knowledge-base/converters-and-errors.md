@@ -12,7 +12,7 @@ mapping discipline that the repo deliberately uses.
 
 **Read when:** `internal/service/converters.go`,
 `internal/service/*_operations.go`, `internal/domain/errors.go`,
-`internal/domain/message.go`, `internal/infrastructure/nats/repository.go`,
+`internal/domain/message.go`, `internal/infrastructure/nats/repository*.go`,
 `pkg/events/**`, `cmd/project-api/service_endpoint.go` (the `handleError`
 mapping), or `cmd/project-api/service_endpoint_project.go` changed.
 

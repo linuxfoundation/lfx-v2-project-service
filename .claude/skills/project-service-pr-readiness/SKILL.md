@@ -42,7 +42,7 @@ Use this repo-specific list. Do not import the central Angular list or generic
   `api/project/v1/gen/http/openapi*`, and README API-contract sections.
 - **NATS/KV publisher contracts:** `pkg/constants/nats.go`,
   `internal/infrastructure/nats/message.go`,
-  `internal/infrastructure/nats/repository.go`, `docs/indexer-contract.md`,
+  `internal/infrastructure/nats/repository*.go` (non-test), `docs/indexer-contract.md`,
   `docs/fga-contract.md`.
 - **Charts and deployment contracts:** `charts/lfx-v2-project-service/**`.
 - **Dependency and build surfaces:** `go.mod`, `go.sum`, `Makefile`.

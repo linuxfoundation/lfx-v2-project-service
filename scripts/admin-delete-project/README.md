@@ -7,7 +7,7 @@ they are orphaned / no longer visible in the UI / created in error).
 
 > This script bypasses the API-layer guards. It mirrors the cleanup the
 > service would do internally (`internal/service/project_operations.go::DeleteProject` +
-> `internal/infrastructure/nats/repository.go::DeleteProject`) by reusing the
+> `internal/infrastructure/nats/repository_project.go::DeleteProject`) by reusing the
 > production `MessageBuilder` and the same NATS subjects / KV keys. Use with care.
 
 ## What it does, per UID

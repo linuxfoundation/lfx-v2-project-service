@@ -167,7 +167,7 @@ paths or a generic lfx-skills hook.
   `api/project/v1/gen/http/openapi*`, README API-contract sections.
 - **NATS/KV publisher contracts:** `pkg/constants/nats.go`,
   `internal/infrastructure/nats/message.go`,
-  `internal/infrastructure/nats/repository.go`, `docs/indexer-contract.md`,
+  `internal/infrastructure/nats/repository*.go` (non-test), `docs/indexer-contract.md`,
   `docs/fga-contract.md`.
 - **Charts and deployment contracts:** `charts/lfx-v2-project-service/**`.
 - **Dependency and build surfaces:** `go.mod`, `go.sum`, `Makefile`.
