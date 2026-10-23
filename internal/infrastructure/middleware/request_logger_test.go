@@ -64,7 +64,7 @@ func TestRequestLoggerMiddleware(t *testing.T) {
 			wrappedHandler := middleware(handler)
 
 			// Create request
-			req := httptest.NewRequest(tc.method, tc.path, nil)
+			req := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil)
 			req.Header.Set("User-Agent", tc.userAgent)
 			req.RemoteAddr = tc.remoteAddr
 

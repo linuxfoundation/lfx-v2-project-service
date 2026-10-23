@@ -153,7 +153,6 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	g.SetLimit(r.concurrency)
 
 	for _, base := range bases {
-		base := base
 		m := missing[base.UID]
 		if !m.Any() {
 			statsMu.Lock()
@@ -187,7 +186,6 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	// explicit --project-uid, which already reindexes ROOT via the normal path.
 	if r.all && r.includeAccess {
 		for _, base := range rootBases {
-			base := base
 			g.Go(func() error {
 				err := r.reindexRootAccess(gCtx, base)
 

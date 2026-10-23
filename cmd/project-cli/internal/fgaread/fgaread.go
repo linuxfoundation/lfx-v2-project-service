@@ -149,7 +149,7 @@ func (c *Client) ReadProjectTuples(ctx context.Context, projectUID string, keep 
 			return nil, fmt.Errorf("create OpenFGA request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		resp, err := c.http.Do(req)
+		resp, err := c.http.Do(req) //nolint:bodyclose // decodePage closes the body
 		if err != nil {
 			// *url.Error embeds the request URL, which carries the store ID.
 			var urlErr *url.Error

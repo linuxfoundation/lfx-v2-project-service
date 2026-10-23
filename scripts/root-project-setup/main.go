@@ -197,7 +197,7 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models
 	uidEntry, err := projectsKV.Get(ctx, rootProjectSlugKey)
 	if err != nil {
 		// The root project not existing isn't an error we care about, it just means we need to create it.
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
 		}
 		slog.ErrorContext(ctx, "error checking for ROOT project existence", errKey, err)
@@ -207,7 +207,7 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models
 	// Try to get the ROOT project by UID from slug -> UID mapping
 	p, err := projectsKV.Get(ctx, string(uidEntry.Value()))
 	if err != nil {
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.ErrorContext(ctx, "ROOT project UID not found in KV store but slug key was", errKey, err)
 			return nil, errors.New("ROOT project UID not found in KV store")
 		}

@@ -252,7 +252,6 @@ func (r *RenameSlugRunner) migrateBucket(ctx context.Context, bucket, oldSlug, n
 	g.SetLimit(concurrency)
 
 	for _, key := range recordKeys {
-		key := key
 		g.Go(func() error {
 			var err error
 			if bucket == projectsBucket {

@@ -121,10 +121,10 @@ func TestParseRPCError(t *testing.T) {
 			}
 
 			// Cross-check: not_found must not also satisfy ErrRPCInternal and vice versa.
-			if tt.wantErr == ErrRPCNotFound && errors.Is(gotErr, ErrRPCInternal) {
+			if errors.Is(tt.wantErr, ErrRPCNotFound) && errors.Is(gotErr, ErrRPCInternal) {
 				t.Errorf("ParseRPCError() returned ErrRPCInternal for not_found input")
 			}
-			if tt.wantErr == ErrRPCInternal && errors.Is(gotErr, ErrRPCNotFound) {
+			if errors.Is(tt.wantErr, ErrRPCInternal) && errors.Is(gotErr, ErrRPCNotFound) {
 				t.Errorf("ParseRPCError() returned ErrRPCNotFound for internal/unknown input")
 			}
 		})

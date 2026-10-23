@@ -65,8 +65,8 @@ func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentU
 	if err != nil {
 		slog.ErrorContext(ctx, "fga writer_guard check on parent failed",
 			constants.ErrKey, err,
-			slog.String("parent_uid", parentUID),
-			slog.String("parent_role", role),
+			"parent_uid", parentUID,
+			"parent_role", role,
 		)
 		return domain.ErrInternal
 	}

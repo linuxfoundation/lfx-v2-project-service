@@ -78,6 +78,7 @@ func ParseRPCError(data []byte) (error, bool) {
 	}
 	var envelope RPCError
 	if err := json.Unmarshal(data, &envelope); err != nil || envelope.Code == "" {
+		//nolint:nilerr // data that is not an RPC error envelope is a success reply, not an error
 		return nil, false
 	}
 	if envelope.Code == RPCErrorNotFound {

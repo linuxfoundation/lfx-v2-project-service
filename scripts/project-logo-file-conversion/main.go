@@ -225,7 +225,11 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 
 	downloadImageTime := time.Now()
 	client := safeHTTPClient()
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("http bad status", "url", url, "error", err)
 		return nil, err

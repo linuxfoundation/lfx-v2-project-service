@@ -62,7 +62,7 @@ func TestRouteTaggingMiddleware(t *testing.T) {
 			router.Get("/projects/{uid}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 			ctx, span := tp.Tracer("test").Start(t.Context(), "original")
-			req := httptest.NewRequest(tt.method, tt.path, nil).WithContext(ctx)
+			req := httptest.NewRequestWithContext(ctx, tt.method, tt.path, nil)
 			res := httptest.NewRecorder()
 			router.ServeHTTP(res, req)
 			span.End()
@@ -90,7 +90,7 @@ func TestRouteTaggingMiddleware(t *testing.T) {
 		}))
 
 		// No chi route context and no active span: must not panic.
-		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 		assert.True(t, called)
 	})

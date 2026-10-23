@@ -44,8 +44,8 @@ func TestNewValidationError(t *testing.T) {
 
 			if tt.wantSentinel {
 				// Empty reason must return the sentinel itself, not a wrapped copy.
-				// Use == to verify pointer/identity equality, not just value equality.
-				assert.True(t, err == ErrValidationFailed,
+				// Same verifies pointer identity, not just value equality.
+				assert.Same(t, ErrValidationFailed, err,
 					"empty reason should return the ErrValidationFailed sentinel directly")
 			} else {
 				// Non-empty reason must return a distinct wrapped error.

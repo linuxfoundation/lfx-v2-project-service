@@ -574,7 +574,7 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
 
-			if tt.expectedErr == domain.ErrServiceUnavailable {
+			if errors.Is(tt.expectedErr, domain.ErrServiceUnavailable) {
 				service.ProjectRepository = nil
 			}
 			tt.setupMocks(mockRepo, mockBuilder)
@@ -690,7 +690,7 @@ func TestProjectsService_GetOneProjectSettings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, _ := setupServiceForTesting()
 
-			if tt.expectedErr == domain.ErrServiceUnavailable {
+			if errors.Is(tt.expectedErr, domain.ErrServiceUnavailable) {
 				service.ProjectRepository = nil
 			}
 			tt.setupMocks(mockRepo)
@@ -1801,7 +1801,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				defer tt.fgaChecker.AssertExpectations(t)
 			}
 
-			if tt.expectedErr == domain.ErrServiceUnavailable {
+			if errors.Is(tt.expectedErr, domain.ErrServiceUnavailable) {
 				service.ProjectRepository = nil
 			}
 
@@ -2425,7 +2425,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 
 			service.Config.SkipEtagValidation = tt.skipEtag
 
-			if tt.expectedErr == domain.ErrServiceUnavailable {
+			if errors.Is(tt.expectedErr, domain.ErrServiceUnavailable) {
 				service.ProjectRepository = nil
 			}
 
@@ -2524,7 +2524,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
 
-			if tt.expectedErr == domain.ErrServiceUnavailable {
+			if errors.Is(tt.expectedErr, domain.ErrServiceUnavailable) {
 				service.ProjectRepository = nil
 			}
 

@@ -50,7 +50,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(`{}`))
+			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, strings.NewReader(`{}`))
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
 			}
@@ -63,7 +63,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 	}
 
 	t.Run("valid body is decoded", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"slug":"test-project"}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects", strings.NewReader(`{"slug":"test-project"}`))
 		req.Header.Set("Content-Type", "application/json")
 
 		var dst map[string]any
@@ -72,7 +72,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 	})
 
 	t.Run("duplicate parent_uid keys fail on decode", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"parent_uid":"a","PARENT_UID":"b"}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects", strings.NewReader(`{"parent_uid":"a","PARENT_UID":"b"}`))
 		req.Header.Set("Content-Type", "application/json")
 
 		var dst map[string]any
@@ -83,7 +83,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 	})
 
 	t.Run("malformed JSON fails on decode", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"slug":`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects", strings.NewReader(`{"slug":`))
 		req.Header.Set("Content-Type", "application/json")
 
 		var dst map[string]any
@@ -92,7 +92,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 
 	t.Run("body read failure is surfaced on decode", func(t *testing.T) {
 		readErr := errors.New("connection reset")
-		req := httptest.NewRequest(http.MethodPost, "/projects", errReader{err: readErr})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects", errReader{err: readErr})
 		req.Header.Set("Content-Type", "application/json")
 
 		var dst map[string]any
@@ -153,7 +153,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 					nil,
 				)
 
-				req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(tt.body))
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects", strings.NewReader(tt.body))
 				if tt.contentType != "" {
 					req.Header.Set("Content-Type", tt.contentType)
 				}

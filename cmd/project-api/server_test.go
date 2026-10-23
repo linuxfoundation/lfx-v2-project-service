@@ -51,7 +51,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/livez", nil))
+		handler.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/livez", nil))
 
 		assert.Equal(t, http.StatusOK, res.Code)
 		assert.Equal(t, "OK\n", res.Body.String())
@@ -62,7 +62,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		api, _, _ := setupAPI()
 		handler := newHTTPHandler(api)
 
-		req := httptest.NewRequest(http.MethodGet, "/livez", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/livez", nil)
 		req.Header.Set(constants.RequestIDHeader, "request-123")
 		res := httptest.NewRecorder()
 		handler.ServeHTTP(res, req)
@@ -75,7 +75,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		handler.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/readyz", nil))
 
 		assert.Equal(t, http.StatusOK, res.Code)
 	})
@@ -86,7 +86,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		handler.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/readyz", nil))
 
 		assert.Equal(t, http.StatusServiceUnavailable, res.Code)
 	})
@@ -96,7 +96,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/does-not-exist", nil))
+		handler.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/does-not-exist", nil))
 
 		assert.Equal(t, http.StatusNotFound, res.Code)
 	})
@@ -106,7 +106,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/_projects/openapi.json", nil))
+		handler.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_projects/openapi.json", nil))
 
 		assert.Equal(t, http.StatusOK, res.Code)
 		assert.JSONEq(t, `{"openapi":"test"}`, res.Body.String())
@@ -135,7 +135,7 @@ func TestNewHTTPHandler(t *testing.T) {
 				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, uid).Return(&models.ProjectSettings{UID: uid}, uint64(8), nil)
 				handler := newHTTPHandler(api)
 
-				req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.path, nil)
 				req.Header.Set("Authorization", "Bearer test-token")
 				res := httptest.NewRecorder()
 				handler.ServeHTTP(res, req)
@@ -158,7 +158,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		// unknown field, so only the size limit can make the request fail.
 		padding := strings.Repeat("a", int(models.MaxDocumentFileSize)+(2<<20))
 		body := `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"","padding":"` + padding + `"}`
-		req := httptest.NewRequest(http.MethodPost, "/projects?v=1", strings.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects?v=1", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-token")
 		res := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler := newHTTPHandler(api)
 
 		body := `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
-		req := httptest.NewRequest(http.MethodPost, "/projects?v=1", strings.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/projects?v=1", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-token")
 		res := httptest.NewRecorder()

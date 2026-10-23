@@ -5,6 +5,33 @@
 version: "2"
 
 linters:
+  # Added on top of the v2 defaults (errcheck, govet, ineffassign, staticcheck,
+  # unused).
+  enable:
+    # Sentinel errors must be compared with errors.Is/As so wrapping keeps working.
+    - errorlint
+    # Loop-variable copies are redundant since Go 1.22.
+    - copyloopvar
+    # Prefer net/http constants (http.MethodPost, http.StatusOK) over literals.
+    - usestdlibvars
+    # Enforces the structured-logging convention: no mixing key-value pairs with
+    # slog.Attr arguments in one call.
+    - sloglint
+    # HTTP response bodies must be closed.
+    - bodyclose
+    # Outbound HTTP requests must carry a context.
+    - noctx
+    # An error that is checked but then dropped (returns nil) is usually a bug.
+    - nilerr
+    - misspell
+    # Reports //nolint directives that no longer suppress anything, so a stale or
+    # copy-pasted directive cannot hide a real finding later.
+    - nolintlint
+  settings:
+    misspell:
+      # Goa names its JWT security interface "Auther".
+      ignore-rules:
+        - auther
   exclusions:
     rules:
       # scripts/project-logo-file-conversion imports AWS SDK packages (s3,
