@@ -170,6 +170,7 @@ func TestRecordSpanError(t *testing.T) {
 	span.End()
 
 	ended := spanRecorder.Ended()
+	require.NotEmpty(t, ended)
 	got := ended[len(ended)-1]
 	assert.Equal(t, "record-span-error-test", got.Name())
 	assert.Equal(t, codes.Error, got.Status().Code)
@@ -218,6 +219,7 @@ func TestRequestWithSpan(t *testing.T) {
 			conn.AssertExpectations(t)
 
 			ended := spanRecorder.Ended()
+			require.NotEmpty(t, ended)
 			got := ended[len(ended)-1]
 			assert.Equal(t, "nats.request", got.Name())
 			assert.Equal(t, trace.SpanKindClient, got.SpanKind())
