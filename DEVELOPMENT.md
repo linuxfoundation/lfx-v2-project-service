@@ -6,7 +6,7 @@ This guide provides comprehensive instructions for developers working on the LFX
 
 Before you begin development, ensure you have the following tools installed:
 
-- **Go 1.25+** - [Download and install Go](https://golang.org/dl/). The module declares `go 1.25.0`.
+- **Go 1.25+** - [Download and install Go](https://golang.org/dl/). The exact version is the `go` directive in `go.mod`.
 - **Goa v3** - Code generation framework
 
   ```bash
@@ -158,6 +158,10 @@ make lint
 
 # Check formatting and linting without modifying files
 make check
+
+# Scan for known vulnerabilities in called code. Not part of `make check`.
+# Needs govulncheck: go install golang.org/x/vuln/cmd/govulncheck@latest
+make vuln
 ```
 
 ### 5. Testing

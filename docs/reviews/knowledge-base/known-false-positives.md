@@ -109,7 +109,7 @@ directive from the invite-service dependency. Happy to drop the suggestion").
 goroutine captures a shared loop variable and will observe the wrong/last value,
 recommending `x := x` rebinding.
 
-**Why false:** this repo targets Go 1.25 (`go.mod` declares `go 1.25.0`). Since
+**Why false:** this repo targets Go 1.25 (see the `go` directive in `go.mod`). Since
 Go 1.22 the loop variable is re-bound per iteration, so each closure captures its
 own copy. The classic capture hazard does not apply here.
 

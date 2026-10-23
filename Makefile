@@ -52,6 +52,7 @@ help:
 	@echo "  test-coverage  - Run tests with coverage report"
 	@echo "  clean          - Remove generated files and binaries"
 	@echo "  lint           - Run golangci-lint"
+	@echo "  vuln           - Scan for known vulnerabilities with govulncheck"
 	@echo "  fmt            - Format Go code"
 	@echo "  check          - Run fmt, lint, and license check without modifying files"
 	@echo "  license-check  - Check for license headers (basic validation)"
@@ -149,6 +150,19 @@ lint:
 		golangci-lint run ./...; \
 	else \
 		echo "golangci-lint not found. Run 'make deps' to install it."; \
+		exit 1; \
+	fi
+
+# Scan for known vulnerabilities in called code (standard library and dependencies).
+# Not part of check or all: new advisories are published continuously, so this is a
+# manual feedback loop rather than a gate.
+.PHONY: vuln
+vuln:
+	@echo "==> Scanning for known vulnerabilities..."
+	@if command -v govulncheck >/dev/null 2>&1; then \
+		govulncheck ./...; \
+	else \
+		echo "govulncheck not found. Run 'go install golang.org/x/vuln/cmd/govulncheck@latest'."; \
 		exit 1; \
 	fi
 
