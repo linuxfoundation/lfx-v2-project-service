@@ -95,25 +95,6 @@ func (m *NatsMsg) Subject() string {
 // Ensure NatsMsg implements domain.Message interface
 var _ domain.Message = (*NatsMsg)(nil)
 
-type MockNatsMsg struct {
-	mock.Mock
-	data    []byte
-	subject string
-}
-
-func (m *MockNatsMsg) Respond(data []byte) error {
-	args := m.Called(data)
-	return args.Error(0)
-}
-
-func (m *MockNatsMsg) Data() []byte {
-	return m.data
-}
-
-func (m *MockNatsMsg) Subject() string {
-	return m.subject
-}
-
 // INatsKeyValue is a NATS KV interface needed for the [ProjectsService].
 type INatsKeyValue interface {
 	ListKeys(context.Context, ...jetstream.WatchOpt) (jetstream.KeyLister, error)
