@@ -17,8 +17,6 @@ import (
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
-	"github.com/nats-io/nats.go"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -52,14 +50,8 @@ func (m *MessageBuilder) publishMessage(ctx context.Context, subject string, dat
 	)
 	defer span.End()
 
-	msg := nats.NewMsg(subject)
-	msg.Header = make(nats.Header)
-	msg.Data = data
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
-
-	if err := m.NatsConn.PublishMsg(msg); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+	if err := m.NatsConn.PublishMsg(newTracedMsg(ctx, subject, data)); err != nil {
+		recordSpanError(span, err)
 		return err
 	}
 	span.SetStatus(codes.Ok, "")
@@ -211,25 +203,9 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 		return domain.InviteResult{}, err
 	}
 
-	ctx, span := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", inviteapi.SendInviteSubject),
-			attribute.Int("messaging.message.body.size", len(data)),
-		),
-	)
+	ctx, span, reply, err := requestWithSpan(ctx, m.NatsConn, inviteapi.SendInviteSubject, data)
 	defer span.End()
-
-	inviteMsg := nats.NewMsg(inviteapi.SendInviteSubject)
-	inviteMsg.Header = make(nats.Header)
-	inviteMsg.Data = data
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(inviteMsg.Header))
-
-	reply, err := m.NatsConn.RequestMsgWithContext(ctx, inviteMsg)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "invite service request failed", constants.ErrKey, err)
 		return domain.InviteResult{}, fmt.Errorf("invite service request: %w", err)
 	}
@@ -237,23 +213,20 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 	var resp inviteapi.SendInviteResponse
 	if len(reply.Data) > 0 {
 		if jsonErr := json.Unmarshal(reply.Data, &resp); jsonErr != nil {
-			span.RecordError(jsonErr)
-			span.SetStatus(codes.Error, jsonErr.Error())
+			recordSpanError(span, jsonErr)
 			slog.ErrorContext(ctx, "error unmarshalling invite response", constants.ErrKey, jsonErr)
 			return domain.InviteResult{}, fmt.Errorf("invite service response: %w", jsonErr)
 		}
 		if resp.Error != "" {
 			err := fmt.Errorf("invite service error: %s", resp.Error)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			recordSpanError(span, err)
 			return domain.InviteResult{}, err
 		}
 	}
 
 	if resp.InviteData == nil || resp.UID == "" {
 		err := fmt.Errorf("invite service returned success but invite_uid is empty")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return domain.InviteResult{}, err
 	}
 	span.SetStatus(codes.Ok, "")
@@ -274,25 +247,9 @@ func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.Send
 		return err
 	}
 
-	ctx, emailSpan := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", emailapi.SendEmailSubject),
-			attribute.Int("messaging.message.body.size", len(data)),
-		),
-	)
-	defer emailSpan.End()
-
-	emailMsg := nats.NewMsg(emailapi.SendEmailSubject)
-	emailMsg.Header = make(nats.Header)
-	emailMsg.Data = data
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
-
-	reply, err := m.NatsConn.RequestMsgWithContext(ctx, emailMsg)
+	ctx, span, reply, err := requestWithSpan(ctx, m.NatsConn, emailapi.SendEmailSubject, data)
+	defer span.End()
 	if err != nil {
-		emailSpan.RecordError(err)
-		emailSpan.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "email service request failed", constants.ErrKey, err)
 		return fmt.Errorf("email service request: %w", err)
 	}
@@ -301,12 +258,11 @@ func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.Send
 		var errResp emailapi.SendEmailErrorResponse
 		if jsonErr := json.Unmarshal(reply.Data, &errResp); jsonErr == nil && errResp.Error != "" {
 			err := fmt.Errorf("email service error: %s", errResp.Error)
-			emailSpan.RecordError(err)
-			emailSpan.SetStatus(codes.Error, err.Error())
+			recordSpanError(span, err)
 			return err
 		}
 	}
 
-	emailSpan.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
