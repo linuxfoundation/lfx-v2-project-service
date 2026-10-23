@@ -10,11 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	natsgo "github.com/nats-io/nats.go"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -48,45 +44,26 @@ type UserReaderNATS struct {
 
 // UserMetadataByPrincipal retrieves profile metadata for a user from the auth service by principal.
 func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal string) (*domain.UserMetadata, error) {
-	ctx, span := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", constants.AuthUserMetadataReadSubject),
-			attribute.Int("messaging.message.body.size", len(principal)),
-		),
-	)
+	_, span, reply, err := requestWithSpan(ctx, u.NatsConn, constants.AuthUserMetadataReadSubject, []byte(principal))
 	defer span.End()
-
-	msg := natsgo.NewMsg(constants.AuthUserMetadataReadSubject)
-	msg.Header = make(natsgo.Header)
-	msg.Data = []byte(principal)
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
-
-	reply, err := u.NatsConn.RequestMsgWithContext(ctx, msg)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	var response userMetadataNATSResponse
 	if err := json.Unmarshal(reply.Data, &response); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return nil, fmt.Errorf("failed to parse user_metadata response: %w", err)
 	}
 
 	if !response.Success || response.Data == nil {
 		if response.Error != "" {
 			err := fmt.Errorf("user metadata not found: %s", response.Error)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			recordSpanError(span, err)
 			return nil, err
 		}
 		err := fmt.Errorf("user metadata not found")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
@@ -111,25 +88,9 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 // UsernameByEmail resolves the registered LFID username for the given primary email address.
 // The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
 func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
-	ctx, span := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", constants.AuthEmailToUsernameSubject),
-			attribute.Int("messaging.message.body.size", len(email)),
-		),
-	)
+	_, span, reply, err := requestWithSpan(ctx, u.NatsConn, constants.AuthEmailToUsernameSubject, []byte(email))
 	defer span.End()
-
-	emailMsg := natsgo.NewMsg(constants.AuthEmailToUsernameSubject)
-	emailMsg.Header = make(natsgo.Header)
-	emailMsg.Data = []byte(email)
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
-
-	reply, err := u.NatsConn.RequestMsgWithContext(ctx, emailMsg)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("email_to_username request failed: %w", err)
 	}
 
@@ -138,8 +99,7 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 	// newline or leading space don't corrupt the username or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
-		span.RecordError(domain.ErrUserNotFound)
-		span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
+		recordSpanError(span, domain.ErrUserNotFound)
 		return "", domain.ErrUserNotFound
 	}
 
@@ -153,24 +113,20 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 			Error   string `json:"error,omitempty"`
 		}
 		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			recordSpanError(span, err)
 			return "", fmt.Errorf("failed to parse email_to_username response: %w", err)
 		}
 		if envelope.Success == nil {
 			err := fmt.Errorf("email_to_username response missing success field")
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			recordSpanError(span, err)
 			return "", err
 		}
 		if !*envelope.Success {
-			span.RecordError(domain.ErrUserNotFound)
-			span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
+			recordSpanError(span, domain.ErrUserNotFound)
 			return "", domain.ErrUserNotFound
 		}
 		err := fmt.Errorf("unexpected email_to_username success envelope")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return "", err
 	}
 
@@ -178,8 +134,7 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 	// not shaped like an LFID before it can be persisted or published as an FGA principal.
 	if !validLFIDUsername.MatchString(body) {
 		err := fmt.Errorf("email_to_username response is not a valid username")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return "", err
 	}
 
@@ -208,15 +163,6 @@ func (u *UserReaderNATS) PrimaryEmailByUsername(ctx context.Context, username st
 		return "", nil
 	}
 
-	ctx, span := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", constants.AuthUserEmailsReadSubject),
-		),
-	)
-	defer span.End()
-
 	body := userEmailsRequest{}
 	body.User.AuthToken = username
 	payload, err := json.Marshal(body)
@@ -224,22 +170,15 @@ func (u *UserReaderNATS) PrimaryEmailByUsername(ctx context.Context, username st
 		return "", fmt.Errorf("failed to marshal user_emails request: %w", err)
 	}
 
-	msg := natsgo.NewMsg(constants.AuthUserEmailsReadSubject)
-	msg.Header = make(natsgo.Header)
-	msg.Data = payload
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
-
-	reply, err := u.NatsConn.RequestMsgWithContext(ctx, msg)
+	_, span, reply, err := requestWithSpan(ctx, u.NatsConn, constants.AuthUserEmailsReadSubject, payload)
+	defer span.End()
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("user_emails request failed: %w", err)
 	}
 
 	var emails userEmailsResponse
 	if err := json.Unmarshal(reply.Data, &emails); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		recordSpanError(span, err)
 		return "", fmt.Errorf("failed to parse user_emails response: %w", err)
 	}
 	if emails.Success == nil || !*emails.Success {

@@ -9,6 +9,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -70,4 +71,42 @@ func ExtractMsgContext(ctx context.Context, msg *natsgo.Msg, subject string) (co
 		),
 	)
 	return msgCtx, func() { span.End() }
+}
+
+// newTracedMsg builds a NATS message with the OTel trace context injected into its headers.
+func newTracedMsg(ctx context.Context, subject string, data []byte) *natsgo.Msg {
+	msg := natsgo.NewMsg(subject)
+	msg.Header = make(natsgo.Header)
+	msg.Data = data
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
+	return msg
+}
+
+// requestWithSpan sends a core-NATS request under an OTel client span and returns the
+// span's context, the span and the reply. The caller owns the span: it must defer
+// span.End() before checking err, and record the outcome of anything it does with the
+// reply via recordSpanError or span.SetStatus. A transport error is recorded on the span
+// before it is returned unwrapped.
+func requestWithSpan(ctx context.Context, conn INatsConn, subject string, data []byte) (context.Context, trace.Span, *natsgo.Msg, error) {
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", subject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+
+	reply, err := conn.RequestMsgWithContext(ctx, newTracedMsg(ctx, subject, data))
+	if err != nil {
+		recordSpanError(span, err)
+		return ctx, span, nil, err
+	}
+	return ctx, span, reply, nil
+}
+
+// recordSpanError records err on the span and marks the span as failed.
+func recordSpanError(span trace.Span, err error) {
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 }
