@@ -24,7 +24,7 @@ const (
 	ObjectStoreNameProjectDocuments = "project-documents"
 
 	// KVSlugKey is the projects-bucket key mapping a project slug to its UID.
-	KVSlugKey = "slug/%s"
+	KVSlugKey = KVSlugPrefix + "%s"
 
 	// KVSlugPrefix is the key prefix shared by all slug mappings in the projects bucket.
 	KVSlugPrefix = "slug/"

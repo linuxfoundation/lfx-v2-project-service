@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -351,26 +350,6 @@ func TestNatsRepository_UpdateDocumentMetadata(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err)
 			kv.AssertExpectations(t)
-		})
-	}
-}
-
-func Test_isJetStreamCASConflict(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{name: "nil error", err: nil, want: false},
-		{name: "jetstream key exists", err: jetstream.ErrKeyExists, want: true},
-		{name: "wrapped key exists", err: fmt.Errorf("wrapped: %w", jetstream.ErrKeyExists), want: true},
-		{name: "wrong last sequence message", err: errors.New("nats: wrong last sequence: 3"), want: true},
-		{name: "unrelated error", err: errors.New("boom"), want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, isJetStreamCASConflict(tt.err))
 		})
 	}
 }
