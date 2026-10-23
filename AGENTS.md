@@ -180,7 +180,8 @@ cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint
 
 cmd/project-cli/            # Operational CLI for repair, sync and inspection jobs (see its README)
 ├── commands/sync/         # Write commands: reindex-projects, rename-project-slug, document-audit-users, verify-global-grants
-└── commands/inspect/      # Read-only checks: project, slug-index, orphans, index-drift, settings-access, children, parents
+├── commands/inspect/      # Read-only checks: project, slug-index, orphans, index-drift, settings-access, children, parents
+└── internal/              # fgaread (OpenFGA read client) and osdiff (OpenSearch diff helpers)
 
 internal/                   # Core business logic
 ├── domain/                # Domain layer: repository/publisher interfaces, errors (errors.go), UID validation (uid.go), FGA and auth types
@@ -225,7 +226,7 @@ pkg/                    # Shared packages across services
 
 docs/                   # Contract docs, service overview and the review knowledge base
 
-scripts/                # One-off and operational Go programs (admin-delete-project, root-project-setup, load_mock_data, global-grant-backfill, marketing-ops-grant, root-team-tuple-cleanup, project-logo-file-conversion)
+scripts/                # One-off and operational programs and shell scripts (admin-delete-project, root-project-setup, load_mock_data, global-grant-backfill, marketing-ops-grant, root-team-tuple-cleanup, project-logo-file-conversion)
 ```
 
 ### Key Design Principles
@@ -357,7 +358,7 @@ make check  # Check format and lint without modifying
 make vuln   # Scan called code for known vulnerabilities with govulncheck (manual; not part of check)
 ```
 
-`.golangci.yml` runs the golangci-lint v2 defaults plus `errorlint`, `copyloopvar`, `usestdlibvars`, `sloglint`, `bodyclose`, `noctx`, `nilerr`, `misspell` and `nolintlint`. In practice: compare errors with `errors.Is`, give HTTP requests (including `httptest.NewRequestWithContext(t.Context(), ...)` in tests) a context, and do not mix key-value pairs with `slog.Attr` in one log call. A `//nolint` directive needs a reason and must still be needed, or `nolintlint` reports it. golangci-lint caps repeated identical findings by default; run it with `--max-same-issues 0 --max-issues-per-linter 0` to see them all.
+`.golangci.yml` runs the golangci-lint v2 defaults plus `errorlint`, `copyloopvar`, `usestdlibvars`, `sloglint`, `bodyclose`, `noctx`, `nilerr`, `misspell` and `nolintlint`. In practice: compare errors with `errors.Is`, give HTTP requests (including `httptest.NewRequestWithContext(t.Context(), ...)` in tests) a context, and do not mix key-value pairs with `slog.Attr` in one log call. Give every `//nolint` directive a reason; `nolintlint` reports one that no longer suppresses anything, but does not require the reason. golangci-lint caps repeated identical findings by default; run it with `--max-same-issues 0 --max-issues-per-linter 0` to see them all.
 
 Not a review finding (2026-09-29): a bare "run `make fmt` / `make lint` / `make check` / `make build` / `make test` / `make apigen`" without a concrete violation is owned by CI and `/project-service-preflight`, so a code reviewer does not report it; see `docs/reviews/knowledge-base/known-false-positives.md` § "Run gofmt / golangci-lint / go vet".
 
