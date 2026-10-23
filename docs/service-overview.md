@@ -64,7 +64,7 @@ Three rules follow from this layout:
 
 - A link, folder or document UID from a caller must have the shape of a UID before it is used as a key (`domain.IsValidUID`, applied in `kvCollection.getForProject`), so index and reservation keys cannot be read by guessing. Project UIDs are validated as UUIDs at the HTTP and NATS boundaries.
 - A sub-resource must belong to the project in the route. Heimdall authorizes only the project in the path (`/projects/:uid/...`), so the service itself confirms the record's `project_uid` matches and reports it as not found otherwise (`kvCollection.getForProject`). A new sub-resource read or write must go through it or repeat the check, otherwise a writer on one project could reach another project's content.
-- The record, not the index key, is the source of truth. Listing code skips index keys (`slug/` in the `projects` bucket, `lookup/` elsewhere), and `project-cli inspect children` reports records without their index key and index keys without their record.
+- The record, not the index key, is the source of truth, with one exception in how lists are built: a project's links are listed by following its `lookup/project-links/<projectUID>/` keys, so a link whose index key is missing is absent from that list even though its record exists (a stale key whose record is gone is skipped with a warning). Other listings scan the records and skip index keys (`slug/` in the `projects` bucket, `lookup/` elsewhere). `project-cli inspect children` reports records without their index key and index keys without their record.
 
 ### Revisions
 
