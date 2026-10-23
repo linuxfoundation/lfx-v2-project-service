@@ -74,7 +74,7 @@ func TestAuthorizationMiddleware(t *testing.T) {
 			wrappedHandler := middleware(handler)
 
 			// Create request
-			req := httptest.NewRequestWithContext(t.Context(), "GET", "/test", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 			if tc.authorizationHeader != "" {
 				req.Header.Set(constants.AuthorizationHeader, tc.authorizationHeader)
 			}
@@ -183,7 +183,7 @@ func TestAuthorizationMiddlewareIntegration(t *testing.T) {
 			}
 
 			// Create request
-			req := httptest.NewRequestWithContext(t.Context(), "GET", "/test", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 			tc.setupRequest(req)
 
 			rec := httptest.NewRecorder()
@@ -226,7 +226,7 @@ func TestAuthorizationMiddlewareConcurrency(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 
-			req := httptest.NewRequestWithContext(t.Context(), "GET", "/test", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 			req.Header.Set(constants.AuthorizationHeader, tokens[index])
 
 			rec := httptest.NewRecorder()

@@ -24,6 +24,9 @@ linters:
     # An error that is checked but then dropped (returns nil) is usually a bug.
     - nilerr
     - misspell
+    # Reports //nolint directives that no longer suppress anything, so a stale or
+    # copy-pasted directive cannot hide a real finding later.
+    - nolintlint
   settings:
     misspell:
       # Goa names its JWT security interface "Auther".

@@ -98,7 +98,7 @@ func (c *Client) CheckStore(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create OpenFGA store request: %w", err)
 	}
-	resp, err := c.http.Do(req) //nolint:bodyclose // decodePage closes the body
+	resp, err := c.http.Do(req)
 	if err != nil {
 		// *url.Error embeds the request URL, which carries the store ID.
 		var urlErr *url.Error

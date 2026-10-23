@@ -62,7 +62,7 @@ func TestRouteTaggingMiddleware(t *testing.T) {
 			router.Get("/projects/{uid}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 			ctx, span := tp.Tracer("test").Start(t.Context(), "original")
-			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, nil).WithContext(ctx)
+			req := httptest.NewRequestWithContext(ctx, tt.method, tt.path, nil)
 			res := httptest.NewRecorder()
 			router.ServeHTTP(res, req)
 			span.End()
