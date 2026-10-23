@@ -29,6 +29,10 @@ const (
 	// KVSlugPrefix is the key prefix shared by all slug mappings in the projects bucket.
 	KVSlugPrefix = "slug/"
 
+	// KVLookupPrefix is the key prefix shared by all lookup and index keys that sit next to
+	// records in a KV bucket.
+	KVLookupPrefix = "lookup/"
+
 	// KVLookupFolderPrefix is the lookup key prefix for project folder name uniqueness.
 	KVLookupFolderPrefix = "lookup/project-folders/%s"
 

@@ -1962,15 +1962,12 @@ func TestNatsRepository_ListDocuments(t *testing.T) {
 			wantErr: domain.ErrInternal,
 		},
 		{
-			// Known gap: unlike ListLinks and ListAllDocuments, a record that
-			// disappears between the key listing and the read is not skipped; it
-			// fails the whole list. This pins current behavior, not the intended one.
-			name: "document deleted between list and get currently fails the list",
+			name: "document deleted between list and get is skipped",
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("ListKeys", mock.Anything).Return(NewMockKeyLister([]string{docUID}), nil)
 				kv.On("Get", mock.Anything, docUID).Return(nil, jetstream.ErrKeyNotFound)
 			},
-			wantErr: domain.ErrInternal,
+			wantUIDs: []string{},
 		},
 		{
 			name: "invalid document json",
