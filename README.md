@@ -6,6 +6,8 @@ This repository contains the source code for the LFX v2 platform project service
 
 The LFX v2 Project Service is a RESTful API service that manages projects within the Linux Foundation's LFX platform. It provides endpoints for creating, reading, updating, and deleting projects with built-in authorization and audit capabilities.
 
+For what the service manages (projects and their settings, links, folders and documents), the rules it enforces, how data is laid out in NATS KV and how a write travels to the indexer and access control, see [docs/service-overview.md](docs/service-overview.md).
+
 ### API Endpoints
 
 | Method | Path | Description | Notes |

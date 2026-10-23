@@ -12,7 +12,7 @@ This guide provides essential information for AI coding agents working with the 
 > - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary. Readiness then preflight is the `Preflight` value of [Pre-PR review](#pre-pr-review).
 > - `/project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` is the repo-owned review knowledge-base brain loaded by the knowledge-base reviewer of the pre-PR review round (see [Pre-PR review](#pre-pr-review)) — not a skill a developer invokes by hand.
 >   Guidance names it by this `/...` form; the `SKILL.md` frontmatter and the directory path under `.claude/skills/` are written without the slash.
-> - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
+> - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates. Start with [docs/service-overview.md](docs/service-overview.md) for what the service manages, its KV key layout and how a write travels.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
 ## Developer Standards
@@ -178,33 +178,55 @@ cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint
 ├── nats.go                # NATS connection setup, subscriptions, graceful shutdown
 └── main.go                # Application entry point
 
+cmd/project-cli/            # Operational CLI for repair, sync and inspection jobs (see its README)
+├── commands/sync/         # Write commands: reindex-projects, rename-project-slug, document-audit-users, verify-global-grants
+├── commands/inspect/      # Read-only checks: project, slug-index, orphans, index-drift, settings-access, children, parents
+└── internal/              # fgaread (OpenFGA read client) and osdiff (OpenSearch diff helpers)
+
 internal/                   # Core business logic
-├── domain/                # Domain layer (interfaces, models, errors, mocks)
-│   └── models/           # Domain entities (project, link, folder, document)
-├── service/               # Service layer (business logic, NATS RPC handlers, event subscriber)
-│   ├── *_operations.go   # Per-resource business orchestration
+├── domain/                # Domain layer: repository/publisher interfaces, errors (errors.go), UID validation (uid.go), FGA and auth types
+│   ├── models/           # Domain entities (project base and settings, link, folder, document, audit user)
+│   └── mocks/            # Mocks of the domain interfaces for service tests
+├── service/               # Service layer (business logic, NATS RPC handlers, event subscribers)
+│   ├── project_service.go     # ProjectsService type, ServiceConfig, publishIndexer (background indexer publish)
+│   ├── *_operations.go   # Per-resource business orchestration (project, link, folder, document)
 │   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
 │   ├── project_subscriber.go  # Inbound NATS event subscribers (settings updates, invite acceptance)
 │   ├── document_subscriber.go # Inbound NATS event subscribers (document/link created notifications)
 │   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters; ProjectProjection for multi-output fan-out
+│   ├── global_grants.go  # Global team grants and the stages that withhold them
+│   ├── user_profile.go   # Audit-user stamping and legacy-field normalization for created/updated by fields
 │   ├── user_resolver.go  # UserResolver: centralised user identity lookup (JWT, auth service, fallback)
 │   ├── notification_dispatcher.go # NotificationDispatcher: role-change email/invite orchestration
 │   └── email/            # Email template rendering (one file per email type)
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
+    ├── fga/              # Inline FGA authorization check via fga-sync
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
     ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger, route tagging)
-    └── nats/             # NATS repository, object store, message builder, user reader
+    ├── opensearch/       # OpenSearch client used by project-cli
+    └── nats/             # NATS infrastructure
+        ├── repository.go             # NatsRepository type and the CAS-conflict helper
+        ├── repository_<resource>.go  # One file per resource: project (base and settings), link, folder, document
+        ├── repository_open.go        # Opens all KV buckets and the object store
+        ├── kv_collection.go          # kvCollection[T]: shared get/list/put/update/delete for link, folder and document buckets
+        ├── message.go                # MessageBuilder: indexer, FGA, event, email and invite messages
+        ├── tracing.go                # OTel helpers: requestWithSpan, newTracedMsg, recordSpanError
+        ├── user_reader.go            # Auth-service lookups over NATS request/reply
+        ├── client.go                 # NATS connection and JetStream setup
+        └── mock.go                   # Interfaces and testify mocks for NATS types
 
 pkg/                    # Shared packages across services
-├── constants/          # Shared constants (NATS subjects, KV buckets, HTTP, access control)
+├── constants/          # Shared constants (NATS subjects, KV buckets and key formats, HTTP, access control)
 ├── env/                # Environment variable helpers (Get, GetBool, GetInt)
 ├── events/             # NATS event wire types consumed by other services
 ├── misc/               # Small generic helpers (StringPtr, BoolPtr, ValueOrZero)
 ├── struct/             # Struct reflection helpers (FieldByTag)
 └── utils/              # OpenTelemetry SDK setup
 
-scripts/                # Scripts for services and miscellaneous tasks
+docs/                   # Contract docs, service overview and the review knowledge base
+
+scripts/                # One-off and operational programs and shell scripts (admin-delete-project, root-project-setup, load_mock_data, global-grant-backfill, marketing-ops-grant, root-team-tuple-cleanup, project-logo-file-conversion)
 ```
 
 ### Key Design Principles
@@ -333,7 +355,10 @@ go run ./cmd/project-api -d -p 8080
 make fmt    # Format code
 make lint   # Run golangci-lint
 make check  # Check format and lint without modifying
+make vuln   # Scan called code for known vulnerabilities with govulncheck (manual; not part of check)
 ```
+
+`.golangci.yml` runs the golangci-lint v2 defaults plus `errorlint`, `copyloopvar`, `usestdlibvars`, `sloglint`, `bodyclose`, `noctx`, `nilerr`, `misspell` and `nolintlint`. In practice: compare errors with `errors.Is`, give HTTP requests (including `httptest.NewRequestWithContext(t.Context(), ...)` in tests) a context, and do not mix key-value pairs with `slog.Attr` in one log call. Give every `//nolint` directive a reason; `nolintlint` reports one that no longer suppresses anything, but does not require the reason. golangci-lint caps repeated identical findings by default; run it with `--max-same-issues 0 --max-issues-per-linter 0` to see them all.
 
 Not a review finding (2026-09-29): a bare "run `make fmt` / `make lint` / `make check` / `make build` / `make test` / `make apigen`" without a concrete violation is owned by CI and `/project-service-preflight`, so a code reviewer does not report it; see `docs/reviews/knowledge-base/known-false-positives.md` § "Run gofmt / golangci-lint / go vet".
 
@@ -408,7 +433,7 @@ The service uses NATS for:
 - `project-documents-metadata`: Project document metadata
 - `project-documents`: Project document binaries (NATS object store)
 
-All bucket names live as constants in `pkg/constants/nats.go`.
+All bucket names live as constants in `pkg/constants/nats.go`. The index and reservation keys that sit next to the records (`slug/<slug>`, `lookup/...`) are documented in [docs/service-overview.md](docs/service-overview.md#kv-layout).
 
 ### API Endpoints and Message Subjects
 
@@ -513,6 +538,7 @@ GenericFGAMessage{
 - Unit tests should be alongside the implementation code with the same file name with a suffix of `*_test.go`
 - **IMPORTANT**: Each function should have exactly ONE corresponding test function (e.g., `SendIndexProject` → `TestMessageBuilder_SendIndexProject`) which can have multiple tests cases within it.
 - Add test cases within existing test functions if the function you are trying to test already has one rather than creating new test functions
+- The NATS repository has one implementation and one test file per resource (`repository_project.go`/`_test.go`, then link, folder, document). Fixtures shared across them (`mustMarshal`, `forwardedRevision`, the list and update case helpers) live in `repository_test.go`; `kv_collection.go` has its own `kv_collection_test.go`
 
 ### Example Test Structure
 
@@ -553,6 +579,11 @@ func TestEndpoint(t *testing.T) {
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
 | `FGA_ENABLED` | Enable inline FGA parent-change authorization checks via fga-sync (`true` to enable); mirrors `openfga.enabled` in the Helm chart. When false, `FGAChecker` is nil and parent changes are not checked by the service (Heimdall still enforces project-level writer) | false | No |
+| `LOG_ADD_SOURCE` | Add the source file and line to every log record (`true`, `t` or `1` to enable) | false | No |
+| `KO_DATA_PATH` | Directory the OpenAPI spec files are served from; `ko` sets it in the container image | `./api/project/v1/gen/http/` | No |
+| `OTEL_*` | OpenTelemetry SDK settings read by `OTelConfigFromEnv` in `pkg/utils/otel.go`: `OTEL_SERVICE_NAME` (default `lfx-v2-project-service`), `OTEL_SERVICE_VERSION`, `OTEL_EXPORTER_OTLP_PROTOCOL` (default `grpc`), `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_INSECURE`, `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` (all default `none`), `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`, `OTEL_PROPAGATORS` (default `tracecontext,baggage`) | see description | No |
+
+The `project-cli` binary has its own variables (`OPENSEARCH_URL`, `OPENFGA_API_URL`, `OPENFGA_STORE_ID`, `NATS_BUCKETS`, `JOB_RUN_ID` and per-command ones). They are documented in [cmd/project-cli/README.md](cmd/project-cli/README.md).
 
 ## Authorization (OpenFGA)
 
@@ -761,6 +792,10 @@ The project has a clear documentation hierarchy:
 - **README.md**: Project overview, quick start, API endpoints, deployment setup
 - **DEVELOPMENT.md**: Comprehensive developer guide with build/test/deploy workflows
 - **AGENTS.md**: AI assistant instructions and technical details (this file)
+- **docs/service-overview.md**: What the service manages, project rules, KV key layout, how a write travels, repair tools
+- **docs/indexer-contract.md** and **docs/fga-contract.md**: Messages sent to the indexer and to fga-sync
+- **docs/lfid-invite-flow.md**: Role-change emails and invites for users without an LFID
+- **cmd/project-cli/README.md**: Operational repair and inspection commands and their environment variables
 
 Key documentation patterns:
 
