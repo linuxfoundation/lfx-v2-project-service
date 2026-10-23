@@ -150,7 +150,6 @@ func runSettingsAccess(ctx context.Context, repo accessRepo, reader tupleReader,
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(concurrency)
 	for _, base := range bases {
-		base := base
 		settings, ok := settingsByUID[base.UID]
 		if !ok {
 			add(finding{Kind: kindMissingSettings, Slug: base.Slug, UID: base.UID, Detail: "no settings record, so the roster cannot be checked"})

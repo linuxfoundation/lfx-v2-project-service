@@ -46,7 +46,7 @@ func TestBodyLimitMiddleware(t *testing.T) {
 			})
 
 			handler := BodyLimitMiddleware(tt.limit)(inner)
-			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(tt.body))
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 

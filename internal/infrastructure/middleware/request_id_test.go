@@ -59,7 +59,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 			wrappedHandler := middleware(handler)
 
 			// Create request
-			req := httptest.NewRequest("GET", "/test", nil)
+			req := httptest.NewRequestWithContext(t.Context(), "GET", "/test", nil)
 			if tc.existingRequestID != "" {
 				req.Header.Set(constants.RequestIDHeader, tc.existingRequestID)
 			}
@@ -132,7 +132,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 
 			// Make multiple requests
 			for i := 0; i < tc.numRequests; i++ {
-				req := httptest.NewRequest("GET", "/test", nil)
+				req := httptest.NewRequestWithContext(t.Context(), "GET", "/test", nil)
 				rec := httptest.NewRecorder()
 				wrappedHandler.ServeHTTP(rec, req)
 			}

@@ -60,7 +60,6 @@ func (s *verifyGlobalGrantsSubcommand) Run(ctx context.Context, rc commands.RunC
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(*concurrency)
 	for _, project := range projects {
-		project := project
 		group.Go(func() error {
 			class := fgaread.Class(project.Slug, project.Stage)
 			expected := fgaread.ExpectedTuples(project.Stage)

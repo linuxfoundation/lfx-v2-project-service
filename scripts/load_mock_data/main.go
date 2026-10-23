@@ -230,7 +230,7 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 	}
 
 	// Create the request
-	req, err := http.NewRequestWithContext(ctx, "POST", pc.config.APIURL, bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pc.config.APIURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
