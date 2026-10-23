@@ -23,40 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewNatsRepository(t *testing.T) {
-	tests := []struct {
-		name            string
-		projects        INatsKeyValue
-		projectSettings INatsKeyValue
-	}{
-		{
-			name:            "create repository with valid key-value stores",
-			projects:        &MockKeyValue{},
-			projectSettings: &MockKeyValue{},
-		},
-		{
-			name:            "create repository with nil projects store",
-			projects:        nil,
-			projectSettings: &MockKeyValue{},
-		},
-		{
-			name:            "create repository with nil settings store",
-			projects:        &MockKeyValue{},
-			projectSettings: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := NewNatsRepository(tt.projects, tt.projectSettings)
-
-			assert.NotNil(t, repo)
-			assert.Equal(t, tt.projects, repo.Projects)
-			assert.Equal(t, tt.projectSettings, repo.ProjectSettings)
-		})
-	}
-}
-
 func TestNatsRepository_GetProjectBase(t *testing.T) {
 	now := time.Now()
 	projectBase := &models.ProjectBase{
@@ -132,7 +98,7 @@ func TestNatsRepository_GetProjectBase(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			result, err := repo.GetProjectBase(context.Background(), tt.projectUID)
 
@@ -207,7 +173,7 @@ func TestNatsRepository_GetProjectSettings(t *testing.T) {
 
 			tt.setupMocks(mockSettingsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			result, err := repo.GetProjectSettings(context.Background(), tt.projectUID)
 
@@ -284,7 +250,7 @@ func TestNatsRepository_GetProjectSettingsWithRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSettingsKV := &MockKeyValue{}
 			tt.setupMocks(mockSettingsKV)
-			repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
+			repo := &NatsRepository{Projects: &MockKeyValue{}, ProjectSettings: mockSettingsKV}
 
 			settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "test-project-uid")
 
@@ -383,7 +349,7 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			result, revision, err := repo.GetProjectBaseWithRevision(context.Background(), tt.projectUID)
 
@@ -545,7 +511,7 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV, mockSettingsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			err := repo.CreateProject(context.Background(), projectBase, projectSettings)
 
@@ -609,7 +575,7 @@ func TestNatsRepository_ProjectExists(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			exists, err := repo.ProjectExists(context.Background(), tt.projectUID)
 
@@ -673,7 +639,7 @@ func TestNatsRepository_GetProjectUIDFromSlug(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			uid, err := repo.GetProjectUIDFromSlug(context.Background(), tt.slug)
 
@@ -802,7 +768,7 @@ func TestNatsRepository_ListAllProjects(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV, mockSettingsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 
 			baseProjects, settingsProjects, err := repo.ListAllProjects(context.Background())
 
@@ -1056,7 +1022,7 @@ func TestNatsRepository_UpdateProjectBase(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 			err := repo.UpdateProjectBase(context.Background(), tt.payload, tt.revision)
 
 			if tt.wantErr {
@@ -1220,7 +1186,7 @@ func TestNatsRepository_DeleteProject(t *testing.T) {
 
 			tt.setupMocks(mockProjectsKV, mockSettingsKV)
 
-			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			repo := &NatsRepository{Projects: mockProjectsKV, ProjectSettings: mockSettingsKV}
 			err := repo.DeleteProject(context.Background(), projectUID, tt.revision)
 
 			if tt.wantErr {
@@ -1558,7 +1524,7 @@ func TestNatsRepository_ProjectSlugExists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockKV := &MockKeyValue{}
 			tt.setupMocks(mockKV)
-			repo := NewNatsRepository(mockKV, &MockKeyValue{})
+			repo := &NatsRepository{Projects: mockKV, ProjectSettings: &MockKeyValue{}}
 
 			got, err := repo.ProjectSlugExists(context.Background(), "test-slug")
 
@@ -1579,6 +1545,7 @@ func TestNatsRepository_UpdateProjectSettings(t *testing.T) {
 	}{
 		{name: "success", updateErr: nil, wantErr: nil},
 		{name: "revision mismatch", updateErr: errors.New("nats: wrong last sequence: 5"), wantErr: domain.ErrRevisionMismatch},
+		{name: "key exists conflict", updateErr: jetstream.ErrKeyExists, wantErr: domain.ErrRevisionMismatch},
 		{name: "other store error", updateErr: errors.New("nats error"), wantErr: domain.ErrInternal},
 	}
 
@@ -1586,7 +1553,7 @@ func TestNatsRepository_UpdateProjectSettings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSettingsKV := &MockKeyValue{}
 			mockSettingsKV.On("Update", mock.Anything, "test-project-uid", mock.Anything, uint64(5)).Return(uint64(6), tt.updateErr)
-			repo := NewNatsRepository(&MockKeyValue{}, mockSettingsKV)
+			repo := &NatsRepository{Projects: &MockKeyValue{}, ProjectSettings: mockSettingsKV}
 
 			err := repo.UpdateProjectSettings(context.Background(), settings, 5)
 
@@ -2298,6 +2265,26 @@ func TestNatsRepository_DeleteDocumentFile(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err)
 			mockOS.AssertExpectations(t)
+		})
+	}
+}
+
+func Test_isJetStreamCASConflict(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil error", err: nil, want: false},
+		{name: "jetstream key exists", err: jetstream.ErrKeyExists, want: true},
+		{name: "wrapped key exists", err: fmt.Errorf("wrapped: %w", jetstream.ErrKeyExists), want: true},
+		{name: "wrong last sequence message", err: errors.New("nats: wrong last sequence: 3"), want: true},
+		{name: "unrelated error", err: errors.New("boom"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isJetStreamCASConflict(tt.err))
 		})
 	}
 }

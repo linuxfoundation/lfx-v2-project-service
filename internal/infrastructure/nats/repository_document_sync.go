@@ -18,9 +18,6 @@ import (
 
 // ListFolders lists project folders. When projectUID is empty, all folders are returned.
 func (s *NatsRepository) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
-	if s.Folders == nil {
-		return nil, domain.ErrInternal
-	}
 	keysLister, err := s.Folders.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing folder keys from NATS KV store", constants.ErrKey, err)
@@ -57,9 +54,6 @@ func (s *NatsRepository) ListAllLinks(ctx context.Context, projectUID string) ([
 	if projectUID != "" {
 		return s.ListLinks(ctx, projectUID)
 	}
-	if s.Links == nil {
-		return nil, domain.ErrInternal
-	}
 	keysLister, err := s.Links.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing link keys from NATS KV store", constants.ErrKey, err)
@@ -90,9 +84,6 @@ func (s *NatsRepository) ListAllLinks(ctx context.Context, projectUID string) ([
 
 // ListAllDocuments lists project document metadata. When projectUID is non-empty, only that project's documents are returned.
 func (s *NatsRepository) ListAllDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error) {
-	if s.Documents == nil {
-		return nil, domain.ErrInternal
-	}
 	keysLister, err := s.Documents.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing document keys from NATS KV store", constants.ErrKey, err)
@@ -176,14 +167,4 @@ func (s *NatsRepository) UpdateDocumentMetadata(ctx context.Context, doc *models
 		return domain.ErrInternal
 	}
 	return nil
-}
-
-func isJetStreamCASConflict(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, jetstream.ErrKeyExists) {
-		return true
-	}
-	return strings.Contains(err.Error(), "wrong last sequence")
 }

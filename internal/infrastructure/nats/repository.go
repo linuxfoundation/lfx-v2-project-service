@@ -20,6 +20,19 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// isJetStreamCASConflict reports whether err is a JetStream optimistic-concurrency
+// failure: the supplied revision no longer matches the key's last sequence, or a
+// conditional create found the key already present.
+func isJetStreamCASConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, jetstream.ErrKeyExists) {
+		return true
+	}
+	return strings.Contains(err.Error(), "wrong last sequence")
+}
+
 type NatsRepository struct {
 	Projects        INatsKeyValue
 	ProjectSettings INatsKeyValue
@@ -27,13 +40,6 @@ type NatsRepository struct {
 	Folders         INatsKeyValue
 	Documents       INatsKeyValue
 	DocumentFiles   INatsObjectStore
-}
-
-func NewNatsRepository(projects INatsKeyValue, projectSettings INatsKeyValue) *NatsRepository {
-	return &NatsRepository{
-		Projects:        projects,
-		ProjectSettings: projectSettings,
-	}
 }
 
 func (s *NatsRepository) getProjectBase(ctx context.Context, projectUID string) (jetstream.KeyValueEntry, error) {
@@ -110,7 +116,7 @@ func (s *NatsRepository) ProjectExists(ctx context.Context, projectUID string) (
 // GetProjectUIDFromSlug gets the project UID from the project slug.
 func (s *NatsRepository) GetProjectUIDFromSlug(ctx context.Context, projectSlug string) (projectUID string, err error) {
 	var entry jetstream.KeyValueEntry
-	entry, err = s.Projects.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
+	entry, err = s.Projects.Get(ctx, fmt.Sprintf(constants.KVSlugKey, projectSlug))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", domain.ErrProjectNotFound
@@ -147,7 +153,7 @@ func (s *NatsRepository) ListAllProjectsBase(ctx context.Context) ([]*models.Pro
 	projectsBase := []*models.ProjectBase{}
 	for key := range keysLister.Keys() {
 		// Skip slug mappings
-		if strings.HasPrefix(key, "slug/") {
+		if strings.HasPrefix(key, constants.KVSlugPrefix) {
 			continue
 		}
 
@@ -253,7 +259,7 @@ func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.
 	// Reserve the slug atomically. Create fails with ErrKeyExists when the key is
 	// already present, so concurrent creates for the same slug yield exactly one
 	// winner rather than silently overwriting each other.
-	slugKey := fmt.Sprintf("slug/%s", projectBase.Slug)
+	slugKey := fmt.Sprintf(constants.KVSlugKey, projectBase.Slug)
 	_, err := s.Projects.Create(ctx, slugKey, []byte(projectBase.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
@@ -336,7 +342,7 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 		// Reserve the new slug BEFORE the CAS update so a stale-If-Match failure can be
 		// rolled back cleanly. Use Create (conditional) to avoid overwriting another
 		// project's mapping if the index is already taken.
-		newSlugKey := fmt.Sprintf("slug/%s", projectBase.Slug)
+		newSlugKey := fmt.Sprintf(constants.KVSlugKey, projectBase.Slug)
 		_, createErr := s.Projects.Create(ctx, newSlugKey, []byte(projectBase.UID))
 		if createErr != nil {
 			if errors.Is(createErr, jetstream.ErrKeyExists) {
@@ -366,7 +372,7 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 	// Update the project base data with CAS revision check.
 	err = s.updateProjectBase(ctx, projectBase, revision)
 	if err != nil {
-		revMismatch := strings.Contains(err.Error(), "wrong last sequence")
+		revMismatch := isJetStreamCASConflict(err)
 		// Only roll back the new slug reservation when we are its confirmed creator.
 		// Rolling back an inherited reservation risks destroying a concurrent winner's mapping.
 		if slugChanging && weCreatedReservation {
@@ -464,7 +470,6 @@ func (s *NatsRepository) GetProjectSettingsWithRevision(ctx context.Context, pro
 	if err != nil {
 		return nil, 0, err
 	}
-	slog.InfoContext(ctx, "GetProjectSettingsWithRevision", "revision", entry.Revision())
 
 	projectSettingsDB, err := s.getProjectSettingsUnmarshal(ctx, entry)
 	if err != nil {
@@ -481,8 +486,6 @@ func (s *NatsRepository) updateProjectSettings(ctx context.Context, projectSetti
 		return err
 	}
 
-	slog.InfoContext(ctx, "updateProjectSettings", "revision", revision)
-
 	_, err = s.ProjectSettings.Update(ctx, projectSettings.UID, projectSettingsBytes, revision)
 	if err != nil {
 		return err
@@ -495,7 +498,7 @@ func (s *NatsRepository) updateProjectSettings(ctx context.Context, projectSetti
 func (s *NatsRepository) UpdateProjectSettings(ctx context.Context, projectSettings *models.ProjectSettings, revision uint64) error {
 	err := s.updateProjectSettings(ctx, projectSettings, revision)
 	if err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -509,7 +512,7 @@ func (s *NatsRepository) UpdateProjectSettings(ctx context.Context, projectSetti
 // equals projectUID, using a LastRevision CAS delete. If the entry is missing or belongs to
 // a different project the function logs and returns nil so the caller's work is not undone.
 func (s *NatsRepository) deleteProjectSlugMapping(ctx context.Context, projectSlug, projectUID string) error {
-	key := fmt.Sprintf("slug/%s", projectSlug)
+	key := fmt.Sprintf(constants.KVSlugKey, projectSlug)
 	entry, err := s.Projects.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -568,7 +571,7 @@ func (s *NatsRepository) DeleteProject(ctx context.Context, projectUID string, r
 	// Delete the project with revision check
 	err = s.deleteProjectBase(ctx, projectUID, revision)
 	if err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -708,7 +711,7 @@ func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID str
 	}
 
 	if err = s.Links.Delete(ctx, linkUID, jetstream.LastRevision(revision)); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch deleting link", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -793,7 +796,7 @@ func (s *NatsRepository) DeleteFolder(ctx context.Context, projectUID, folderUID
 	}
 
 	if err = s.Folders.Delete(ctx, folderUID, jetstream.LastRevision(revision)); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch deleting folder", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -965,7 +968,7 @@ func (s *NatsRepository) DeleteDocumentMetadata(ctx context.Context, projectUID,
 	}
 
 	if err = s.Documents.Delete(ctx, documentUID, jetstream.LastRevision(revision)); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch deleting document", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
