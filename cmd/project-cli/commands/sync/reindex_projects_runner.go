@@ -281,7 +281,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 
 	// Settings are read and published independently of the project base publish
 	// above. CreateProject writes the base before settings and can return before
-	// settings ever land (internal/infrastructure/nats/repository.go), so a settings
+	// settings ever land (internal/infrastructure/nats/repository_project.go), so a settings
 	// read failure here must not block an otherwise-repairable base publish.
 	if m.Settings || r.includeAccess {
 		g.Go(func() error {

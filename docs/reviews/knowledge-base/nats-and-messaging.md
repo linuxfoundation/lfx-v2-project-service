@@ -14,7 +14,7 @@ PRs.
 
 **Read when:** any file under `internal/service/*_operations.go`,
 `internal/service/project_subscriber.go`, `internal/service/document_subscriber.go`,
-`internal/infrastructure/nats/message.go`, `internal/infrastructure/nats/repository.go`,
+`internal/infrastructure/nats/message.go`, `internal/infrastructure/nats/repository*.go`,
 `internal/domain/message.go`, or `pkg/events/**` changed; or any new goroutine
 that publishes a NATS message.
 
