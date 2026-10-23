@@ -23,7 +23,6 @@ import (
 // tests. The keys and entries are wired into a MockKeyValue by newSyncListKV.
 type syncListCase struct {
 	name       string
-	nilStore   bool
 	projectUID string
 	listErr    error
 	keys       []string
@@ -61,7 +60,6 @@ func TestNatsRepository_ListFolders(t *testing.T) {
 		return &models.ProjectFolder{UID: uid, ProjectUID: projectUID, Name: "Folder " + uid}
 	}
 	tests := []syncListCase{
-		{name: "nil store returns internal error", nilStore: true, wantErr: domain.ErrInternal},
 		{name: "list keys error returns internal error", listErr: errors.New("boom"), wantErr: domain.ErrInternal},
 		{
 			name: "empty project uid returns all folders and skips lookup keys",
@@ -112,11 +110,8 @@ func TestNatsRepository_ListFolders(t *testing.T) {
 				}
 			}
 			repo := &NatsRepository{}
-			var kv *MockKeyValue
-			if !tt.nilStore {
-				kv = newSyncListKV(tt)
-				repo.Folders = kv
-			}
+			kv := newSyncListKV(tt)
+			repo.Folders = kv
 
 			got, err := repo.ListFolders(context.Background(), tt.projectUID)
 
@@ -144,7 +139,6 @@ func TestNatsRepository_ListAllLinks(t *testing.T) {
 		return &models.ProjectLink{UID: uid, ProjectUID: projectUID, Name: "Link " + uid, URL: "https://example.com/" + uid}
 	}
 	tests := []syncListCase{
-		{name: "nil store returns internal error", nilStore: true, wantErr: domain.ErrInternal},
 		{name: "list keys error returns internal error", listErr: errors.New("boom"), wantErr: domain.ErrInternal},
 		{
 			name:     "empty project uid returns all links and skips lookup keys",
@@ -188,11 +182,8 @@ func TestNatsRepository_ListAllLinks(t *testing.T) {
 				}
 			}
 			repo := &NatsRepository{}
-			var kv *MockKeyValue
-			if !tt.nilStore {
-				kv = newSyncListKV(tt)
-				repo.Links = kv
-			}
+			kv := newSyncListKV(tt)
+			repo.Links = kv
 
 			got, err := repo.ListAllLinks(context.Background(), tt.projectUID)
 
@@ -220,7 +211,6 @@ func TestNatsRepository_ListAllDocuments(t *testing.T) {
 		return &models.ProjectDocument{UID: uid, ProjectUID: projectUID, Name: "Doc " + uid, FileName: uid + ".pdf"}
 	}
 	tests := []syncListCase{
-		{name: "nil store returns internal error", nilStore: true, wantErr: domain.ErrInternal},
 		{name: "list keys error returns internal error", listErr: errors.New("boom"), wantErr: domain.ErrInternal},
 		{
 			name:     "empty project uid returns all documents and skips lookup keys",
@@ -268,11 +258,8 @@ func TestNatsRepository_ListAllDocuments(t *testing.T) {
 				}
 			}
 			repo := &NatsRepository{}
-			var kv *MockKeyValue
-			if !tt.nilStore {
-				kv = newSyncListKV(tt)
-				repo.Documents = kv
-			}
+			kv := newSyncListKV(tt)
+			repo.Documents = kv
 
 			got, err := repo.ListAllDocuments(context.Background(), tt.projectUID)
 

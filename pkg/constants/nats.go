@@ -23,6 +23,12 @@ const (
 	// ObjectStoreNameProjectDocuments is the name of the object store for project document files.
 	ObjectStoreNameProjectDocuments = "project-documents"
 
+	// KVSlugKey is the projects-bucket key mapping a project slug to its UID.
+	KVSlugKey = "slug/%s"
+
+	// KVSlugPrefix is the key prefix shared by all slug mappings in the projects bucket.
+	KVSlugPrefix = "slug/"
+
 	// KVLookupFolderPrefix is the lookup key prefix for project folder name uniqueness.
 	KVLookupFolderPrefix = "lookup/project-folders/%s"
 
