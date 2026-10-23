@@ -185,7 +185,7 @@ func (s *NatsRepository) ListAllProjectsSettings(ctx context.Context) ([]*models
 
 	projectsSettings := []*models.ProjectSettings{}
 	for key := range keysLister.Keys() {
-		if strings.HasPrefix(key, "lookup/") {
+		if strings.HasPrefix(key, constants.KVLookupPrefix) {
 			continue
 		}
 		entry, err := s.ProjectSettings.Get(ctx, key)
@@ -595,45 +595,18 @@ func (s *NatsRepository) DeleteProject(ctx context.Context, projectUID string, r
 
 // ─── Links ───────────────────────────────────────────────────────────────────
 
-func (s *NatsRepository) getLink(ctx context.Context, linkUID string) (jetstream.KeyValueEntry, error) {
-	return s.Links.Get(ctx, linkUID)
-}
-
-func (s *NatsRepository) getLinkUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectLink, error) {
-	link := &models.ProjectLink{}
-	if err := json.Unmarshal(entry.Value(), link); err != nil {
-		slog.ErrorContext(ctx, "error unmarshalling link from NATS KV store", constants.ErrKey, err)
-		return nil, err
+func (s *NatsRepository) links() kvCollection[models.ProjectLink] {
+	return kvCollection[models.ProjectLink]{
+		kv:         s.Links,
+		noun:       "link",
+		notFound:   domain.ErrLinkNotFound,
+		projectUID: func(l *models.ProjectLink) string { return l.ProjectUID },
 	}
-	return link, nil
 }
 
 // GetLink gets a project link, verifying it belongs to the given project.
 func (s *NatsRepository) GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error) {
-	// UIDs are used as raw KV keys; reject anything else so index and
-	// reservation keys in the shared bucket cannot be probed.
-	if !domain.IsValidUID(linkUID) {
-		return nil, 0, domain.ErrLinkNotFound
-	}
-	entry, err := s.getLink(ctx, linkUID)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, 0, domain.ErrLinkNotFound
-		}
-		slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", linkUID)
-		return nil, 0, domain.ErrInternal
-	}
-
-	link, err := s.getLinkUnmarshal(ctx, entry)
-	if err != nil {
-		return nil, 0, domain.ErrUnmarshal
-	}
-
-	if link.ProjectUID != projectUID {
-		return nil, 0, domain.ErrLinkNotFound
-	}
-
-	return link, entry.Revision(), nil
+	return s.links().getForProject(ctx, projectUID, linkUID)
 }
 
 // ListLinks lists all links for a given project by scanning all bucket keys and
@@ -654,20 +627,14 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 		}
 
 		linkUID := strings.TrimPrefix(key, prefix)
-		entry, err := s.getLink(ctx, linkUID)
+		link, _, err := s.links().get(ctx, linkUID)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
+			if errors.Is(err, domain.ErrLinkNotFound) {
 				// Stale index key — backing record was deleted; skip and continue.
 				slog.WarnContext(ctx, "stale link index key found, skipping", "link_uid", linkUID)
 				continue
 			}
-			slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", linkUID)
-			return nil, domain.ErrInternal
-		}
-
-		link, err := s.getLinkUnmarshal(ctx, entry)
-		if err != nil {
-			return nil, domain.ErrUnmarshal
+			return nil, err
 		}
 
 		links = append(links, link)
@@ -678,21 +645,14 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 
 // CreateLink stores a new project link and writes a per-project index key.
 func (s *NatsRepository) CreateLink(ctx context.Context, link *models.ProjectLink) error {
-	data, err := json.Marshal(link)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling link into JSON", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
-
-	if _, err = s.Links.Put(ctx, link.UID, data); err != nil {
-		slog.ErrorContext(ctx, "error putting link into NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
+	if err := s.links().put(ctx, link.UID, link); err != nil {
+		return err
 	}
 
 	// Write the per-project index key so ListLinks can filter without a full scan.
 	// If this fails, roll back the link record so the store stays consistent.
 	lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, link.ProjectUID, link.UID)
-	if _, err = s.Links.Put(ctx, lookupKey, []byte(link.UID)); err != nil {
+	if _, err := s.Links.Put(ctx, lookupKey, []byte(link.UID)); err != nil {
 		slog.ErrorContext(ctx, "error writing link index key to NATS KV store; rolling back link record", constants.ErrKey, err, "key", lookupKey)
 		if rbErr := s.Links.Purge(ctx, link.UID); rbErr != nil {
 			slog.ErrorContext(ctx, "error rolling back link record from NATS KV store", constants.ErrKey, rbErr, "link_uid", link.UID)
@@ -710,13 +670,8 @@ func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID str
 		return err
 	}
 
-	if err = s.Links.Delete(ctx, linkUID, jetstream.LastRevision(revision)); err != nil {
-		if isJetStreamCASConflict(err) {
-			slog.WarnContext(ctx, "revision mismatch deleting link", constants.ErrKey, err)
-			return domain.ErrRevisionMismatch
-		}
-		slog.ErrorContext(ctx, "error deleting link from NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
+	if err = s.links().deleteAt(ctx, linkUID, revision); err != nil {
+		return err
 	}
 
 	// Clean up the per-project index key (fire-and-forget; log on failure)
@@ -730,62 +685,24 @@ func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID str
 
 // ─── Folders ─────────────────────────────────────────────────────────────────
 
-func (s *NatsRepository) getFolder(ctx context.Context, folderUID string) (jetstream.KeyValueEntry, error) {
-	return s.Folders.Get(ctx, folderUID)
-}
-
-func (s *NatsRepository) getFolderUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectFolder, error) {
-	folder := &models.ProjectFolder{}
-	if err := json.Unmarshal(entry.Value(), folder); err != nil {
-		slog.ErrorContext(ctx, "error unmarshalling folder from NATS KV store", constants.ErrKey, err)
-		return nil, err
+func (s *NatsRepository) folders() kvCollection[models.ProjectFolder] {
+	return kvCollection[models.ProjectFolder]{
+		kv:         s.Folders,
+		noun:       "folder",
+		notFound:   domain.ErrFolderNotFound,
+		projectUID: func(f *models.ProjectFolder) string { return f.ProjectUID },
 	}
-	return folder, nil
 }
 
 // GetFolder gets a project folder, verifying it belongs to the given project.
 func (s *NatsRepository) GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error) {
-	// UIDs are used as raw KV keys; reject anything else so index and
-	// reservation keys in the shared bucket cannot be probed.
-	if !domain.IsValidUID(folderUID) {
-		return nil, 0, domain.ErrFolderNotFound
-	}
-	entry, err := s.getFolder(ctx, folderUID)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, 0, domain.ErrFolderNotFound
-		}
-		slog.ErrorContext(ctx, "error getting folder from NATS KV store", constants.ErrKey, err, "folder_uid", folderUID)
-		return nil, 0, domain.ErrInternal
-	}
-
-	folder, err := s.getFolderUnmarshal(ctx, entry)
-	if err != nil {
-		return nil, 0, domain.ErrUnmarshal
-	}
-
-	if folder.ProjectUID != projectUID {
-		return nil, 0, domain.ErrFolderNotFound
-	}
-
-	return folder, entry.Revision(), nil
+	return s.folders().getForProject(ctx, projectUID, folderUID)
 }
 
 // CreateFolder stores a new project folder. The caller must first reserve the unique name
 // via UniqueFolderName and roll back via DeleteUniqueFolderName on failure.
 func (s *NatsRepository) CreateFolder(ctx context.Context, folder *models.ProjectFolder) error {
-	data, err := json.Marshal(folder)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling folder into JSON", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
-
-	if _, err = s.Folders.Put(ctx, folder.UID, data); err != nil {
-		slog.ErrorContext(ctx, "error putting folder into NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
-
-	return nil
+	return s.folders().put(ctx, folder.UID, folder)
 }
 
 // DeleteFolder deletes a project folder with optimistic concurrency.
@@ -795,13 +712,8 @@ func (s *NatsRepository) DeleteFolder(ctx context.Context, projectUID, folderUID
 		return err
 	}
 
-	if err = s.Folders.Delete(ctx, folderUID, jetstream.LastRevision(revision)); err != nil {
-		if isJetStreamCASConflict(err) {
-			slog.WarnContext(ctx, "revision mismatch deleting folder", constants.ErrKey, err)
-			return domain.ErrRevisionMismatch
-		}
-		slog.ErrorContext(ctx, "error deleting folder from NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
+	if err = s.folders().deleteAt(ctx, folderUID, revision); err != nil {
+		return err
 	}
 
 	// Clean up the unique name lookup key (fire-and-forget; log on failure)
@@ -838,45 +750,18 @@ func (s *NatsRepository) DeleteUniqueFolderName(ctx context.Context, uniqueKey s
 
 // ─── Documents ────────────────────────────────────────────────────────────────
 
-func (s *NatsRepository) getDocumentMetadata(ctx context.Context, documentUID string) (jetstream.KeyValueEntry, error) {
-	return s.Documents.Get(ctx, documentUID)
-}
-
-func (s *NatsRepository) getDocumentMetadataUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectDocument, error) {
-	doc := &models.ProjectDocument{}
-	if err := json.Unmarshal(entry.Value(), doc); err != nil {
-		slog.ErrorContext(ctx, "error unmarshalling document from NATS KV store", constants.ErrKey, err)
-		return nil, err
+func (s *NatsRepository) documents() kvCollection[models.ProjectDocument] {
+	return kvCollection[models.ProjectDocument]{
+		kv:         s.Documents,
+		noun:       "document",
+		notFound:   domain.ErrDocumentNotFound,
+		projectUID: func(d *models.ProjectDocument) string { return d.ProjectUID },
 	}
-	return doc, nil
 }
 
 // GetDocumentMetadata gets document metadata, verifying it belongs to the given project.
 func (s *NatsRepository) GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error) {
-	// UIDs are used as raw KV keys; reject anything else so index and
-	// reservation keys in the shared bucket cannot be probed.
-	if !domain.IsValidUID(documentUID) {
-		return nil, 0, domain.ErrDocumentNotFound
-	}
-	entry, err := s.getDocumentMetadata(ctx, documentUID)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, 0, domain.ErrDocumentNotFound
-		}
-		slog.ErrorContext(ctx, "error getting document from NATS KV store", constants.ErrKey, err, "document_uid", documentUID)
-		return nil, 0, domain.ErrInternal
-	}
-
-	doc, err := s.getDocumentMetadataUnmarshal(ctx, entry)
-	if err != nil {
-		return nil, 0, domain.ErrUnmarshal
-	}
-
-	if doc.ProjectUID != projectUID {
-		return nil, 0, domain.ErrDocumentNotFound
-	}
-
-	return doc, entry.Revision(), nil
+	return s.documents().getForProject(ctx, projectUID, documentUID)
 }
 
 // GetDocumentFile retrieves the binary file content from the NATS Object Store.
@@ -902,52 +787,13 @@ func (s *NatsRepository) GetDocumentFile(ctx context.Context, documentUID string
 
 // ListDocuments lists all document metadata for a given project.
 func (s *NatsRepository) ListDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error) {
-	keysLister, err := s.Documents.ListKeys(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "error listing document keys from NATS KV store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
-
-	docs := []*models.ProjectDocument{}
-	for key := range keysLister.Keys() {
-		if strings.HasPrefix(key, "lookup/") {
-			continue
-		}
-
-		entry, err := s.getDocumentMetadata(ctx, key)
-		if err != nil {
-			slog.ErrorContext(ctx, "error getting document from NATS KV store", constants.ErrKey, err, "document_uid", key)
-			return nil, domain.ErrInternal
-		}
-
-		doc, err := s.getDocumentMetadataUnmarshal(ctx, entry)
-		if err != nil {
-			return nil, domain.ErrUnmarshal
-		}
-
-		if doc.ProjectUID == projectUID {
-			docs = append(docs, doc)
-		}
-	}
-
-	return docs, nil
+	return s.documents().list(ctx, func(doc *models.ProjectDocument) bool { return doc.ProjectUID == projectUID })
 }
 
 // CreateDocumentMetadata stores document metadata. The caller must first reserve the unique name
 // via UniqueDocumentName and roll back via DeleteUniqueDocumentName on failure.
 func (s *NatsRepository) CreateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument) error {
-	data, err := json.Marshal(doc)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling document into JSON", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
-
-	if _, err = s.Documents.Put(ctx, doc.UID, data); err != nil {
-		slog.ErrorContext(ctx, "error putting document into NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
-
-	return nil
+	return s.documents().put(ctx, doc.UID, doc)
 }
 
 // PutDocumentFile stores binary file content in the NATS Object Store.
@@ -967,13 +813,8 @@ func (s *NatsRepository) DeleteDocumentMetadata(ctx context.Context, projectUID,
 		return err
 	}
 
-	if err = s.Documents.Delete(ctx, documentUID, jetstream.LastRevision(revision)); err != nil {
-		if isJetStreamCASConflict(err) {
-			slog.WarnContext(ctx, "revision mismatch deleting document", constants.ErrKey, err)
-			return domain.ErrRevisionMismatch
-		}
-		slog.ErrorContext(ctx, "error deleting document from NATS KV store", constants.ErrKey, err)
-		return domain.ErrInternal
+	if err = s.documents().deleteAt(ctx, documentUID, revision); err != nil {
+		return err
 	}
 
 	// Clean up the unique name lookup key (fire-and-forget; log on failure)
