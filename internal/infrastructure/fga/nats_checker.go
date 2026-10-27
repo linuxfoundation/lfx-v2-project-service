@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 )
@@ -20,21 +21,19 @@ import (
 // A stalled fga-sync must not block a PUT /projects/:id indefinitely.
 const fgaRequestTimeout = 5 * time.Second
 
-// requester is the subset of *nats.Conn used by NATSChecker. It is extracted
-// as an interface so unit tests can inject a stub without a live NATS server.
-type requester interface {
-	RequestMsgWithContext(ctx context.Context, msg *nats.Msg) (*nats.Msg, error)
-}
-
 // NATSChecker sends a NATS request/reply to fga-sync to verify an FGA relation.
 // It is safe for concurrent use.
 type NATSChecker struct {
-	conn requester
+	conn natsinfra.ReplyConn
+
+	// replyWindow is how long Check keeps listening for further replies after the first.
+	// Zero uses natsinfra.DefaultReplyWindow.
+	replyWindow time.Duration
 }
 
 // NewNATSChecker returns a NATSChecker backed by the given NATS connection.
 func NewNATSChecker(conn *nats.Conn) *NATSChecker {
-	return &NATSChecker{conn: conn}
+	return &NATSChecker{conn: natsinfra.NewReplyConn(conn)}
 }
 
 // Check returns true when the user holds the given relation on the object
@@ -45,26 +44,53 @@ func NewNATSChecker(conn *nats.Conn) *NATSChecker {
 // Check returns true when the matching line reports "true", false when it
 // reports "false", and an error when no matching tuple is found (which
 // distinguishes a fga-sync error reply from an authoritative denial).
+//
+// The reply travels over an unauthenticated core-NATS inbox, so every reply arriving within
+// the reply window of the first is collected and Check fails with natsinfra.ErrConflictingReplies
+// when they disagree: a rogue subscriber answering "true" ahead of fga-sync cannot authorize a
+// change. This is best effort; a spoofed reply that lands before a slow genuine one is not caught.
 func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
 	tuple := fmt.Sprintf("%s#%s@%s", object, relation, user)
 
 	reqCtx, cancel := context.WithTimeout(ctx, fgaRequestTimeout)
 	defer cancel()
 
-	msg, err := c.conn.RequestMsgWithContext(reqCtx, &nats.Msg{
+	replies, err := natsinfra.CollectReplies(reqCtx, c.conn, &nats.Msg{
 		Subject: constants.AccessCheckSubject,
 		Data:    []byte(tuple),
-	})
+	}, c.replyWindow)
 	if err != nil {
 		return false, fmt.Errorf("fga check nats request: %w", err)
 	}
 
-	// Response is newline-delimited "tuple\tallowed" lines. Only a line whose
-	// leading tuple matches the request and whose value is "true" or "false"
-	// is considered authoritative. Anything else (e.g. an fga-sync error
-	// string with no tab separator) is not a valid denial — return an error so
-	// the caller maps this to ErrInternal rather than silently denying access.
-	for _, line := range bytes.Split(msg.Data, []byte("\n")) {
+	allowed := make([]bool, len(replies))
+	errs := make([]error, len(replies))
+	keys := make([]string, len(replies))
+	for i, reply := range replies {
+		allowed[i], errs[i] = parseCheckReply(reply.Data, tuple)
+		switch {
+		case errs[i] != nil:
+			keys[i] = "error"
+		case allowed[i]:
+			keys[i] = "true"
+		default:
+			keys[i] = "false"
+		}
+	}
+	if !natsinfra.RepliesAgree(keys) {
+		return false, natsinfra.ReplyConflict(constants.AccessCheckSubject, keys)
+	}
+	return allowed[0], errs[0]
+}
+
+// parseCheckReply extracts the authoritative result for tuple from one fga-sync reply.
+// Response is newline-delimited "tuple\tallowed" lines. Only a line whose
+// leading tuple matches the request and whose value is "true" or "false"
+// is considered authoritative. Anything else (e.g. an fga-sync error
+// string with no tab separator) is not a valid denial — return an error so
+// the caller maps this to ErrInternal rather than silently denying access.
+func parseCheckReply(data []byte, tuple string) (bool, error) {
+	for _, line := range bytes.Split(data, []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}
@@ -79,5 +105,5 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 			return false, nil
 		}
 	}
-	return false, fmt.Errorf("fga check: no authoritative result for %q in response %q", tuple, msg.Data)
+	return false, fmt.Errorf("fga check: no authoritative result for %q in response %q", tuple, data)
 }

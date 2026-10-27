@@ -10,28 +10,48 @@ import (
 	"testing"
 	"time"
 
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// stubRequester is a fake requester that returns a preset response without a
-// live NATS server.
-type stubRequester struct {
-	response []byte
-	err      error
-	gotSubj  string
-	gotData  string
+// stubConn is a fake ReplyConn source (wrapped by natsinfra.NewReplyConn) that answers a published request with preset reply
+// bodies on the request's inbox channel, without a live NATS server. Replies after the first
+// are delivered after a short delay so they land inside the collection window.
+type stubConn struct {
+	responses [][]byte
+	err       error
+	gotSubj   string
+	gotData   string
+	ch        chan *nats.Msg
 }
 
-func (s *stubRequester) RequestMsgWithContext(_ context.Context, msg *nats.Msg) (*nats.Msg, error) {
+func (s *stubConn) NewInbox() string { return "_INBOX.test" }
+
+func (s *stubConn) ChanSubscribe(_ string, ch chan *nats.Msg) (*nats.Subscription, error) {
+	s.ch = ch
+	return nil, nil
+}
+
+func (s *stubConn) PublishMsg(msg *nats.Msg) error {
 	s.gotSubj = msg.Subject
 	s.gotData = string(msg.Data)
 	if s.err != nil {
-		return nil, s.err
+		return s.err
 	}
-	return &nats.Msg{Data: s.response}, nil
+	for i, r := range s.responses {
+		delay := time.Duration(0)
+		if i > 0 {
+			delay = 20 * time.Millisecond
+		}
+		go func() {
+			time.Sleep(delay)
+			s.ch <- &nats.Msg{Data: r}
+		}()
+	}
+	return nil
 }
 
 func TestNATSChecker_Check(t *testing.T) {
@@ -43,11 +63,13 @@ func TestNATSChecker_Check(t *testing.T) {
 	tuple := fmt.Sprintf("%s#%s@%s", object, relation, user)
 
 	tests := []struct {
-		name      string
-		response  []byte
-		natsErr   error
-		wantAllow bool
-		wantErr   bool
+		name         string
+		response     []byte
+		extra        [][]byte // further replies from other responders
+		natsErr      error
+		wantAllow    bool
+		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name:      "allowed — matching line reports true",
@@ -80,6 +102,26 @@ func TestNATSChecker_Check(t *testing.T) {
 			wantAllow: true,
 		},
 		{
+			name:         "error — spoofed true against genuine false is a conflict",
+			response:     []byte(tuple + "\ttrue\n"),
+			extra:        [][]byte{[]byte(tuple + "\tfalse\n")},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:         "error — spoofed garbage against genuine true is a conflict",
+			response:     []byte("garbage\n"),
+			extra:        [][]byte{[]byte(tuple + "\ttrue\n")},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:      "allowed — identical replies from several responders agree",
+			response:  []byte(tuple + "\ttrue\n"),
+			extra:     [][]byte{[]byte(tuple + "\ttrue\n")},
+			wantAllow: true,
+		},
+		{
 			name:    "nats error propagated",
 			natsErr: errors.New("no responders"),
 			wantErr: true,
@@ -88,12 +130,16 @@ func TestNATSChecker_Check(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stub := &stubRequester{response: tt.response, err: tt.natsErr}
-			checker := &NATSChecker{conn: stub}
+			stub := &stubConn{responses: append([][]byte{tt.response}, tt.extra...), err: tt.natsErr}
+			checker := &NATSChecker{conn: natsinfra.NewReplyConn(stub), replyWindow: 100 * time.Millisecond}
 
 			got, err := checker.Check(context.Background(), user, relation, object)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.wantConflict {
+					assert.ErrorIs(t, err, natsinfra.ErrConflictingReplies)
+				}
+				assert.False(t, got)
 				return
 			}
 			require.NoError(t, err)
@@ -107,11 +153,21 @@ func TestNATSChecker_Check(t *testing.T) {
 	}
 }
 
+func TestNewNATSChecker(t *testing.T) {
+	// The checker must wrap the connection for reply collection; a nil *nats.Conn is enough to
+	// verify the wiring without a server.
+	checker := NewNATSChecker(nil)
+
+	require.NotNil(t, checker)
+	assert.NotNil(t, checker.conn)
+	assert.Zero(t, checker.replyWindow, "zero selects the default reply window")
+}
+
 func TestNATSChecker_Check_Timeout(t *testing.T) {
 	// Verify that the checker applies fgaRequestTimeout even when the caller
-	// context has no deadline of its own.
-	slow := &slowRequester{delay: fgaRequestTimeout + 100*time.Millisecond}
-	checker := &NATSChecker{conn: slow}
+	// context has no deadline of its own: no reply ever arrives.
+	silent := &stubConn{}
+	checker := &NATSChecker{conn: natsinfra.NewReplyConn(silent)}
 
 	start := time.Now()
 	_, err := checker.Check(context.Background(), "user:alice", "writer", "project:abc")
@@ -120,15 +176,4 @@ func TestNATSChecker_Check_Timeout(t *testing.T) {
 	require.Error(t, err, "expected timeout error")
 	assert.Less(t, elapsed, fgaRequestTimeout+500*time.Millisecond,
 		"should have timed out near fgaRequestTimeout")
-}
-
-type slowRequester struct{ delay time.Duration }
-
-func (s *slowRequester) RequestMsgWithContext(ctx context.Context, _ *nats.Msg) (*nats.Msg, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-time.After(s.delay):
-		return &nats.Msg{}, nil
-	}
 }
