@@ -45,6 +45,14 @@ func (f *fakeConn) ChanSubscribe(subj string, ch chan *nats.Msg) (*nats.Subscrip
 	return nil, f.subErr
 }
 
+func (r timedReply) msg() *nats.Msg {
+	m := &nats.Msg{Data: []byte(r.data), Header: nats.Header{}}
+	if r.status != "" {
+		m.Header.Set("Status", r.status)
+	}
+	return m
+}
+
 func (f *fakeConn) PublishMsg(msg *nats.Msg) error {
 	f.mu.Lock()
 	f.gotMsg = msg
@@ -55,16 +63,12 @@ func (f *fakeConn) PublishMsg(msg *nats.Msg) error {
 	}
 	for _, r := range f.replies {
 		if f.inline {
-			ch <- &nats.Msg{Data: []byte(r.data), Header: nats.Header{}}
+			ch <- r.msg()
 			continue
 		}
 		go func() {
 			time.Sleep(r.delay)
-			m := &nats.Msg{Data: []byte(r.data), Header: nats.Header{}}
-			if r.status != "" {
-				m.Header.Set("Status", r.status)
-			}
-			ch <- m
+			ch <- r.msg()
 		}()
 	}
 	return nil
@@ -78,6 +82,7 @@ func TestCollect(t *testing.T) {
 		publishErr error
 		ctxTimeout time.Duration
 		window     time.Duration // zero uses 100ms
+		inline     bool          // deliver replies in order, synchronously
 		wantData   []string
 		wantErr    error
 	}{
@@ -100,6 +105,15 @@ func TestCollect(t *testing.T) {
 			name:     "no-responders status after the first reply is ignored",
 			replies:  []timedReply{{data: "alice"}, {status: "503", delay: 30 * time.Millisecond}},
 			wantData: []string{"alice"},
+		},
+		{
+			name:   "flood of forged no-responders frames fails closed",
+			inline: true,
+			replies: []timedReply{
+				{data: "alice"}, {status: "503"}, {status: "503"},
+				{status: "503"}, {status: "503"}, {status: "503"},
+			},
+			wantErr: ErrConflictingReplies,
 		},
 		{
 			name: "flood of identical replies fails closed",
@@ -140,7 +154,7 @@ func TestCollect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := &fakeConn{replies: tt.replies, subErr: tt.subErr, publishErr: tt.publishErr}
+			conn := &fakeConn{replies: tt.replies, subErr: tt.subErr, publishErr: tt.publishErr, inline: tt.inline}
 			ctx := context.Background()
 			if tt.ctxTimeout > 0 {
 				var cancel context.CancelFunc

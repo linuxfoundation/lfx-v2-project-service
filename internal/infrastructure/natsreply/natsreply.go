@@ -90,13 +90,20 @@ func Collect(ctx context.Context, conn Conn, msg *nats.Msg, window time.Duration
 		return nil, ctx.Err()
 	}
 
-	// add records one reply, enforcing the flood cap and skipping a late no-responders status.
+	// received counts every frame taken off the inbox after the first, including a late
+	// no-responders status that is excluded from the outcome comparison: forged status frames
+	// must advance the flood cap too, or a continuous stream of them would never trip it and
+	// could keep the drain below running.
+	received := 1
+
+	// add records one reply, enforcing the flood cap.
 	add := func(m *nats.Msg) error {
+		received++
+		if received > maxReplies {
+			return ErrConflictingReplies
+		}
 		if isNoResponders(m) {
 			return nil
-		}
-		if len(replies) == maxReplies {
-			return ErrConflictingReplies
 		}
 		replies = append(replies, m)
 		return nil
