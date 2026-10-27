@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 )
@@ -24,16 +24,16 @@ const fgaRequestTimeout = 5 * time.Second
 // NATSChecker sends a NATS request/reply to fga-sync to verify an FGA relation.
 // It is safe for concurrent use.
 type NATSChecker struct {
-	conn natsreply.Conn
+	conn natsinfra.ReplyConn
 
 	// replyWindow is how long Check keeps listening for further replies after the first.
-	// Zero uses natsreply.DefaultWindow.
+	// Zero uses natsinfra.DefaultReplyWindow.
 	replyWindow time.Duration
 }
 
 // NewNATSChecker returns a NATSChecker backed by the given NATS connection.
 func NewNATSChecker(conn *nats.Conn) *NATSChecker {
-	return &NATSChecker{conn: conn}
+	return &NATSChecker{conn: natsinfra.NewReplyConn(conn)}
 }
 
 // Check returns true when the user holds the given relation on the object
@@ -46,7 +46,7 @@ func NewNATSChecker(conn *nats.Conn) *NATSChecker {
 // distinguishes a fga-sync error reply from an authoritative denial).
 //
 // The reply travels over an unauthenticated core-NATS inbox, so every reply arriving within
-// the reply window of the first is collected and Check fails with natsreply.ErrConflictingReplies
+// the reply window of the first is collected and Check fails with natsinfra.ErrConflictingReplies
 // when they disagree: a rogue subscriber answering "true" ahead of fga-sync cannot authorize a
 // change. This is best effort; a spoofed reply that lands before a slow genuine one is not caught.
 func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
@@ -55,7 +55,7 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 	reqCtx, cancel := context.WithTimeout(ctx, fgaRequestTimeout)
 	defer cancel()
 
-	replies, err := natsreply.Collect(reqCtx, c.conn, &nats.Msg{
+	replies, err := natsinfra.CollectReplies(reqCtx, c.conn, &nats.Msg{
 		Subject: constants.AccessCheckSubject,
 		Data:    []byte(tuple),
 	}, c.replyWindow)
@@ -77,8 +77,8 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 			keys[i] = "false"
 		}
 	}
-	if !natsreply.Agree(keys) {
-		return false, natsreply.Conflict(constants.AccessCheckSubject, keys)
+	if !natsinfra.RepliesAgree(keys) {
+		return false, natsinfra.ReplyConflict(constants.AccessCheckSubject, keys)
 	}
 	return allowed[0], errs[0]
 }

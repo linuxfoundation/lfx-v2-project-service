@@ -204,7 +204,6 @@ internal/                   # Core business logic
     ├── fga/              # Inline FGA authorization check via fga-sync
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
     ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger, route tagging)
-    ├── natsreply/        # Collects every reply to a core-NATS request and flags disagreement (identity and FGA lookups)
     ├── opensearch/       # OpenSearch client used by project-cli
     └── nats/             # NATS infrastructure
         ├── repository.go             # NatsRepository type and the CAS-conflict helper
@@ -212,6 +211,7 @@ internal/                   # Core business logic
         ├── repository_open.go        # Opens all KV buckets and the object store
         ├── kv_collection.go          # kvCollection[T]: shared get/list/put/update/delete for link, folder and document buckets
         ├── message.go                # MessageBuilder: indexer, FGA, event, email and invite messages
+        ├── reply_collector.go        # CollectReplies: gathers every reply to a core-NATS request and flags disagreement (identity and FGA lookups)
         ├── tracing.go                # OTel helpers: requestWithSpan, newTracedMsg, recordSpanError
         ├── user_reader.go            # Auth-service lookups over NATS request/reply
         ├── client.go                 # NATS connection and JetStream setup

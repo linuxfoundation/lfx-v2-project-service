@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -44,7 +43,7 @@ type UserReaderNATS struct {
 	NatsConn INatsConn
 
 	// ReplyWindow is how long UsernameByEmail keeps listening for further replies after the
-	// first. Zero uses natsreply.DefaultWindow.
+	// first. Zero uses DefaultReplyWindow.
 	ReplyWindow time.Duration
 }
 
@@ -95,7 +94,7 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 // The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
 //
 // The reply travels over an unauthenticated core-NATS inbox, so every reply arriving within
-// ReplyWindow of the first is collected and the lookup fails with natsreply.ErrConflictingReplies
+// ReplyWindow of the first is collected and the lookup fails with ErrConflictingReplies
 // when they disagree: a rogue subscriber answering ahead of the auth service cannot bind its own
 // username. This is best effort; a spoofed reply that lands before a slow genuine one is not caught.
 func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
@@ -120,8 +119,8 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 			keys[i] = "u:" + username
 		}
 	}
-	if !natsreply.Agree(keys) {
-		err := natsreply.Conflict(constants.AuthEmailToUsernameSubject, keys)
+	if !RepliesAgree(keys) {
+		err := ReplyConflict(constants.AuthEmailToUsernameSubject, keys)
 		recordSpanError(span, err)
 		return "", err
 	}

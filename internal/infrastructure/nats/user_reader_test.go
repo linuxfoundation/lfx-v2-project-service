@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -142,19 +141,19 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			name:      "conflicting usernames are rejected",
 			replies:   []string{"mallory", "alice"},
 			lateReply: true,
-			wantErr:   natsreply.ErrConflictingReplies,
+			wantErr:   ErrConflictingReplies,
 		},
 		{
 			name:      "spoofed username against a genuine not-found is rejected",
 			replies:   []string{"mallory", `{"success":false,"error":"user not found"}`},
 			lateReply: true,
-			wantErr:   natsreply.ErrConflictingReplies,
+			wantErr:   ErrConflictingReplies,
 		},
 		{
 			name:      "malformed spoof against a genuine username is rejected",
 			replies:   []string{"alice bob", "alice"},
 			lateReply: true,
-			wantErr:   natsreply.ErrConflictingReplies,
+			wantErr:   ErrConflictingReplies,
 		},
 		{
 			name:      "identical replies from several responders are accepted",

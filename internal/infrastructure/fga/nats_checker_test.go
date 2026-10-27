@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// stubConn is a fake natsreply.Conn that answers a published request with preset reply
+// stubConn is a fake ReplyConn source (wrapped by natsinfra.NewReplyConn) that answers a published request with preset reply
 // bodies on the request's inbox channel, without a live NATS server. Replies after the first
 // are delivered after a short delay so they land inside the collection window.
 type stubConn struct {
@@ -131,13 +131,13 @@ func TestNATSChecker_Check(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stub := &stubConn{responses: append([][]byte{tt.response}, tt.extra...), err: tt.natsErr}
-			checker := &NATSChecker{conn: stub, replyWindow: 100 * time.Millisecond}
+			checker := &NATSChecker{conn: natsinfra.NewReplyConn(stub), replyWindow: 100 * time.Millisecond}
 
 			got, err := checker.Check(context.Background(), user, relation, object)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.wantConflict {
-					assert.ErrorIs(t, err, natsreply.ErrConflictingReplies)
+					assert.ErrorIs(t, err, natsinfra.ErrConflictingReplies)
 				}
 				assert.False(t, got)
 				return
@@ -153,11 +153,21 @@ func TestNATSChecker_Check(t *testing.T) {
 	}
 }
 
+func TestNewNATSChecker(t *testing.T) {
+	// The checker must wrap the connection for reply collection; a nil *nats.Conn is enough to
+	// verify the wiring without a server.
+	checker := NewNATSChecker(nil)
+
+	require.NotNil(t, checker)
+	assert.NotNil(t, checker.conn)
+	assert.Zero(t, checker.replyWindow, "zero selects the default reply window")
+}
+
 func TestNATSChecker_Check_Timeout(t *testing.T) {
 	// Verify that the checker applies fgaRequestTimeout even when the caller
 	// context has no deadline of its own: no reply ever arrives.
 	silent := &stubConn{}
-	checker := &NATSChecker{conn: silent}
+	checker := &NATSChecker{conn: natsinfra.NewReplyConn(silent)}
 
 	start := time.Now()
 	_, err := checker.Check(context.Background(), "user:alice", "writer", "project:abc")

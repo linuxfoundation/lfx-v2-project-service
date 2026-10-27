@@ -152,4 +152,4 @@ The reply travels over an unauthenticated core-NATS inbox, so the checker collec
 
 **When it fires:** `UpdateProjectBase` — only when `parent_uid` in the request differs from the stored value. One request is sent for the old parent (detach) and one for the new parent (attach), each in sequence. When `parent_uid` changes to empty (detach to root), only the old-parent check runs.
 
-**Denial semantics:** a `false` response, or a response that contains no matching tuple, is treated as denied and the endpoint returns HTTP 403 `ForbiddenError`. A NATS error (timeout, no responders) returns HTTP 500. The check is skipped entirely when `FGAChecker` is nil (i.e., when `FGA_ENABLED=false`).
+**Denial semantics:** a `false` response, or a response that contains no matching tuple, is treated as denied and the endpoint returns HTTP 403 `ForbiddenError`. A NATS error (timeout, no responders, conflicting or flooded replies) returns HTTP 500. The check is skipped entirely when `FGAChecker` is nil (i.e., when `FGA_ENABLED=false`).

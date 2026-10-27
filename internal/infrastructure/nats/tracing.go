@@ -13,8 +13,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
 )
 
 // tracer is safe to initialize at package level — otel.Tracer() returns a
@@ -122,7 +120,7 @@ func requestAllWithSpan(ctx context.Context, conn INatsConn, subject string, dat
 		),
 	)
 
-	replies, err := natsreply.Collect(ctx, conn, newTracedMsg(ctx, subject, data), window)
+	replies, err := CollectReplies(ctx, NewReplyConn(conn), newTracedMsg(ctx, subject, data), window)
 	if err != nil {
 		recordSpanError(span, err)
 		return ctx, span, nil, err
