@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -40,6 +42,10 @@ type userMetadataNATSDataBody struct {
 // UserReaderNATS implements domain.UserReader via NATS requests to the auth service.
 type UserReaderNATS struct {
 	NatsConn INatsConn
+
+	// ReplyWindow is how long UsernameByEmail keeps listening for further replies after the
+	// first. Zero uses natsreply.DefaultWindow.
+	ReplyWindow time.Duration
 }
 
 // UserMetadataByPrincipal retrieves profile metadata for a user from the auth service by principal.
@@ -87,19 +93,53 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 
 // UsernameByEmail resolves the registered LFID username for the given primary email address.
 // The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
+//
+// The reply travels over an unauthenticated core-NATS inbox, so every reply arriving within
+// ReplyWindow of the first is collected and the lookup fails with natsreply.ErrConflictingReplies
+// when they disagree: a rogue subscriber answering ahead of the auth service cannot bind its own
+// username. This is best effort; a spoofed reply that lands before a slow genuine one is not caught.
 func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
-	_, span, reply, err := requestWithSpan(ctx, u.NatsConn, constants.AuthEmailToUsernameSubject, []byte(email))
+	_, span, replies, err := requestAllWithSpan(ctx, u.NatsConn, constants.AuthEmailToUsernameSubject, []byte(email), u.ReplyWindow)
 	defer span.End()
 	if err != nil {
 		return "", fmt.Errorf("email_to_username request failed: %w", err)
 	}
 
-	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
+	type outcome struct {
+		username string
+		err      error
+	}
+	outcomes := make([]outcome, len(replies))
+	keys := make([]string, len(replies))
+	for i, reply := range replies {
+		username, perr := parseUsernameReply(reply.Data)
+		outcomes[i] = outcome{username: username, err: perr}
+		if perr != nil {
+			keys[i] = "e:" + perr.Error()
+		} else {
+			keys[i] = "u:" + username
+		}
+	}
+	if !natsreply.Agree(keys) {
+		err := fmt.Errorf("email_to_username: %w", natsreply.ErrConflictingReplies)
+		recordSpanError(span, err)
+		return "", err
+	}
+
+	if outcomes[0].err != nil {
+		recordSpanError(span, outcomes[0].err)
+		return "", outcomes[0].err
+	}
+	span.SetStatus(codes.Ok, "")
+	return outcomes[0].username, nil
+}
+
+// parseUsernameReply interprets one email_to_username reply body.
+func parseUsernameReply(data []byte) (string, error) {
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
 	// newline or leading space don't corrupt the username or bypass JSON detection.
-	body := strings.TrimSpace(string(reply.Data))
+	body := strings.TrimSpace(string(data))
 	if body == "" {
-		recordSpanError(span, domain.ErrUserNotFound)
 		return "", domain.ErrUserNotFound
 	}
 
@@ -112,33 +152,23 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 			Success *bool  `json:"success"`
 			Error   string `json:"error,omitempty"`
 		}
-		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
-			recordSpanError(span, err)
+		if err := json.Unmarshal(data, &envelope); err != nil {
 			return "", fmt.Errorf("failed to parse email_to_username response: %w", err)
 		}
 		if envelope.Success == nil {
-			err := fmt.Errorf("email_to_username response missing success field")
-			recordSpanError(span, err)
-			return "", err
+			return "", fmt.Errorf("email_to_username response missing success field")
 		}
 		if !*envelope.Success {
-			recordSpanError(span, domain.ErrUserNotFound)
 			return "", domain.ErrUserNotFound
 		}
-		err := fmt.Errorf("unexpected email_to_username success envelope")
-		recordSpanError(span, err)
-		return "", err
+		return "", fmt.Errorf("unexpected email_to_username success envelope")
 	}
 
 	// The reply travels over an unauthenticated core-NATS inbox, so reject anything that is
 	// not shaped like an LFID before it can be persisted or published as an FGA principal.
 	if !validLFIDUsername.MatchString(body) {
-		err := fmt.Errorf("email_to_username response is not a valid username")
-		recordSpanError(span, err)
-		return "", err
+		return "", fmt.Errorf("email_to_username response is not a valid username")
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return body, nil
 }
 

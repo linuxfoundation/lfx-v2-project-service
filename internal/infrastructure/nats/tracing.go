@@ -5,6 +5,7 @@ package nats
 
 import (
 	"context"
+	"time"
 
 	natsgo "github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
@@ -12,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/natsreply"
 )
 
 // tracer is safe to initialize at package level — otel.Tracer() returns a
@@ -103,6 +106,29 @@ func requestWithSpan(ctx context.Context, conn INatsConn, subject string, data [
 		return ctx, span, nil, err
 	}
 	return ctx, span, reply, nil
+}
+
+// requestAllWithSpan is requestWithSpan for lookups whose reply drives an identity or
+// authorization decision: it returns every reply received within window of the first one,
+// so the caller can reject a spoofed answer that disagrees with the real responder's.
+// The span contract is the same as requestWithSpan.
+func requestAllWithSpan(ctx context.Context, conn INatsConn, subject string, data []byte, window time.Duration) (context.Context, trace.Span, []*natsgo.Msg, error) {
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", subject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+
+	replies, err := natsreply.Collect(ctx, conn, newTracedMsg(ctx, subject, data), window)
+	if err != nil {
+		recordSpanError(span, err)
+		return ctx, span, nil, err
+	}
+	span.SetAttributes(attribute.Int("messaging.reply.count", len(replies)))
+	return ctx, span, replies, nil
 }
 
 // recordSpanError records err on the span and marks the span as failed.

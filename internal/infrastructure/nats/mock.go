@@ -22,6 +22,8 @@ type INatsConn interface {
 	PublishMsg(msg *nats.Msg) error
 	Request(subj string, data []byte, timeout time.Duration) (*nats.Msg, error)
 	RequestMsgWithContext(ctx context.Context, msg *nats.Msg) (*nats.Msg, error)
+	NewInbox() string
+	ChanSubscribe(subj string, ch chan *nats.Msg) (*nats.Subscription, error)
 }
 
 // MockNATSConn is a mock implementation of the [INatsConn] interface.
@@ -63,6 +65,21 @@ func (m *MockNATSConn) RequestMsgWithContext(ctx context.Context, msg *nats.Msg)
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*nats.Msg), args.Error(1)
+}
+
+// NewInbox is a mock method for the [INatsConn] interface.
+func (m *MockNATSConn) NewInbox() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+// ChanSubscribe is a mock method for the [INatsConn] interface.
+func (m *MockNATSConn) ChanSubscribe(subj string, ch chan *nats.Msg) (*nats.Subscription, error) {
+	args := m.Called(subj, ch)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*nats.Subscription), args.Error(1)
 }
 
 // INatsMsg is an interface for [nats.Msg] that allows for mocking.
