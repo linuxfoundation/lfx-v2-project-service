@@ -91,6 +91,19 @@ func TestCollect(t *testing.T) {
 			wantData: []string{"alice"},
 		},
 		{
+			name:     "no-responders status after the first reply is ignored",
+			replies:  []timedReply{{data: "alice"}, {status: "503", delay: 30 * time.Millisecond}},
+			wantData: []string{"alice"},
+		},
+		{
+			name: "flood of identical replies fails closed",
+			replies: []timedReply{
+				{data: "mallory"}, {data: "mallory"}, {data: "mallory"},
+				{data: "mallory"}, {data: "mallory"}, {data: "mallory"},
+			},
+			wantErr: ErrConflictingReplies,
+		},
+		{
 			name:    "no-responders status becomes ErrNoResponders",
 			replies: []timedReply{{status: "503"}},
 			wantErr: nats.ErrNoResponders,
@@ -160,4 +173,14 @@ func TestAgree(t *testing.T) {
 			assert.Equal(t, tt.want, Agree(tt.keys))
 		})
 	}
+}
+
+func TestConflict(t *testing.T) {
+	err := Conflict("test.subject", []string{"u:alice", "u:mallory", "u:mallory"})
+
+	require.ErrorIs(t, err, ErrConflictingReplies)
+	assert.Contains(t, err.Error(), "test.subject")
+	assert.Contains(t, err.Error(), "3 replies, 2 distinct outcomes")
+	assert.NotContains(t, err.Error(), "alice", "reply content must not leak into the error")
+	assert.NotContains(t, err.Error(), "mallory", "reply content must not leak into the error")
 }

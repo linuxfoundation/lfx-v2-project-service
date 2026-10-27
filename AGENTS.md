@@ -204,6 +204,7 @@ internal/                   # Core business logic
     ├── fga/              # Inline FGA authorization check via fga-sync
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
     ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger, route tagging)
+    ├── natsreply/        # Collects every reply to a core-NATS request and flags disagreement (identity and FGA lookups)
     ├── opensearch/       # OpenSearch client used by project-cli
     └── nats/             # NATS infrastructure
         ├── repository.go             # NatsRepository type and the CAS-conflict helper

@@ -78,7 +78,7 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 		}
 	}
 	if !natsreply.Agree(keys) {
-		return false, fmt.Errorf("fga check: %w", natsreply.ErrConflictingReplies)
+		return false, natsreply.Conflict(constants.AccessCheckSubject, keys)
 	}
 	return allowed[0], errs[0]
 }

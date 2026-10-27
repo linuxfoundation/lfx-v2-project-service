@@ -10,6 +10,7 @@ package natsreply
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -22,9 +23,12 @@ const (
 	// defaultTimeout bounds the wait for a first reply when the caller's context has no deadline.
 	defaultTimeout = 5 * time.Second
 
-	// replyBuffer is the capacity of the inbox channel; replies beyond it are dropped by the
-	// client, which is harmless because two distinct replies are already enough to conflict.
+	// replyBuffer is the capacity of the inbox channel.
 	replyBuffer = 16
+
+	// maxReplies caps how many replies Collect accepts. The request subjects are answered from
+	// a queue group, so a legitimate lookup yields one reply; more than this is a flood.
+	maxReplies = 4
 
 	// statusHdr and noRespondersStatus mirror the unexported nats.go constants the server uses
 	// to say a request had no subscriber.
@@ -46,6 +50,11 @@ type Conn interface {
 // window has elapsed since the first one. It blocks until a first reply arrives or ctx ends.
 // A non-positive window uses DefaultWindow. If ctx has no deadline, a default timeout applies.
 // A no-responders status reply is reported as nats.ErrNoResponders, as a plain request would.
+//
+// The inbox subject travels in the request, so a rogue subscriber can flood it. Collect fails
+// closed with ErrConflictingReplies when more than maxReplies arrive or the client dropped any
+// reply, instead of trusting whatever survived: a burst of identical spoofs must not be able to
+// push the genuine reply out of the buffer and leave only agreeing answers.
 func Collect(ctx context.Context, conn Conn, msg *nats.Msg, window time.Duration) ([]*nats.Msg, error) {
 	if window <= 0 {
 		window = DefaultWindow
@@ -82,18 +91,40 @@ func Collect(ctx context.Context, conn Conn, msg *nats.Msg, window time.Duration
 
 	timer := time.NewTimer(window)
 	defer timer.Stop()
+collect:
 	for {
 		select {
 		case m := <-ch:
-			if !isNoResponders(m) {
-				replies = append(replies, m)
+			if isNoResponders(m) {
+				continue
 			}
+			if len(replies) == maxReplies {
+				return nil, ErrConflictingReplies
+			}
+			replies = append(replies, m)
 		case <-timer.C:
-			return replies, nil
+			break collect
 		case <-ctx.Done():
-			return replies, nil
+			break collect
 		}
 	}
+
+	if dropped, err := sub.Dropped(); err == nil && dropped > 0 {
+		return nil, ErrConflictingReplies
+	}
+	return replies, nil
+}
+
+// Conflict builds the error callers return when collected replies disagree. It names the
+// subject, the reply count and how many distinct outcomes there were, so a spoofing attempt is
+// distinguishable from a transport failure in the callers' existing logs, without carrying any
+// reply content (usernames and emails are PII).
+func Conflict(subject string, keys []string) error {
+	distinct := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		distinct[k] = struct{}{}
+	}
+	return fmt.Errorf("%w on %s: %d replies, %d distinct outcomes", ErrConflictingReplies, subject, len(keys), len(distinct))
 }
 
 // Agree reports whether every outcome key is identical. An empty slice agrees.

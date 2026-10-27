@@ -121,7 +121,7 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 		}
 	}
 	if !natsreply.Agree(keys) {
-		err := fmt.Errorf("email_to_username: %w", natsreply.ErrConflictingReplies)
+		err := natsreply.Conflict(constants.AuthEmailToUsernameSubject, keys)
 		recordSpanError(span, err)
 		return "", err
 	}
