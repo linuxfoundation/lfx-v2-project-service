@@ -49,6 +49,7 @@ type Conn interface {
 // Collect publishes msg with a private reply inbox and returns every reply received until
 // window has elapsed since the first one. It blocks until a first reply arrives or ctx ends.
 // A non-positive window uses DefaultWindow. If ctx has no deadline, a default timeout applies.
+// If ctx ends before the window closes, Collect returns ctx.Err() rather than a partial result.
 // A no-responders status reply is reported as nats.ErrNoResponders, as a plain request would.
 //
 // The inbox subject travels in the request, so a rogue subscriber can flood it. Collect fails
@@ -89,23 +90,47 @@ func Collect(ctx context.Context, conn Conn, msg *nats.Msg, window time.Duration
 		return nil, ctx.Err()
 	}
 
+	// add records one reply, enforcing the flood cap and skipping a late no-responders status.
+	add := func(m *nats.Msg) error {
+		if isNoResponders(m) {
+			return nil
+		}
+		if len(replies) == maxReplies {
+			return ErrConflictingReplies
+		}
+		replies = append(replies, m)
+		return nil
+	}
+
 	timer := time.NewTimer(window)
 	defer timer.Stop()
 collect:
 	for {
 		select {
 		case m := <-ch:
-			if isNoResponders(m) {
-				continue
+			if err := add(m); err != nil {
+				return nil, err
 			}
-			if len(replies) == maxReplies {
-				return nil, ErrConflictingReplies
-			}
-			replies = append(replies, m)
 		case <-timer.C:
 			break collect
 		case <-ctx.Done():
-			break collect
+			// The window is unfinished: a genuine reply that conflicts with what was collected
+			// may still be on its way, so an ended context must not count as agreement.
+			return nil, ctx.Err()
+		}
+	}
+
+	// select picks at random among ready cases, so the timer can win while a reply is already
+	// buffered. Read what is waiting before judging the replies.
+drain:
+	for {
+		select {
+		case m := <-ch:
+			if err := add(m); err != nil {
+				return nil, err
+			}
+		default:
+			break drain
 		}
 	}
 

@@ -27,6 +27,7 @@ type fakeConn struct {
 	replies    []timedReply
 	subErr     error
 	publishErr error
+	inline     bool // deliver replies synchronously inside PublishMsg
 
 	mu      sync.Mutex
 	ch      chan *nats.Msg
@@ -53,6 +54,10 @@ func (f *fakeConn) PublishMsg(msg *nats.Msg) error {
 		return f.publishErr
 	}
 	for _, r := range f.replies {
+		if f.inline {
+			ch <- &nats.Msg{Data: []byte(r.data), Header: nats.Header{}}
+			continue
+		}
 		go func() {
 			time.Sleep(r.delay)
 			m := &nats.Msg{Data: []byte(r.data), Header: nats.Header{}}
@@ -72,6 +77,7 @@ func TestCollect(t *testing.T) {
 		subErr     error
 		publishErr error
 		ctxTimeout time.Duration
+		window     time.Duration // zero uses 100ms
 		wantData   []string
 		wantErr    error
 	}{
@@ -114,6 +120,13 @@ func TestCollect(t *testing.T) {
 			wantErr:    context.DeadlineExceeded,
 		},
 		{
+			name:       "context ending after the first reply fails instead of returning a partial collection",
+			replies:    []timedReply{{data: "mallory"}},
+			ctxTimeout: 50 * time.Millisecond,
+			window:     500 * time.Millisecond,
+			wantErr:    context.DeadlineExceeded,
+		},
+		{
 			name:    "subscribe error is returned",
 			subErr:  errors.New("subscribe failed"),
 			wantErr: nil,
@@ -135,7 +148,11 @@ func TestCollect(t *testing.T) {
 				defer cancel()
 			}
 
-			got, err := Collect(ctx, conn, nats.NewMsg("test.subject"), 100*time.Millisecond)
+			window := tt.window
+			if window == 0 {
+				window = 100 * time.Millisecond
+			}
+			got, err := Collect(ctx, conn, nats.NewMsg("test.subject"), window)
 
 			switch {
 			case tt.wantErr != nil:
@@ -153,6 +170,20 @@ func TestCollect(t *testing.T) {
 				assert.Equal(t, "test.subject", conn.gotMsg.Subject)
 			}
 		})
+	}
+}
+
+func TestCollect_BufferedReplyAtWindowClose(t *testing.T) {
+	// Both replies are already buffered when the first is read and the window is effectively
+	// zero, so the timer and the inbox are ready together. select picks randomly between them;
+	// repeating makes a collector that skips the buffer fail with near certainty.
+	for i := 0; i < 200; i++ {
+		conn := &fakeConn{inline: true, replies: []timedReply{{data: "mallory"}, {data: "alice"}}}
+
+		got, err := Collect(context.Background(), conn, nats.NewMsg("test.subject"), time.Nanosecond)
+
+		require.NoError(t, err)
+		require.Len(t, got, 2, "iteration %d: the buffered conflicting reply must be collected", i)
 	}
 }
 
