@@ -144,7 +144,7 @@ The LFX V2 Project Service is a RESTful API service that manages projects within
 
 ### Key Technologies
 
-- **Language**: Go 1.25+
+- **Language**: Go 1.27.3+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for event-driven architecture
 - **Storage**: NATS Key-Value stores (no traditional database)
@@ -242,7 +242,7 @@ scripts/                # One-off and operational programs and shell scripts (ad
 ### Prerequisites
 
 ```bash
-# Install Go 1.25+
+# Install Go 1.27.3+
 # Install Goa framework
 go install goa.design/goa/v3/cmd/goa@v3.22.6
 

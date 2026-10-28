@@ -13,7 +13,7 @@ This Go script allows you to insert project mock data via the project service AP
 
 ## Prerequisites
 
-- Go 1.23 or later
+- Go 1.27.3 or later
 - Access to the project service API
 - Valid Bearer token for authentication
 

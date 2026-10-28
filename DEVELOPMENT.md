@@ -6,7 +6,7 @@ This guide provides comprehensive instructions for developers working on the LFX
 
 Before you begin development, ensure you have the following tools installed:
 
-- **Go 1.25+** - [Download and install Go](https://golang.org/dl/). The exact version is the `go` directive in `go.mod`.
+- **Go 1.27.3+** - [Download and install Go](https://golang.org/dl/). The exact version is the `go` directive in `go.mod`.
 - **Goa v3** - Code generation framework
 
   ```bash
