@@ -205,7 +205,7 @@ func TestRejectDuplicateParentUIDKeys(t *testing.T) {
 		{name: "string body", body: `"parent_uid"`, wantErr: "must be a JSON object"},
 		{name: "empty body", body: ``, wantErr: "EOF"},
 		{name: "truncated before value", body: `{"parent_uid":`, wantErr: "EOF"},
-		{name: "truncated before closing brace", body: `{"parent_uid":"a"`, wantErr: "EOF"},
+		{name: "truncated before closing brace", body: `{"parent_uid":"a"`, wantErr: "unexpected end of JSON input"},
 	}
 
 	for _, tt := range tests {

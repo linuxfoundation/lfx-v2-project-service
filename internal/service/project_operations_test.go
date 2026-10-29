@@ -161,7 +161,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				Stage:        misc.StringPtr("incubating"),
 				Category:     misc.StringPtr("foundation"),
 				ContactEmail: misc.StringPtr("project-lead@example.com"),
-				XSync:        misc.BoolPtr(true),
+				XSync:        misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
@@ -339,7 +339,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				Description:           "Desc",
 				Stage:                 misc.StringPtr("Archived"),
 				EntityDissolutionDate: misc.StringPtr("2021-12-31"),
-				XSync:                 misc.BoolPtr(false),
+				XSync:                 misc.BoolPtr(false), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "archived-with-date").Return(false, nil)
@@ -783,7 +783,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			payload: &projsvc.DeleteProjectPayload{
 				UID:     misc.StringPtr("test-project-uid"),
 				IfMatch: misc.StringPtr("123"),
-				XSync:   misc.BoolPtr(true),
+				XSync:   misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				// Project has Crowdfunding in funding model - deletion allowed
@@ -811,7 +811,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			payload: &projsvc.DeleteProjectPayload{
 				UID:     misc.StringPtr("test-project-uid"),
 				IfMatch: misc.StringPtr("123"),
-				XSync:   misc.BoolPtr(false),
+				XSync:   misc.BoolPtr(false), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
@@ -1221,7 +1221,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				Name:         "Test Project",
 				Public:       misc.BoolPtr(true),
 				ContactEmail: misc.StringPtr("project-lead@example.com"),
-				XSync:        misc.BoolPtr(true),
+				XSync:        misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{
@@ -1269,7 +1269,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				Slug:      "child-project",
 				Name:      "Child Project",
 				ParentUID: "11111111-2222-3333-4444-555555555555",
-				XSync:     misc.BoolPtr(false),
+				XSync:     misc.BoolPtr(false), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{
@@ -1927,7 +1927,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("3"),
-				XSync:   misc.BoolPtr(true),
+				XSync:   misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 				Writers: []*projsvc.UserInfo{
 					{Username: misc.StringPtr("alice"), Name: misc.StringPtr("Alice"), Email: misc.StringPtr("alice@example.com"), Avatar: misc.StringPtr("")},
 				},
@@ -1974,7 +1974,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
-				XSync:   misc.BoolPtr(false),
+				XSync:   misc.BoolPtr(false), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 				Writers: []*projsvc.UserInfo{
 					{Username: misc.StringPtr("UNTRUSTED"), Name: misc.StringPtr("Bob"), Email: misc.StringPtr("bob@example.com")},
 				},
