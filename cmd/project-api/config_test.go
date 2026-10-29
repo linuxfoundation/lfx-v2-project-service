@@ -7,6 +7,7 @@ import (
 	"flag"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,8 @@ func TestParseEnv(t *testing.T) {
 				"EMAILS_ENABLED":          "true",
 				"INVITES_ENABLED":         "true",
 				"FGA_ENABLED":             "true",
+
+				"ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM": "2026-12-01",
 			},
 			want: environment{
 				NatsURL:             "nats://nats.example.com:4222",
@@ -46,6 +49,19 @@ func TestParseEnv(t *testing.T) {
 				EmailsEnabled:       true,
 				InvitesEnabled:      true,
 				FGAEnabled:          true,
+
+				ArchivedDissolutionDateRequiredFrom: "2026-12-01",
+			},
+		},
+		{
+			name: "archived dissolution waiver date is trimmed",
+			env:  map[string]string{"ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM": "  2026-12-01\t"},
+			want: environment{
+				NatsURL:             "nats://localhost:4222",
+				Port:                "8080",
+				LFXSelfServeBaseURL: "https://app.lfx.dev",
+
+				ArchivedDissolutionDateRequiredFrom: "2026-12-01",
 			},
 		},
 		{
@@ -73,7 +89,7 @@ func TestParseEnv(t *testing.T) {
 		},
 	}
 
-	keys := []string{"PORT", "NATS_URL", "SKIP_ETAG_VALIDATION", "LFX_SELF_SERVE_BASE_URL", "LFX_ENVIRONMENT", "EMAILS_ENABLED", "INVITES_ENABLED", "FGA_ENABLED"}
+	keys := []string{"PORT", "NATS_URL", "SKIP_ETAG_VALIDATION", "LFX_SELF_SERVE_BASE_URL", "LFX_ENVIRONMENT", "EMAILS_ENABLED", "INVITES_ENABLED", "FGA_ENABLED", "ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM"}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,6 +102,34 @@ func TestParseEnv(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want, parseEnv())
+		})
+	}
+}
+
+func TestArchivedDissolutionDateRequiredFrom(t *testing.T) {
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name string
+		raw  string
+		want time.Time
+	}{
+		{name: "empty value means no waiver", raw: "", want: time.Time{}},
+		{name: "whitespace-only value means no waiver", raw: "   ", want: time.Time{}},
+		{name: "future date activates waiver", raw: "2026-12-01", want: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)},
+		{name: "surrounding whitespace is trimmed", raw: " 2026-12-01 ", want: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)},
+		{name: "past date is parsed but already expired", raw: "2026-01-01", want: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{name: "invalid format fails closed", raw: "12/01/2026", want: time.Time{}},
+		{name: "timestamp instead of date fails closed", raw: "2026-12-01T00:00:00Z", want: time.Time{}},
+		{name: "impossible date fails closed", raw: "2026-02-30", want: time.Time{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := archivedDissolutionDateRequiredFrom(tt.raw, now)
+
+			assert.True(t, tt.want.Equal(got), "want %v, got %v", tt.want, got)
+			assert.Equal(t, time.UTC, got.Location())
 		})
 	}
 }

@@ -136,9 +136,15 @@ func TestProjectsService_GetProjects(t *testing.T) {
 }
 
 func TestProjectsService_CreateProject(t *testing.T) {
+	// Fixed clock for the temporary archived dissolution-date waiver cases.
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	waiverActive := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+	waiverExpired := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	tests := []struct {
 		name            string
 		payload         *projsvc.CreateProjectPayload
+		requiredFrom    time.Time
 		setupMocks      func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
 		setupUserReader func(*domainmocks.MockUserReader)
 		wantErr         bool
@@ -273,6 +279,57 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "archived stage without dissolution date succeeds while waiver is active",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:  "example-project",
+				Name:  "Archived Project",
+				Stage: misc.StringPtr("Archived"),
+				XSync: misc.BoolPtr(true),
+			},
+			requiredFrom: waiverActive,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "example-project").Return(false, nil)
+				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("events.ProjectSettingsUpdatedMessage")).Return(nil).Once()
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectFull) {
+				require.NotNil(t, result)
+				assert.Equal(t, "Archived", *result.Stage)
+				assert.Nil(t, result.EntityDissolutionDate)
+			},
+		},
+		{
+			name: "archived stage without dissolution date is rejected once waiver has expired",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:  "example-project",
+				Name:  "Archived Project",
+				Stage: misc.StringPtr("Archived"),
+			},
+			requiredFrom: waiverExpired,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "invalid name is rejected even while waiver is active",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:  "example-project",
+				Name:  "{oops}",
+				Stage: misc.StringPtr("Archived"),
+			},
+			requiredFrom: waiverActive,
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
 		},
 		{
 			name: "archived stage with dissolution date succeeds",
@@ -451,6 +508,8 @@ func TestProjectsService_CreateProject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
 			mockUserReader := service.UserReader.(*domainmocks.MockUserReader)
+			service.Config.ArchivedDissolutionDateRequiredFrom = tt.requiredFrom
+			service.now = func() time.Time { return now }
 
 			if tt.name == "service not ready" {
 				service.ProjectRepository = nil
@@ -466,7 +525,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.expectedErr != nil {
-					assert.Equal(t, tt.expectedErr, err)
+					assert.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
 			} else {
@@ -1137,15 +1196,20 @@ func TestProjectsService_ProjectValidation(t *testing.T) {
 }
 
 func TestProjectsService_UpdateProjectBase(t *testing.T) {
+	// Fixed clock for the temporary archived dissolution-date waiver cases.
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	waiverActive := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
 	tests := []struct {
-		name        string
-		payload     *projsvc.UpdateProjectBasePayload
-		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
-		fgaChecker  *domainmocks.MockAccessChecker
-		skipEtag    bool
-		wantErr     bool
-		expectedErr error
-		validate    func(*testing.T, *projsvc.ProjectBase)
+		name         string
+		payload      *projsvc.UpdateProjectBasePayload
+		requiredFrom time.Time
+		setupMocks   func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
+		fgaChecker   *domainmocks.MockAccessChecker
+		skipEtag     bool
+		wantErr      bool
+		expectedErr  error
+		validate     func(*testing.T, *projsvc.ProjectBase)
 	}{
 		{
 			// Public changes false→true: FGA update_access must be published.
@@ -1280,6 +1344,22 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "archived stage without dissolution date is rejected even while waiver is active",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "example-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Archived"),
+			},
+			requiredFrom: waiverActive,
+			setupMocks: func(_ *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				// The waiver applies to create only; validation fails before any DB call.
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
@@ -1795,6 +1875,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			service, mockRepo, mockBuilder := setupServiceForTesting()
 
 			service.Config.SkipEtagValidation = tt.skipEtag
+			service.Config.ArchivedDissolutionDateRequiredFrom = tt.requiredFrom
+			service.now = func() time.Time { return now }
 
 			if tt.fgaChecker != nil {
 				service.FGAChecker = tt.fgaChecker
@@ -1813,7 +1895,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.expectedErr != nil {
-					assert.Equal(t, tt.expectedErr, err)
+					assert.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
 			} else {
@@ -2658,12 +2740,19 @@ func TestValidateProjectName(t *testing.T) {
 }
 
 func TestValidateProjectFields(t *testing.T) {
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	waiverActive := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+	waiverExpired := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	tests := []struct {
 		name            string
 		stage           *string
 		dissolutionDate *string
 		projectName     string
-		wantErr         error
+		requiredFrom    time.Time
+		// update marks the update path, which is never eligible for the waiver.
+		update  bool
+		wantErr error
 	}{
 		{name: "valid fields", stage: misc.StringPtr("Active"), projectName: "Test Project"},
 		{name: "nil stage and valid name", projectName: "Test Project"},
@@ -2687,17 +2776,107 @@ func TestValidateProjectFields(t *testing.T) {
 			projectName: "",
 			wantErr:     domain.ErrArchivedRequiresDissolutionDate,
 		},
+		{
+			name:         "archived without dissolution date passes while waiver is active",
+			stage:        misc.StringPtr("Archived"),
+			projectName:  "Test Project",
+			requiredFrom: waiverActive,
+		},
+		{
+			name:            "archived with blank dissolution date passes while waiver is active",
+			stage:           misc.StringPtr("Archived"),
+			dissolutionDate: misc.StringPtr("   "),
+			projectName:     "Test Project",
+			requiredFrom:    waiverActive,
+		},
+		{
+			name:         "archived without dissolution date is rejected once waiver has expired",
+			stage:        misc.StringPtr("Archived"),
+			projectName:  "Test Project",
+			requiredFrom: waiverExpired,
+			wantErr:      domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name:         "archived without dissolution date is rejected on the required-from date",
+			stage:        misc.StringPtr("Archived"),
+			projectName:  "Test Project",
+			requiredFrom: now,
+			wantErr:      domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name:            "archived with dissolution date passes while waiver is active",
+			stage:           misc.StringPtr("Archived"),
+			dissolutionDate: misc.StringPtr("2025-01-01"),
+			projectName:     "Test Project",
+			requiredFrom:    waiverActive,
+		},
+		{
+			name:         "non-archived stage is unaffected by waiver",
+			stage:        misc.StringPtr("Active"),
+			projectName:  "Test Project",
+			requiredFrom: waiverActive,
+		},
+		{
+			name:         "waiver does not skip name validation",
+			stage:        misc.StringPtr("Archived"),
+			projectName:  "{oops}",
+			requiredFrom: waiverActive,
+			wantErr:      domain.ErrValidationFailed,
+		},
+		{
+			name:         "update of archived project without dissolution date is rejected while waiver is active",
+			stage:        misc.StringPtr("Archived"),
+			projectName:  "Test Project",
+			requiredFrom: waiverActive,
+			update:       true,
+			wantErr:      domain.ErrArchivedRequiresDissolutionDate,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateProjectFields(context.Background(), tt.stage, tt.dissolutionDate, tt.projectName)
+			svc := &ProjectsService{
+				Config: ServiceConfig{ArchivedDissolutionDateRequiredFrom: tt.requiredFrom},
+				now:    func() time.Time { return now },
+			}
+			ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "test-user")
+
+			err := svc.validateProjectFields(ctx, "example-project", tt.stage, tt.dissolutionDate, tt.projectName, !tt.update)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestDissolutionDateWaived(t *testing.T) {
+	requiredFrom := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name         string
+		requiredFrom time.Time
+		now          time.Time
+		want         bool
+	}{
+		{name: "zero required-from means no waiver", now: time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC), want: false},
+		{name: "now before required-from is waived", requiredFrom: requiredFrom, now: requiredFrom.Add(-time.Second), want: true},
+		{name: "now equal to required-from is enforced", requiredFrom: requiredFrom, now: requiredFrom, want: false},
+		{name: "now after required-from is enforced", requiredFrom: requiredFrom, now: requiredFrom.AddDate(0, 0, 1), want: false},
+		{
+			name:         "non-UTC now is compared as UTC",
+			requiredFrom: requiredFrom,
+			// 2026-11-30T20:00:00-05:00 is 2026-12-01T01:00:00Z, i.e. after required-from.
+			now:  time.Date(2026, 11, 30, 20, 0, 0, 0, time.FixedZone("UTC-5", -5*60*60)),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, dissolutionDateWaived(tt.requiredFrom, tt.now))
 		})
 	}
 }
