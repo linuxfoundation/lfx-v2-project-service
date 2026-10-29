@@ -2294,7 +2294,7 @@ paths:
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
-                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                   example: project-slug
             responses:
                 "200":
@@ -2630,7 +2630,7 @@ components:
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
-                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                 stage:
                     type: string
                     description: The stage of the project
@@ -3488,7 +3488,7 @@ components:
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
-                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                 stage:
                     type: string
                     description: The stage of the project
@@ -3856,7 +3856,7 @@ components:
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
-                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                 stage:
                     type: string
                     description: The stage of the project
@@ -4343,7 +4343,7 @@ components:
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
-                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                 stage:
                     type: string
                     description: The stage of the project

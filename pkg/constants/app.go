@@ -11,7 +11,7 @@ const (
 	// RootProjectSlug identifies the hidden ROOT project used for team permission
 	// assignment. It is created by scripts/root-project-setup and must not appear
 	// in the search index. Compared case-sensitively on purpose: API slugs are
-	// validated against ^[a-z][a-z0-9_\-]*[a-z0-9]$ (api/project/v1/design/types.go),
+	// validated against ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$ (api/project/v1/design/types.go),
 	// so "ROOT" cannot collide with a user slug, while a case-insensitive match
 	// would wrongly exclude a legitimate project slugged "root".
 	RootProjectSlug = "ROOT"

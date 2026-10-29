@@ -35,7 +35,7 @@ Domain types are in `internal/domain/models/`. Types that other services receive
 
 ## Project rules worth knowing
 
-- **Slug.** Unique across projects, matching `^[a-z][a-z0-9_\-]*[a-z0-9]$`. It can change: the new slug is reserved first, and the old slug's index key is removed after the update. If that removal fails the old key is left behind and logged; `project-cli inspect slug-index` finds such entries (see [KV layout](#kv-layout)).
+- **Slug.** Unique across projects, matching `^[a-z0-9][a-z0-9_\-]*[a-z0-9]$`. It can change: the new slug is reserved first, and the old slug's index key is removed after the update. If that removal fails the old key is left behind and logged; `project-cli inspect slug-index` finds such entries (see [KV layout](#kv-layout)).
 - **Parent.** `parent_uid` is empty or the UID of an existing project. A project cannot be its own parent; longer cycles are not rejected on write and are reported by `project-cli inspect parents`. When FGA is enabled, changing the parent requires `writer_guard` on both the old and the new parent.
 - **Stage.** One of `Formation - Exploratory`, `Formation - Engaged`, `Active`, `Archived`, `Formation - On Hold`, `Formation - Disengaged`, `Prospect`. A project submitted as `Archived` must carry an `entity_dissolution_date`.
 - **Stage and access.** `Prospect` and `Formation - Confidential` projects withhold the writer, auditor and marketing-ops global team grants; the owner grant is always sent. `Formation - Confidential` is not in the API's stage enum today; it is matched by exact spelling in `internal/service/global_grants.go`. See [fga-contract.md](fga-contract.md).

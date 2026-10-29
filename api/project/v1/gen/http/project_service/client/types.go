@@ -2980,7 +2980,7 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z0-9][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
@@ -3099,7 +3099,7 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z0-9][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
@@ -3233,7 +3233,7 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z0-9][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
@@ -4507,7 +4507,7 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z0-9][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
@@ -4678,7 +4678,7 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z0-9][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
