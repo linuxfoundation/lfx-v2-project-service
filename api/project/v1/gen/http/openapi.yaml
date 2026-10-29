@@ -1290,7 +1290,7 @@ paths:
                   required: true
                   type: string
                   format: regexp
-                  pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                  pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
@@ -1614,7 +1614,7 @@ definitions:
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
             stage:
                 type: string
                 description: The stage of the project
@@ -1983,7 +1983,7 @@ definitions:
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
             stage:
                 type: string
                 description: The stage of the project
@@ -2399,7 +2399,7 @@ definitions:
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
             stage:
                 type: string
                 description: The stage of the project
@@ -3124,7 +3124,7 @@ definitions:
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                pattern: ^[a-z0-9][a-z0-9_\-]*[a-z0-9]$
             stage:
                 type: string
                 description: The stage of the project

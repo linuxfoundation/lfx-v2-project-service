@@ -704,7 +704,7 @@ GitHub Actions workflows:
 ### 4. Slug Validation
 
 **Problem**: Invalid slug format causes API errors
-**Solution**: Slugs must match `^[a-z][a-z0-9_\-]*[a-z0-9]$`
+**Solution**: Slugs must match `^[a-z0-9][a-z0-9_\-]*[a-z0-9]$`
 
 ### 5. Parent Project Validation
 

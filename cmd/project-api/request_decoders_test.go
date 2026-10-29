@@ -99,7 +99,7 @@ func TestProjectRequestDecoder(t *testing.T) {
 		assert.ErrorIs(t, projectRequestDecoder(req).Decode(&dst), readErr)
 	})
 
-	t.Run("create-project handler rejects duplicate parent_uid keys", func(t *testing.T) {
+	t.Run("create-project handler validates the request body", func(t *testing.T) {
 		const validProjectBody = `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
 
 		tests := []struct {
@@ -133,6 +133,27 @@ func TestProjectRequestDecoder(t *testing.T) {
 			{
 				name:               "duplicate parent uid keys are rejected without content type",
 				body:               `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":""}`,
+				wantStatus:         http.StatusBadRequest,
+				wantEndpointCalled: false,
+			},
+			{
+				name:               "slug starting with a digit is accepted",
+				body:               `{"slug":"3mf-project","name":"Test Project","description":"Test description","parent_uid":""}`,
+				contentType:        "application/json",
+				wantStatus:         http.StatusCreated,
+				wantEndpointCalled: true,
+			},
+			{
+				name:               "slug starting with a hyphen is rejected",
+				body:               `{"slug":"-test-project","name":"Test Project","description":"Test description","parent_uid":""}`,
+				contentType:        "application/json",
+				wantStatus:         http.StatusBadRequest,
+				wantEndpointCalled: false,
+			},
+			{
+				name:               "slug with uppercase letters is rejected",
+				body:               `{"slug":"Test-project","name":"Test Project","description":"Test description","parent_uid":""}`,
+				contentType:        "application/json",
 				wantStatus:         http.StatusBadRequest,
 				wantEndpointCalled: false,
 			},
