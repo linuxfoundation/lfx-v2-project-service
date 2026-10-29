@@ -110,9 +110,10 @@ type ServiceConfig struct {
 	InvitesEnabled bool
 	// ArchivedDissolutionDateRequiredFrom is a temporary waiver (LFXV2-1733) of the
 	// rule that an Archived project must carry an entity dissolution date, so that
-	// legacy v1 archived projects without one can be imported. While the current
-	// UTC time is before this instant the rule is skipped; from this instant on it
-	// is enforced, so the waiver ends by itself without a code change. The zero
+	// legacy v1 archived projects without one can be imported. It applies to
+	// project creation only; updates always enforce the rule. While the current
+	// UTC time is before this instant the rule is skipped on create; from this
+	// instant on it is enforced, so the waiver ends by itself without a code change. The zero
 	// value means no waiver (always enforced). Set via
 	// ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM (YYYY-MM-DD, UTC).
 	ArchivedDissolutionDateRequiredFrom time.Time

@@ -92,7 +92,8 @@ app:
   lfxSelfServeBaseURL: ""
   # archivedDissolutionDateRequiredFrom is a temporary waiver (LFXV2-1733) of the rule that an
   # Archived project must carry an entity dissolution date, so legacy v1 archived projects can be
-  # imported. Format YYYY-MM-DD (UTC). Before this date the rule is skipped; on and after it the
+  # imported. Applies to project creation only; updates always enforce the rule.
+  # Format YYYY-MM-DD (UTC). Before this date the rule is skipped on create; on and after it the
   # rule is enforced again, so the waiver ends automatically without a code change.
   # Empty (default) = always enforced; an invalid value is logged and also enforces the rule.
   archivedDissolutionDateRequiredFrom: ""

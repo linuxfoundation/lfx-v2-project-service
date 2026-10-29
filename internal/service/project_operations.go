@@ -127,7 +127,9 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Checked before any DB calls so invalid payloads are rejected cheaply.
-	if err := s.validateProjectFields(ctx, payload.Slug, payload.Stage, payload.EntityDissolutionDate, payload.Name); err != nil {
+	// Create is the only path eligible for the temporary dissolution-date waiver
+	// (legacy v1 archived imports); updates always enforce the rule.
+	if err := s.validateProjectFields(ctx, payload.Slug, payload.Stage, payload.EntityDissolutionDate, payload.Name, true); err != nil {
 		return nil, err
 	}
 
@@ -379,7 +381,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	// Validated before any repository access so invalid payloads are rejected cheaply,
 	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
-	if err := s.validateProjectFields(ctx, payload.Slug, payload.Stage, payload.EntityDissolutionDate, payload.Name); err != nil {
+	if err := s.validateProjectFields(ctx, payload.Slug, payload.Stage, payload.EntityDissolutionDate, payload.Name, false); err != nil {
 		return nil, err
 	}
 
@@ -869,21 +871,20 @@ func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, payload *projs
 // every get_name read permanently fail for all consumers using ParseRPCError /
 // brace discrimination.
 //
-// The Archived dissolution-date rule is skipped while the temporary waiver in
-// ServiceConfig.ArchivedDissolutionDateRequiredFrom is active (LFXV2-1733); the
-// name rules always apply.
-func (s *ProjectsService) validateProjectFields(ctx context.Context, slug string, stage, dissolutionDate *string, name string) error {
+// When waiverEligible is true (create only, so legacy v1 archived projects can be
+// imported), the Archived dissolution-date rule is skipped while the temporary
+// waiver in ServiceConfig.ArchivedDissolutionDateRequiredFrom is active
+// (LFXV2-1733). Updates pass false, so existing projects always keep the rule.
+// The name rules always apply.
+func (s *ProjectsService) validateProjectFields(ctx context.Context, slug string, stage, dissolutionDate *string, name string, waiverEligible bool) error {
 	if err := validateArchivedRequiresDissolutionDate(stage, dissolutionDate); err != nil {
 		requiredFrom := s.Config.ArchivedDissolutionDateRequiredFrom
-		if !dissolutionDateWaived(requiredFrom, s.currentTime()) {
+		if !waiverEligible || !dissolutionDateWaived(requiredFrom, s.currentTime()) {
 			slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
 			return err
 		}
-		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
-		slog.WarnContext(ctx, "archived project saved without dissolution date under temporary waiver",
+		slog.WarnContext(ctx, "archived dissolution date requirement waived for project create (temporary waiver)",
 			"project_slug", slug,
-			"stage", *stage,
-			"principal", principal,
 			"required_from", requiredFrom.Format(time.DateOnly),
 		)
 	}
@@ -919,8 +920,8 @@ const projectStageArchived = "Archived"
 // when the submitted stage is "Archived", so non-Archived writes and un-archiving
 // are unaffected. Validation runs against the submitted payload (PUT replaces the
 // stored record), so an Archived update must always include the dissolution date.
-// Callers may skip this rule during the temporary LFXV2-1733 waiver; see
-// ProjectsService.validateProjectFields.
+// CreateProject may skip this rule during the temporary LFXV2-1733 waiver; see
+// ProjectsService.validateProjectFields. Updates always enforce it.
 func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) error {
 	if stage == nil || *stage != projectStageArchived {
 		return nil

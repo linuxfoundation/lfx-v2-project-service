@@ -107,7 +107,8 @@ func parseEnv() environment {
 // archivedDissolutionDateRequiredFrom parses the temporary LFXV2-1733 waiver
 // date (YYYY-MM-DD, UTC) from ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM and logs
 // whether the waiver is active at now. Until that date, Archived projects may
-// be saved without an entity dissolution date (legacy v1 imports); from that
+// be created without an entity dissolution date (legacy v1 imports; updates
+// always enforce the rule); from that
 // date on the rule is enforced again, so the waiver ends without a code change.
 // An empty value returns the zero time (rule enforced). An invalid value is
 // logged as an error and also returns the zero time, so the service fails
@@ -124,7 +125,7 @@ func archivedDissolutionDateRequiredFrom(raw string, now time.Time) time.Time {
 		return time.Time{}
 	}
 	if now.UTC().Before(requiredFrom) {
-		slog.Info("archived dissolution date rule waived until required-from date (temporary LFXV2-1733 waiver)",
+		slog.Info("archived dissolution date rule waived for project create until required-from date (temporary LFXV2-1733 waiver)",
 			"required_from", requiredFrom.Format(time.DateOnly))
 	} else {
 		slog.Info("archived dissolution date waiver has expired; rule is enforced",
