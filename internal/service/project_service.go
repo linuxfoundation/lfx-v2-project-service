@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -24,6 +25,10 @@ type ProjectsService struct {
 	Dispatcher         *NotificationDispatcher
 	FGAChecker         domain.AccessChecker // nil when OpenFGA is disabled (local dev)
 	Config             ServiceConfig
+
+	// now returns the current time; tests override it to pin the clock. A nil
+	// value falls back to time.Now (see currentTime).
+	now func() time.Time
 }
 
 // ServiceDeps holds the infrastructure dependencies required by ProjectsService.
@@ -59,7 +64,17 @@ func NewProjectsService(config ServiceConfig, deps ServiceDeps) *ProjectsService
 		Resolver:           deps.Resolver,
 		Dispatcher:         deps.Dispatcher,
 		FGAChecker:         deps.FGAChecker,
+		now:                time.Now,
 	}
+}
+
+// currentTime returns the service clock, defaulting to time.Now when the
+// service was built without NewProjectsService.
+func (s *ProjectsService) currentTime() time.Time {
+	if s.now == nil {
+		return time.Now()
+	}
+	return s.now()
 }
 
 // ServiceReady checks if the service is ready for use.
@@ -93,4 +108,12 @@ type ServiceConfig struct {
 	// InvitesEnabled gates outbound invite requests for non-LFID users via the invite service.
 	// Disabled by default; set INVITES_ENABLED=true to enable.
 	InvitesEnabled bool
+	// ArchivedDissolutionDateRequiredFrom is a temporary waiver (LFXV2-1733) of the
+	// rule that an Archived project must carry an entity dissolution date, so that
+	// legacy v1 archived projects without one can be imported. While the current
+	// UTC time is before this instant the rule is skipped; from this instant on it
+	// is enforced, so the waiver ends by itself without a code change. The zero
+	// value means no waiver (always enforced). Set via
+	// ARCHIVED_DISSOLUTION_DATE_REQUIRED_FROM (YYYY-MM-DD, UTC).
+	ArchivedDissolutionDateRequiredFrom time.Time
 }
