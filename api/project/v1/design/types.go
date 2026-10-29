@@ -141,7 +141,7 @@ func ProjectSlugAttribute() {
 		// Write-once attribute
 		Example("project-slug")
 		Format(FormatRegexp)
-		Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)
+		Pattern(`^[a-z0-9][a-z0-9_\-]*[a-z0-9]$`)
 	})
 }
 

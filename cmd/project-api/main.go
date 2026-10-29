@@ -114,6 +114,8 @@ func run() int {
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
 		EmailsEnabled:       env.EmailsEnabled,
 		InvitesEnabled:      env.InvitesEnabled,
+
+		ArchivedDissolutionDateRequiredFrom: archivedDissolutionDateRequiredFrom(env.ArchivedDissolutionDateRequiredFrom, time.Now()),
 	}, deps)
 	svc := NewProjectsAPI(projectService, jwtAuth)
 

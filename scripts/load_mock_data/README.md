@@ -103,7 +103,7 @@ The script generates project data including:
 ### Slugs
 
 - Automatically generated from project names
-- URL-friendly format following the pattern: `^[a-z][a-z0-9_\-]*[a-z0-9]$`
+- URL-friendly format following the pattern: `^[a-z0-9][a-z0-9_\-]*[a-z0-9]$`
 - Ensures uniqueness by adding index numbers when needed
 
 ## Output
