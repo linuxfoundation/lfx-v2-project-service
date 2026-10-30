@@ -286,7 +286,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				Slug:  "example-project",
 				Name:  "Archived Project",
 				Stage: misc.StringPtr("Archived"),
-				XSync: misc.BoolPtr(true),
 			},
 			requiredFrom: waiverActive,
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
