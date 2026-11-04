@@ -592,17 +592,29 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrValidationFailed
 	}
 
-	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
-		_, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
+	// The stored settings and their revision are read together: the snapshot seeds identity
+	// reuse and OldSettings, so it must be the exact record the CAS write replaces.
+	var existingProjectSettingsDB *models.ProjectSettings
+	var existingRevision uint64
+	loadExistingSettings := func() error {
+		settings, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
 		if fetchErr != nil {
 			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project settings not found", constants.ErrKey, fetchErr)
-				return 0, domain.ErrProjectNotFound
+				return domain.ErrProjectNotFound
 			}
 			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, fetchErr)
-			return 0, domain.ErrInternal
+			return domain.ErrInternal
 		}
-		return rev, nil
+		existingProjectSettingsDB, existingRevision = settings, rev
+		return nil
+	}
+
+	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
+		if fetchErr := loadExistingSettings(); fetchErr != nil {
+			return 0, fetchErr
+		}
+		return existingRevision, nil
 	})
 	if err != nil {
 		return nil, err
@@ -622,22 +634,20 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrProjectNotFound
 	}
 
-	// Get the existing project settings
-	existingProjectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
-	if err != nil {
-		if errors.Is(err, domain.ErrProjectNotFound) {
-			slog.WarnContext(ctx, "project settings not found", constants.ErrKey, err)
-			return nil, domain.ErrProjectNotFound
+	// Get the existing project settings (already loaded when ETag validation is skipped).
+	if existingProjectSettingsDB == nil {
+		if err := loadExistingSettings(); err != nil {
+			return nil, err
 		}
-		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
+		// A stale If-Match would fail the CAS write anyway; reject it before any auth lookups.
+		if existingRevision != revision {
+			slog.WarnContext(ctx, "etag header is invalid", "revision", existingRevision)
+			return nil, domain.ErrRevisionMismatch
+		}
 	}
 
-	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
-	if err := s.enrichAllRoleFields(ctx,
-		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
-		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
-	); err != nil {
+	// Resolve usernames before persisting; caller-supplied LFIDs, names and avatars are untrusted.
+	if err := s.enrichUpdatedRoleFields(ctx, payload, existingProjectSettingsDB); err != nil {
 		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
@@ -960,6 +970,109 @@ func validateProjectName(name string) error {
 		}
 	}
 	return nil
+}
+
+// enrichUpdatedRoleFields resolves the role entries of a settings update. An entry whose
+// normalized email matches a stored entry in the same role that carries a username takes the
+// stored Username, Name and Avatar, so an unchanged roster saves without auth-service lookups.
+// Reused entries ignore request-supplied username, name and avatar. Every other entry (new or
+// changed email, stored entry without a username, conflicting stored duplicates, no email)
+// goes through enrichAllRoleFields, retaining its display-field fallback.
+// existing is read only; it stays the OldSettings snapshot of the
+// settings-updated event.
+func (s *ProjectsService) enrichUpdatedRoleFields(
+	ctx context.Context,
+	payload *projsvc.UpdateProjectSettingsPayload,
+	existing *models.ProjectSettings,
+) error {
+	var stored models.ProjectSettings
+	if existing != nil {
+		stored = *existing
+	}
+
+	var pending []*projsvc.UserInfo
+	reused := 0
+	partition := func(users []*projsvc.UserInfo, storedUsers []models.UserInfo) {
+		trusted := trustedRoleIdentities(storedUsers)
+		for _, u := range users {
+			if u == nil {
+				continue
+			}
+			if reuseTrustedIdentity(u, trusted) {
+				reused++
+				continue
+			}
+			pending = append(pending, u)
+		}
+	}
+	partition(payload.Writers, stored.Writers)
+	partition(payload.Auditors, stored.Auditors)
+	partition(payload.MeetingCoordinators, stored.MeetingCoordinators)
+	partition(payload.MentorshipProgramAdmins, stored.MentorshipProgramAdmins)
+	partition([]*projsvc.UserInfo{payload.ExecutiveDirector}, optionalUser(stored.ExecutiveDirector))
+	partition([]*projsvc.UserInfo{payload.ProgramManager}, optionalUser(stored.ProgramManager))
+	partition([]*projsvc.UserInfo{payload.OpportunityOwner}, optionalUser(stored.OpportunityOwner))
+
+	slog.DebugContext(ctx, "resolving role identities for settings update",
+		"reused_stored", reused,
+		"pending_lookup", len(pending),
+	)
+	return s.enrichAllRoleFields(ctx, [][]*projsvc.UserInfo{pending}, nil)
+}
+
+// trustedRoleIdentities indexes one role's stored entries by normalized email, keeping only
+// entries that can be reused without a lookup: a nonempty email and username, and no other
+// stored entry for that email in the role with a different username, name or avatar.
+func trustedRoleIdentities(stored []models.UserInfo) map[string]models.UserInfo {
+	trusted := make(map[string]models.UserInfo, len(stored))
+	conflicting := make(map[string]bool)
+	for _, u := range stored {
+		email := strings.ToLower(strings.TrimSpace(u.Email))
+		if email == "" || conflicting[email] {
+			continue
+		}
+		if prev, seen := trusted[email]; seen &&
+			(prev.Username != u.Username || prev.Name != u.Name || prev.Avatar != u.Avatar) {
+			delete(trusted, email)
+			conflicting[email] = true
+			continue
+		}
+		trusted[email] = u
+	}
+	for email, u := range trusted {
+		if strings.TrimSpace(u.Username) == "" {
+			delete(trusted, email)
+		}
+	}
+	return trusted
+}
+
+// reuseTrustedIdentity overwrites u's Username, Name and Avatar with the trusted stored entry for
+// its email, including empty display values, and reports whether one was found.
+func reuseTrustedIdentity(u *projsvc.UserInfo, trusted map[string]models.UserInfo) bool {
+	if u.Email == nil {
+		return false
+	}
+	email := strings.ToLower(strings.TrimSpace(*u.Email))
+	if email == "" {
+		return false
+	}
+	match, ok := trusted[email]
+	if !ok {
+		return false
+	}
+	u.Username = misc.StringPtr(match.Username)
+	u.Name = misc.StringPtr(match.Name)
+	u.Avatar = misc.StringPtr(match.Avatar)
+	return true
+}
+
+// optionalUser wraps a single stored role holder as a slice; nil yields an empty slice.
+func optionalUser(u *models.UserInfo) []models.UserInfo {
+	if u == nil {
+		return nil
+	}
+	return []models.UserInfo{*u}
 }
 
 // enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied

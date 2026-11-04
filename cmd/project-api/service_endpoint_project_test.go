@@ -661,7 +661,7 @@ func TestUpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr(uid), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(r *domainmocks.MockProjectRepository) {
 				r.On("ProjectExists", mock.Anything, uid).Return(true, nil)
-				r.On("GetProjectSettings", mock.Anything, uid).Return(nil, domain.ErrProjectNotFound)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, uid).Return(nil, uint64(0), domain.ErrProjectNotFound)
 			},
 			wantErr: &projsvc.NotFoundError{},
 		},

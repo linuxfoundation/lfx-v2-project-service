@@ -1937,18 +1937,12 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1", CreatedAt: func() *time.Time { t := time.Now(); return &t }()}
-				updatedSettings := &models.ProjectSettings{
-					UID:     "project-uid-1",
-					Writers: []models.UserInfo{{Username: "alice", Name: "Alice", Email: "alice@example.com"}},
-				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Public: true}
 
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(3), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(3)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
-				// After update, GetProjectSettings is called again to build the FGA message — use updated settings
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(updatedSettings, nil).Maybe()
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil)
 				mockBuilder.On("PublishAccessMessage",
 					mock.Anything,
@@ -1986,7 +1980,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Public: false}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "real-bob"
 				}), uint64(1)).Return(nil)
@@ -2013,7 +2007,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
 				}), uint64(1)).Return(nil)
@@ -2037,7 +2031,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
 				}), uint64(1)).Return(nil)
@@ -2063,7 +2057,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
@@ -2072,7 +2066,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			// GH-2301: a lookup miss must not clear a stored LFID, and must not keep a
 			// caller-supplied username. Clearing the stored LFID omits the writer key from
 			// update_access; trusting the request would grant an unverified principal.
-			name: "unknown email with previously-stored username — stored LFID preserved",
+			// Conflicting stored duplicates are not reused, so the lookup still runs.
+			name: "unknown email with conflicting stored duplicates — lookup runs, stored LFID preserved",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
@@ -2087,12 +2082,13 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{
 					UID: "project-uid-1",
 					Writers: []models.UserInfo{
-						{Email: "gone@example.com", Username: "stored-lfid"},
+						{Email: "gone@example.com", Username: "stored-lfid", Name: "Old User"},
+						{Email: "gone@example.com", Username: "stored-lfid", Name: "Other Name"},
 					},
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "stored-lfid"
 				}), uint64(1)).Return(nil)
@@ -2114,7 +2110,9 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			},
 		},
 		{
-			name: "unknown email on executive director — stored LFID preserved",
+			// The stored same-role identity is reused without a lookup; the caller's username,
+			// name and avatar are replaced by the stored values, including the empty name.
+			name: "unchanged executive director — stored identity reused, caller fields ignored",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
@@ -2122,10 +2120,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					Username: misc.StringPtr("caller-supplied-ed"),
 					Name:     misc.StringPtr("Old ED"),
 					Email:    misc.StringPtr("ed-gone@example.com"),
+					Avatar:   misc.StringPtr("https://forged.example.com/ed.png"),
 				},
-			},
-			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "ed-gone@example.com").Return("", domain.ErrUserNotFound)
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{
@@ -2137,9 +2133,10 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "stored-ed"
+					return s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "stored-ed" &&
+						s.ExecutiveDirector.Name == "" && s.ExecutiveDirector.Avatar == ""
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2172,7 +2169,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
 				}), uint64(1)).Return(nil)
@@ -2197,7 +2194,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MentorshipProgramAdmins) == 0
 				}), uint64(1)).Return(nil)
@@ -2240,7 +2237,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MentorshipProgramAdmins) == 1 && s.MentorshipProgramAdmins[0].Username == "mentor-admin"
 				}), uint64(1)).Return(nil)
@@ -2276,7 +2273,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				// Username must be preserved unchanged — no Auth0 lookup should have been attempted.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "client-credentials|my-service"
@@ -2308,7 +2305,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				// Username, name, and avatar must all come from auth service, not the caller.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 &&
@@ -2340,7 +2337,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
 				// Username is enriched; name/avatar keep caller-supplied values when metadata fails.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 &&
@@ -2354,6 +2351,338 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
+		},
+		{
+			// Unchanged roster: every entry matches a stored same-role identity, so no auth
+			// lookup runs. Request emails are re-cased, padded and reordered; forged usernames,
+			// names and avatars are replaced by the stored values.
+			name: "unchanged verified roster — stored identities reused without auth lookups",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("5"),
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("forged-bob"), Name: misc.StringPtr("Forged"), Email: misc.StringPtr("bob@example.com"), Avatar: misc.StringPtr("https://forged.example.com/b.png")},
+					{Username: misc.StringPtr("alice"), Name: misc.StringPtr("Alice Example"), Email: misc.StringPtr(" Alice@Example.COM ")},
+				},
+				Auditors: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Auditor"), Email: misc.StringPtr("auditor@example.com")},
+				},
+				MeetingCoordinators: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Coordinator"), Email: misc.StringPtr("mc@example.com")},
+				},
+				MentorshipProgramAdmins: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Mentor"), Email: misc.StringPtr("mentor@example.com")},
+				},
+				ExecutiveDirector: &projsvc.UserInfo{Username: misc.StringPtr("forged-ed"), Name: misc.StringPtr("ED"), Email: misc.StringPtr("ed@example.com")},
+				ProgramManager:    &projsvc.UserInfo{Name: misc.StringPtr("PM"), Email: misc.StringPtr("pm@example.com")},
+				OpportunityOwner:  &projsvc.UserInfo{Name: misc.StringPtr("OO"), Email: misc.StringPtr("oo@example.com")},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					Writers: []models.UserInfo{
+						{Username: "alice-lfid", Name: "Alice Example", Email: "alice@example.com", Avatar: "https://example.com/alice.png"},
+						{Username: "bob-lfid", Name: "Bob Fixture", Email: "bob@example.com"},
+					},
+					Auditors:                []models.UserInfo{{Username: "auditor-lfid", Name: "Test Auditor", Email: "auditor@example.com"}},
+					MeetingCoordinators:     []models.UserInfo{{Username: "mc-lfid", Name: "Test Coordinator", Email: "mc@example.com"}},
+					MentorshipProgramAdmins: []models.UserInfo{{Username: "mentor-lfid", Name: "Test Mentor", Email: "mentor@example.com"}},
+					ExecutiveDirector:       &models.UserInfo{Username: "ed-lfid", Name: "Test ED", Email: "ed@example.com"},
+					ProgramManager:          &models.UserInfo{Username: "pm-lfid", Name: "Test PM", Email: "pm@example.com"},
+					OpportunityOwner:        &models.UserInfo{Username: "oo-lfid", Name: "Test OO", Email: "oo@example.com"},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(5), nil).Once()
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 2 &&
+						s.Writers[0] == models.UserInfo{Username: "bob-lfid", Name: "Bob Fixture", Email: "bob@example.com"} &&
+						s.Writers[1].Username == "alice-lfid" && s.Writers[1].Avatar == "https://example.com/alice.png" &&
+						s.Auditors[0].Username == "auditor-lfid" && s.Auditors[0].Name == "Test Auditor" &&
+						s.MeetingCoordinators[0].Username == "mc-lfid" &&
+						s.MentorshipProgramAdmins[0].Username == "mentor-lfid" &&
+						s.ExecutiveDirector.Username == "ed-lfid" && s.ExecutiveDirector.Name == "Test ED" &&
+						s.ProgramManager.Username == "pm-lfid" &&
+						s.OpportunityOwner.Username == "oo-lfid"
+				}), uint64(5)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.ElementsMatch(t, []string{"alice-lfid", "bob-lfid"}, data.Relations["writer"])
+					assert.Equal(t, []string{"ed-lfid"}, data.Relations["executive_director"])
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(events.ProjectSettingsUpdatedMessage)
+					require.True(t, ok)
+					// OldSettings is the untouched stored snapshot.
+					assert.Equal(t, "Bob Fixture", msg.OldSettings.Writers[1].Name)
+					assert.Equal(t, "ed-lfid", msg.OldSettings.ExecutiveDirector.Username)
+				})
+			},
+			wantErr: false,
+		},
+		{
+			// Replacing the ED and adding one writer looks up only those two emails; the
+			// unchanged writer and PM are reused, and the dropped writer is removed.
+			name: "ED replaced and writer added — only new emails looked up, siblings preserved",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("2"),
+				Writers: []*projsvc.UserInfo{
+					{Email: misc.StringPtr("alice@example.com")},
+					{Username: misc.StringPtr("forged-carol"), Email: misc.StringPtr("carol@example.com")},
+				},
+				ExecutiveDirector: &projsvc.UserInfo{Username: misc.StringPtr("forged-ed"), Email: misc.StringPtr("new-ed@example.com")},
+				ProgramManager:    &projsvc.UserInfo{Email: misc.StringPtr("pm@example.com")},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "carol@example.com").Return("carol-lfid", nil).Once()
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "carol-lfid").Return(&domain.UserMetadata{Name: "Carol Example"}, nil).Once()
+				mockUserReader.On("UsernameByEmail", mock.Anything, "new-ed@example.com").Return("new-ed-lfid", nil).Once()
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "new-ed-lfid").Return((*domain.UserMetadata)(nil), nil).Once()
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					Writers: []models.UserInfo{
+						{Username: "alice-lfid", Name: "Alice Example", Email: "alice@example.com"},
+						{Username: "bob-lfid", Name: "Bob Fixture", Email: "bob@example.com"},
+					},
+					ExecutiveDirector: &models.UserInfo{Username: "old-ed-lfid", Email: "old-ed@example.com"},
+					ProgramManager:    &models.UserInfo{Username: "pm-lfid", Name: "Test PM", Email: "pm@example.com"},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(2), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 2 &&
+						s.Writers[0].Username == "alice-lfid" && s.Writers[0].Name == "Alice Example" &&
+						s.Writers[1].Username == "carol-lfid" && s.Writers[1].Name == "Carol Example" &&
+						s.ExecutiveDirector.Username == "new-ed-lfid" &&
+						s.ProgramManager.Username == "pm-lfid" && s.ProgramManager.Name == "Test PM"
+				}), uint64(2)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.ElementsMatch(t, []string{"alice-lfid", "carol-lfid"}, data.Relations["writer"])
+					assert.Equal(t, []string{"new-ed-lfid"}, data.Relations["executive_director"])
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			// Clearing the PM (omitted from the full-replace PUT) keeps the ED and writers.
+			name: "PM cleared — ED and writers preserved without lookups",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:               misc.StringPtr("project-uid-1"),
+				IfMatch:           misc.StringPtr("1"),
+				Writers:           []*projsvc.UserInfo{{Email: misc.StringPtr("alice@example.com")}},
+				ExecutiveDirector: &projsvc.UserInfo{Email: misc.StringPtr("ed@example.com")},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:               "project-uid-1",
+					Writers:           []models.UserInfo{{Username: "alice-lfid", Email: "alice@example.com"}},
+					ExecutiveDirector: &models.UserInfo{Username: "ed-lfid", Email: "ed@example.com"},
+					ProgramManager:    &models.UserInfo{Username: "pm-lfid", Email: "pm@example.com"},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return s.ProgramManager == nil &&
+						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "ed-lfid" &&
+						len(s.Writers) == 1 && s.Writers[0].Username == "alice-lfid"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.Equal(t, []string{"ed-lfid"}, data.Relations["executive_director"])
+					assert.Equal(t, []string{"alice-lfid"}, data.Relations["writer"])
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(events.ProjectSettingsUpdatedMessage)
+					require.True(t, ok)
+					assert.Nil(t, msg.NewSettings.ProgramManager)
+					require.NotNil(t, msg.OldSettings.ProgramManager)
+					assert.Equal(t, "pm-lfid", msg.OldSettings.ProgramManager.Username)
+				})
+			},
+			wantErr: false,
+		},
+		{
+			// Identities are reused within a role only: an auditor added as a writer is
+			// looked up once (deduplicated) while the auditor entry itself is reused.
+			name: "cross-role addition — looked up, not reused from another role",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:      misc.StringPtr("project-uid-1"),
+				IfMatch:  misc.StringPtr("1"),
+				Writers:  []*projsvc.UserInfo{{Username: misc.StringPtr("dan-lfid"), Email: misc.StringPtr("dan@example.com")}},
+				Auditors: []*projsvc.UserInfo{{Email: misc.StringPtr("dan@example.com")}},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "dan@example.com").Return("dan-current-lfid", nil).Once()
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "dan-current-lfid").Return((*domain.UserMetadata)(nil), nil).Once()
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:      "project-uid-1",
+					Auditors: []models.UserInfo{{Username: "dan-lfid", Email: "dan@example.com"}},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == "dan-current-lfid" &&
+						len(s.Auditors) == 1 && s.Auditors[0].Username == "dan-lfid"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			// A stored entry without a username (pending invite or scrubbed account) is not
+			// reused: it is looked up so invite acceptance can promote it, and the
+			// server-managed invite survives the PUT.
+			name: "stored entry without username — looked up, invite preserved",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{{Username: misc.StringPtr("forged"), Email: misc.StringPtr("pending@example.com")}},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "pending@example.com").Return("", domain.ErrUserNotFound).Once()
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					Writers: []models.UserInfo{
+						{Email: "pending@example.com", Invite: &models.InviteInfo{UID: "00000000-0000-0000-0000-000000000001", Email: "pending@example.com"}},
+					},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == "" &&
+						s.Writers[0].Invite != nil && s.Writers[0].Invite.UID == "00000000-0000-0000-0000-000000000001"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.NotContains(t, data.Relations, "writer")
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			// A required lookup for a new identity times out: nothing is written or published,
+			// even though the unchanged entries were reused.
+			name: "lookup timeout for new identity — no write or publish",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Email: misc.StringPtr("alice@example.com")},
+					{Email: misc.StringPtr("new@example.com")},
+				},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "new@example.com").Return("", context.DeadlineExceeded).Once()
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:     "project-uid-1",
+					Writers: []models.UserInfo{{Username: "alice-lfid", Email: "alice@example.com"}},
+				}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			// A stale If-Match is rejected before any auth lookup and the CAS write.
+			name: "stale If-Match — conflict before lookups, nothing written",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("4"),
+				Writers: []*projsvc.UserInfo{{Email: misc.StringPtr("new@example.com")}},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(5), nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			// Skip mode reads the snapshot once and writes with that snapshot's revision.
+			name:     "skip etag — snapshot revision used for CAS and identity reuse",
+			skipEtag: true,
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				Writers: []*projsvc.UserInfo{{Email: misc.StringPtr("alice@example.com")}},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:     "project-uid-1",
+					Writers: []models.UserInfo{{Username: "alice-lfid", Email: "alice@example.com"}},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(7), nil).Once()
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == "alice-lfid"
+				}), uint64(7)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			// The record changes after the snapshot (e.g. a deletion scrub): the CAS write
+			// fails, so a reused identity is never stored over the newer record.
+			name: "concurrent change after snapshot — CAS conflict, nothing published",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{{Email: misc.StringPtr("alice@example.com")}},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:     "project-uid-1",
+					Writers: []models.UserInfo{{Username: "alice-lfid", Email: "alice@example.com"}},
+				}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existingSettings, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
 		},
 		{
 			name:        "service not ready",
@@ -2422,7 +2751,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, domain.ErrProjectNotFound)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), domain.ErrProjectNotFound)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrProjectNotFound,
@@ -2432,7 +2761,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(nil, uint64(0), errors.New("kv unavailable"))
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
@@ -2442,7 +2771,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(domain.ErrRevisionMismatch)
 			},
 			wantErr:     true,
@@ -2453,7 +2782,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(domain.ErrInternal)
 			},
 			wantErr:     true,
@@ -2464,7 +2793,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(errors.New("kv unavailable"))
 			},
 			wantErr:     true,
@@ -2475,7 +2804,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(nil, errors.New("kv unavailable"))
 			},
@@ -2487,7 +2816,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1")},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, uint64(1), nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything).Return(errors.New("nats unavailable"))
