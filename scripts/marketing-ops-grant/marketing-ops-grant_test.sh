@@ -15,7 +15,6 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${HERE}/marketing-ops-grant.sh"
 
-ROOT_UID="00000000-0000-4000-8000-000000000001"
 PROJECT_UID="00000000-0000-4000-8000-000000000002"
 # Read only inside check() conditions.
 # shellcheck disable=SC2034
@@ -48,9 +47,21 @@ case " $* " in
     fi
     printf '{"items":[{"spec":{"template":{"spec":{"containers":[{"env":[{"name":"OPENFGA_STORE_ID","value":"%s"}]}]}}}}]}\n' "$store"
     ;;
-  *" run "*) printf 'run %s\n' "$*" >>"${dir}/runs" ;;
+  *" run "*)
+    printf 'run %s\n' "$*" >>"${dir}/runs"
+    printf '%s\n' "$*" >"${dir}/last_run"
+    ;;
   *" get pod "*) printf Succeeded ;;
-  *" logs "*) printf '%s\n' "${FAKE_LOGS:-{\"allowed\":true\}}" ;;
+  *" logs "*)
+    if [[ -n "${FAKE_MEMBER_LOGS:-}" ]] && grep -qF '"query","check"' "${dir}/last_run" \
+      && grep -qF '"member","team:marketing-ops"' "${dir}/last_run"; then
+      printf '%s\n' "$FAKE_MEMBER_LOGS"
+    elif [[ -n "${FAKE_CAMPAIGN_LOGS:-}" ]] && grep -qF '"campaign_manager"' "${dir}/last_run"; then
+      printf '%s\n' "$FAKE_CAMPAIGN_LOGS"
+    else
+      printf '%s\n' "${FAKE_LOGS:-{\"allowed\":true\}}"
+    fi
+    ;;
   *) : ;;
 esac
 FAKE
@@ -61,20 +72,30 @@ teardown() {
   rm -rf "$WORK"
 }
 
-# run_grant STORE_FIRST STORE_LATER -- prod --global grant with the operator
-# typing the matching username at the confirmation prompt.
+# run_grant STORE_FIRST STORE_LATER -- prod grant with the operator typing the
+# matching username at the confirmation prompt.
 run_grant() {
   RC=0
   OUT="$(printf 'alice.example\n' | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
     FAKE_STORE_FIRST="$1" FAKE_STORE_LATER="${2:-}" \
-    bash "$SCRIPT" grant --env prod --user alice.example --global --root-uid "$ROOT_UID" 2>&1)" || RC=$?
+    bash "$SCRIPT" grant --env prod --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
 }
 
-# run_check   -- dev per-project check, which runs pods without a confirmation prompt.
+# run_prod_confirmed ACTION TYPED -- prod grant or revoke against a stable store,
+# with the operator typing TYPED at the confirmation prompt. The membership
+# check reports false, as it does after a successful revoke.
+run_prod_confirmed() {
+  RC=0
+  OUT="$(printf '%s\n' "$2" | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
+    FAKE_STORE_FIRST="$STORE_A" FAKE_MEMBER_LOGS='{"allowed":false}' \
+    bash "$SCRIPT" "$1" --env prod --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
+}
+
+# run_check   -- dev check, which runs pods without a confirmation prompt.
 run_check() {
   RC=0
   OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
-    bash "$SCRIPT" check --env dev --user alice.example --project "$PROJECT_UID" 2>&1)" || RC=$?
+    bash "$SCRIPT" check --env dev --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
 }
 
 # deployments_with_stores ID...   -- a Heimdall deployment list carrying each ID.
@@ -171,8 +192,94 @@ test_pods_drop_the_service_account_token_and_privileges() {
   teardown
 }
 
+test_grant_writes_only_the_global_team_membership() {
+  setup
+  run_grant "$STORE_A" ""
+  check "grant succeeds" '[[ "$RC" -eq 0 ]]'
+  check "writes the user into team:marketing-ops" 'grep -q "\"tuple\",\"write\",\"user:alice.example\",\"member\",\"team:marketing-ops\"" "${WORK}/runs"'
+  check "makes exactly one write" '[[ $(grep -c "\"tuple\",\"write\"" "${WORK}/runs") -eq 1 ]]'
+  check "never references marketing_ops" '! grep -q "\"marketing_ops\"" "${WORK}/runs"'
+  check "never writes a per-project team" '! grep -q "team:marketing-ops-" "${WORK}/runs"'
+  teardown
+}
+
+test_removed_scope_flags_are_refused() {
+  local flag
+  for flag in --project --global --root-uid; do
+    setup
+    RC=0
+    OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+      bash "$SCRIPT" grant --env dev --user alice.example "$flag" "$PROJECT_UID" 2>&1)" || RC=$?
+    check "refuses ${flag}" '[[ "$RC" -ne 0 && "$OUT" == *"was removed"* ]]'
+    check "creates no pod for ${flag}" '[[ ! -s "${WORK}/runs" ]]'
+    teardown
+  done
+}
+
+test_verify_project_is_required() {
+  setup
+  RC=0
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+    bash "$SCRIPT" check --env dev --user alice.example 2>&1)" || RC=$?
+  check "refuses a run without --verify-project" '[[ "$RC" -ne 0 ]]'
+  check "creates no pod without --verify-project" '[[ ! -s "${WORK}/runs" ]]'
+  teardown
+}
+
+test_verify_project_must_be_a_uuid() {
+  setup
+  RC=0
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+    bash "$SCRIPT" grant --env dev --user alice.example --verify-project "${PROJECT_UID}x" 2>&1)" || RC=$?
+  check "refuses a malformed --verify-project" '[[ "$RC" -ne 0 && "$OUT" == *"not a project UUID"* ]]'
+  check "does not look Heimdall up for a malformed --verify-project" '[[ ! -s "${WORK}/lookups" ]]'
+  check "creates no pod for a malformed --verify-project" '[[ ! -s "${WORK}/runs" ]]'
+  teardown
+}
+
+test_revoke_deletes_only_the_global_team_membership() {
+  setup
+  run_prod_confirmed revoke alice.example
+  check "revoke succeeds" '[[ "$RC" -eq 0 ]]'
+  check "deletes the user from team:marketing-ops" 'grep -q "\"tuple\",\"delete\",\"user:alice.example\",\"member\",\"team:marketing-ops\"" "${WORK}/runs"'
+  check "makes exactly one delete" '[[ $(grep -c "\"tuple\",\"delete\"" "${WORK}/runs") -eq 1 ]]'
+  check "makes no write" '! grep -q "\"tuple\",\"write\"" "${WORK}/runs"'
+  check "reports the remaining relations without failing" 'grep -q "marketing_auditor = true" <<<"$OUT"'
+  teardown
+}
+
+test_failed_grant_verification_says_the_membership_was_written() {
+  setup
+  RC=0
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+    FAKE_CAMPAIGN_LOGS='{"allowed":false}' \
+    bash "$SCRIPT" grant --env dev --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
+  check "a grant whose campaign_manager check fails exits non-zero" '[[ "$RC" -ne 0 && "$OUT" == *"FAIL  campaign_manager = false"* ]]'
+  check "says the membership was written" '[[ "$OUT" == *"membership was written"* ]]'
+  check "made exactly one write" '[[ $(grep -c "\"tuple\",\"write\"" "${WORK}/runs") -eq 1 ]]'
+  teardown
+}
+
+test_prod_confirmation_mismatch_is_refused() {
+  local action
+  for action in grant revoke; do
+    setup
+    run_prod_confirmed "$action" bob
+    check "${action} refuses a mismatched confirmation" '[[ "$RC" -ne 0 && "$OUT" == *"Confirmation did not match"* ]]'
+    check "${action} creates no pod after a mismatched confirmation" '[[ ! -s "${WORK}/runs" ]]'
+    teardown
+  done
+}
+
 test_store_switch_during_confirmation_is_refused
 test_stable_store_still_writes
+test_grant_writes_only_the_global_team_membership
+test_removed_scope_flags_are_refused
+test_verify_project_is_required
+test_verify_project_must_be_a_uuid
+test_revoke_deletes_only_the_global_team_membership
+test_prod_confirmation_mismatch_is_refused
+test_failed_grant_verification_says_the_membership_was_written
 test_caller_store_id_is_refused
 test_heimdall_store_id_must_be_one_ulid
 test_pod_output_masks_store_id

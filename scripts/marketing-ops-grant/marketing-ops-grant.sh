@@ -2,44 +2,34 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 #
-# Grant/revoke Marketing Ops (Campaign Impact + Campaigns) access via direct
-# OpenFGA tuple writes, then verify the grant actually resolves.
+# Grant/revoke Marketing Ops (Campaign Impact + Campaigns) access by adding or
+# removing a user's membership of the LF-wide team:marketing-ops, then verify
+# the result on a sample project.
 #
-# This is a cluster-access-required ops tool, NOT a replacement for
-# lfx-v2-project-service PR #107's self-serve API. Use the API for normal
-# per-project requests (no cluster access needed, validated, audited). Use
-# this script only for:
-#   - granting access across ALL projects at once (--global), which the API
-#     deliberately does not expose (bigger blast radius, kept ops-only)
-#   - ad-hoc verification of what's actually in a given FGA store
+# team:marketing-ops holds global_marketing_ops on every project whose stage is
+# not Prospect or Formation - Confidential, so membership grants
+# marketing_auditor and campaign_manager on all of them at once. There is no
+# per-project grant: the model has no marketing_ops relation, and
+# per-project team objects are not part of the access model.
 #
 # Requires: kubectl pointed at the target cluster context, permission to
 # list deployments and to `run`/`get`/`logs`/`delete` pods in namespace `lfx`.
 #
-# --global writes/reads against the root project, not a synthetic "ROOT"
-# object — the root project's real OpenFGA object ID is a generated UUID
-# (see scripts/root-project-setup/main.go), not the literal string "ROOT"
-# (that's only its slug). You must resolve it once per environment and pass
-# it explicitly with --root-uid, e.g. via a nats-box pod:
-#   nats request lfx.projects-api.slug_to_uid "ROOT" --server=nats://lfx-platform-nats:4222
-#
 # Usage:
-#   marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid> [--verify-project <uid>])
-#   marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
-#   marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+#   marketing-ops-grant.sh grant  --env dev|prod --user <username> --verify-project <uid>
+#   marketing-ops-grant.sh revoke --env dev|prod --user <username> --verify-project <uid>
+#   marketing-ops-grant.sh check  --env dev|prod --user <username> --verify-project <uid>
 #
-# --verify-project <uid> (grant + --global only) additionally checks the given
-# real project after the root write, confirming the cascade actually reached
-# it rather than just resolving on the root object.
+# --verify-project <uid> is the project the derived relations are checked on.
+# Pick an active project: campaign_manager is withheld on Prospect and
+# Formation - Confidential projects, so a grant verified there fails.
 #
 # The store ID is resolved from the selected environment's Heimdall deployment;
 # environment-specific identifiers are not committed or accepted from callers.
 #
 # Examples:
-#   marketing-ops-grant.sh grant  --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
-#   marketing-ops-grant.sh grant  --env prod --user alice.example --global --root-uid 00000000-0000-0000-0000-000000000002 \
-#     --verify-project 00000000-0000-0000-0000-000000000001
-#   marketing-ops-grant.sh check  --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
+#   marketing-ops-grant.sh grant  --env prod --user alice.example --verify-project 00000000-0000-0000-0000-000000000001
+#   marketing-ops-grant.sh check  --env prod --user alice.example --verify-project 00000000-0000-0000-0000-000000000001
 
 set -euo pipefail
 
@@ -54,56 +44,35 @@ shift
 
 ENV_NAME=""
 USERNAME=""
-PROJECT_UID=""
-ROOT_UID=""
 VERIFY_PROJECT_UID=""
-GLOBAL=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --env|--user|--project|--root-uid|--verify-project)
+    --env|--user|--verify-project)
       [[ $# -ge 2 ]] || { echo "$1 requires a value" >&2; usage; }
       ;;
   esac
   case "$1" in
     --env) ENV_NAME="$2"; shift 2 ;;
     --user) USERNAME="$2"; shift 2 ;;
-    --project) PROJECT_UID="$2"; shift 2 ;;
-    --global) GLOBAL=true; shift ;;
-    --root-uid) ROOT_UID="$2"; shift 2 ;;
     --verify-project) VERIFY_PROJECT_UID="$2"; shift 2 ;;
+    --project|--global|--root-uid)
+      echo "$1 was removed: the model has no per-project or root marketing_ops grant." >&2
+      echo "Access is membership of team:marketing-ops; pass --verify-project <uid> to choose where it is checked." >&2
+      exit 1
+      ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
 
-[[ -n "$ENV_NAME" && -n "$USERNAME" ]] || usage
-if [[ "$GLOBAL" == true && -n "$PROJECT_UID" ]]; then
-  echo "Specify --project OR --global, not both." >&2; exit 1
-fi
-if [[ "$GLOBAL" == false && -z "$PROJECT_UID" ]]; then
-  echo "Must specify --project <uid> or --global." >&2; exit 1
-fi
-if [[ "$GLOBAL" == true && -z "$ROOT_UID" ]]; then
-  echo "--global requires --root-uid <uid> — the root project's real OpenFGA object ID." >&2
-  echo "\"ROOT\" is only the root project's slug, not its object ID; resolve it once per" >&2
-  echo "environment, e.g.: nats request lfx.projects-api.slug_to_uid \"ROOT\" --server=nats://lfx-platform-nats:4222" >&2
+[[ -n "$ENV_NAME" && -n "$USERNAME" && -n "$VERIFY_PROJECT_UID" ]] || usage
+
+# A grant writes before it verifies, so a typo here would leave the membership
+# written and the verification failing.
+[[ "$VERIFY_PROJECT_UID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || {
+  echo "--verify-project '${VERIFY_PROJECT_UID}' is not a project UUID" >&2
   exit 1
-fi
-if [[ -n "$VERIFY_PROJECT_UID" && "$GLOBAL" == false ]]; then
-  echo "--verify-project only applies with --global (it samples a descendant project to confirm the cascade)." >&2
-  exit 1
-fi
-# The script has no way to resolve a project UID to "is this the root project"
-# on its own — that needs a live API/NATS lookup (see --root-uid above). This
-# only catches the case where the operator already knows the root UID and
-# passes it via --project instead of --global; an operator who doesn't know
-# it gets no automatic protection here.
-if [[ "$GLOBAL" == false && -n "$ROOT_UID" && "$PROJECT_UID" == "$ROOT_UID" ]]; then
-  echo "--project matches the known root project UID. A grant/revoke on the root project has the" >&2
-  echo "same org-wide blast radius as --global — use --global --root-uid ${ROOT_UID} instead so the" >&2
-  echo "production confirmation gate below applies." >&2
-  exit 1
-fi
+}
 
 [[ -z "${FGA_STORE_ID:-}" ]] || {
   echo "FGA_STORE_ID is resolved from Heimdall; unset it to avoid an ambiguous target" >&2
@@ -117,14 +86,8 @@ case "$ENV_NAME" in
     echo "Unknown --env '$ENV_NAME' (expected dev or prod)" >&2; exit 1 ;;
 esac
 
-if [[ "$GLOBAL" == true ]]; then
-  TARGET_UID="$ROOT_UID"
-else
-  TARGET_UID="$PROJECT_UID"
-fi
-TEAM_ID="marketing-ops-${TARGET_UID}"
-TEAM_OBJECT="team:${TEAM_ID}"
-PROJECT_OBJECT="project:${TARGET_UID}"
+TEAM_OBJECT="team:marketing-ops"
+PROJECT_OBJECT="project:${VERIFY_PROJECT_UID}"
 
 NS="lfx"
 FGA_API_URL="http://lfx-platform-openfga:8080"
@@ -268,15 +231,16 @@ fga_check() {
   fi
 }
 
-# verify_grant   -- asserts the full post-grant state: all three derived
-# relations true, and team membership true. Only used after `grant`, where all
-# four are genuinely expected true — unlike revoke (see verify_revoke below),
-# a grant has no other path that would make this assertion a false failure.
+# verify_grant   -- asserts the full post-grant state: both derived relations
+# true on PROJECT_OBJECT, and team membership true. Only used after `grant`,
+# where all three are genuinely expected true — unlike revoke (see
+# verify_revoke below), a grant has no other path that would make this
+# assertion a false failure.
 verify_grant() {
   echo ""
   echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME})..."
   local ok=true
-  for relation in marketing_ops marketing_auditor campaign_manager; do
+  for relation in marketing_auditor campaign_manager; do
     local result
     if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
       echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2
@@ -286,7 +250,7 @@ verify_grant() {
     if [[ "$result" == "true" ]]; then
       echo "  PASS  ${relation} = ${result}"
     else
-      echo "  FAIL  ${relation} = ${result} (expected true)"
+      echo "  FAIL  ${relation} = ${result} (expected true; is ${PROJECT_OBJECT} a Prospect or Formation - Confidential project?)"
       ok=false
     fi
   done
@@ -301,29 +265,11 @@ verify_grant() {
     ok=false
   fi
 
-  if [[ -n "$VERIFY_PROJECT_UID" ]]; then
-    echo ""
-    echo "Verifying cascade to descendant project:${VERIFY_PROJECT_UID}..."
-    for relation in marketing_ops marketing_auditor campaign_manager; do
-      local result
-      if ! result=$(fga_check "$relation" "project:${VERIFY_PROJECT_UID}"); then
-        echo "  ERROR checking ${relation} on project:${VERIFY_PROJECT_UID}" >&2
-        ok=false
-        continue
-      fi
-      if [[ "$result" == "true" ]]; then
-        echo "  PASS  ${relation} = true (inherited from root)"
-      else
-        echo "  FAIL  ${relation} = false — cascade did not reach project:${VERIFY_PROJECT_UID}" >&2
-        ok=false
-      fi
-    done
-  fi
-
   if [[ "$ok" == true ]]; then
     echo "Verification PASSED."
   else
-    echo "Verification FAILED — see above." >&2
+    echo "Verification FAILED — see above. The ${TEAM_OBJECT} membership was written;" >&2
+    echo "run \`revoke\` to undo it if this grant should not stand." >&2
     exit 1
   fi
 }
@@ -331,10 +277,10 @@ verify_grant() {
 # verify_revoke   -- a revoke only ever removes one tuple: the user's
 # membership in TEAM_OBJECT, so that's the only thing safe to assert false.
 # marketing_auditor and campaign_manager have independent grant paths in the
-# model (executive_director, or an ancestor --global grant via `from parent`)
-# that a project-level revoke can never touch, so asserting them false would
-# fail a revoke that worked correctly for anyone holding access another way.
-# Report those three instead of asserting them.
+# model (executive_director, or a direct marketing_auditor team grant) that
+# this revoke can never touch, so asserting them false would fail a revoke
+# that worked correctly for anyone holding access another way. Report those
+# two instead of asserting them.
 verify_revoke() {
   echo ""
   echo "Verifying access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME})..."
@@ -351,9 +297,9 @@ verify_revoke() {
   fi
 
   echo "  The relations below are reported, not asserted: a non-false value after a successful"
-  echo "  revoke means access via another path (executive_director, or an ancestor --global grant),"
-  echo "  not a failed revoke."
-  for relation in marketing_ops marketing_auditor campaign_manager; do
+  echo "  revoke means access via another path (executive_director, or a direct marketing_auditor"
+  echo "  team grant), not a failed revoke."
+  for relation in marketing_auditor campaign_manager; do
     local result
     if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
       echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2
@@ -363,11 +309,11 @@ verify_revoke() {
   done
 }
 
-if [[ ( "$ACTION" == "grant" || "$ACTION" == "revoke" ) && "$ENV_NAME" == "prod" && "$GLOBAL" == true ]]; then
+if [[ ( "$ACTION" == "grant" || "$ACTION" == "revoke" ) && "$ENV_NAME" == "prod" ]]; then
   if [[ "$ACTION" == "grant" ]]; then
-    echo "You are about to grant user:${USERNAME} marketing_ops access to EVERY project in prod"
-    echo "(via ${TEAM_OBJECT} -> ${PROJECT_OBJECT}). This username is NOT validated against the"
-    echo "auth service — a typo grants org-wide access to the wrong person."
+    echo "You are about to grant user:${USERNAME} Marketing Ops access to EVERY project in prod"
+    echo "(via ${TEAM_OBJECT}). This username is NOT validated against the auth service —"
+    echo "a typo grants org-wide access to the wrong person."
   else
     echo "You are about to revoke user:${USERNAME} from EVERY project in prod"
     echo "(via ${TEAM_OBJECT}). This username is NOT validated against the auth service —"
@@ -393,23 +339,21 @@ fi
 
 case "$ACTION" in
   grant)
-    echo "Granting user:${USERNAME} marketing_ops via ${TEAM_OBJECT} -> ${PROJECT_OBJECT} (env=${ENV_NAME})"
+    echo "Granting user:${USERNAME} membership of ${TEAM_OBJECT} (env=${ENV_NAME})"
     # --on-duplicate requires OpenFGA server v1.10.0+ (lfx-v2-helm's openfga
     # chart floor spans this — confirm the running server version in the
     # target env before using this against a store that predates it).
-    run_fga_pod "fga-write-team-$$" tuple write "${TEAM_OBJECT}#member" marketing_ops "$PROJECT_OBJECT" --on-duplicate ignore
     run_fga_pod "fga-write-member-$$" tuple write "user:${USERNAME}" member "$TEAM_OBJECT" --on-duplicate ignore
     verify_grant
     ;;
   revoke)
     echo "Revoking user:${USERNAME} from ${TEAM_OBJECT} (env=${ENV_NAME})"
-    echo "Note: the team->project marketing_ops reference is left in place by design — access is controlled purely by team membership."
     run_fga_pod "fga-delete-member-$$" tuple delete "user:${USERNAME}" member "$TEAM_OBJECT" --on-missing ignore
     verify_revoke
     ;;
   check)
     echo "Current access for user:${USERNAME} on ${PROJECT_OBJECT} (store $(masked_store_id), env ${ENV_NAME}):"
-    for relation in marketing_ops marketing_auditor campaign_manager; do
+    for relation in marketing_auditor campaign_manager; do
       if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
         echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2
         exit 1

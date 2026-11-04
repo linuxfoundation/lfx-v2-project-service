@@ -4,76 +4,46 @@
 # Marketing Ops Grant
 
 An ops-only utility for granting/revoking Marketing Ops (Campaign Impact and Campaigns tab)
-access via direct OpenFGA tuple writes, with built-in post-action verification.
+access by adding or removing a user's membership of the LF-wide `team:marketing-ops`, with
+built-in post-action verification.
 
-## When to use this vs. the self-serve API
+## When to use this
 
-`POST /projects/:uid/marketing-ops-members` and `DELETE /projects/:uid/marketing-ops-members/:username`
-are the self-serve way to grant/revoke Marketing Ops access scoped to a single project — no cluster
-access required, the username is validated against the auth service, and the call is audited like any
-other API request. **Use the API for normal requests.** (These endpoints are landing separately in
-[#107](https://github.com/linuxfoundation/lfx-v2-project-service/pull/107); see the main
-[README](../../README.md) once that merges.)
+- Giving a user Marketing Ops access across every project, or removing it.
+- Ad-hoc verification of what a given FGA store actually resolves for a user (`check` mode).
 
-Use this script only for:
-
-- Granting access across **all** projects at once (`--global`). The API intentionally does not
-  expose this — a single self-serve call granting org-wide access has a much bigger blast radius
-  than a per-project grant, so it stays gated behind whoever already has prod cluster access.
-  Not after the root team tuple cleanup — see [How it works](#how-it-works).
-- Ad-hoc verification of what a given FGA store actually contains for a user (`check` mode).
+There is no per-project Marketing Ops grant. The authorization model has no `marketing_ops`
+relation, and per-project team objects (`team:marketing-ops-<uid>`) are not part of the access
+model: teams are global, and project-service grants them on each project through the `global_*`
+relations (see [`docs/fga-contract.md`](../../docs/fga-contract.md)). The `--project`,
+`--global` and `--root-uid` options were removed and now fail with an explanation.
 
 ## Requirements
 
 - `kubectl` pointed at the target cluster context, with permission to list
   deployments and to `run`/`get`/`logs`/`delete` pods in namespace `lfx`.
 - `jq`.
-- For `--global`, the environment's root project UID (see below) — the script does not discover it
-  for you.
+- The UID of an active project to verify the result on (`--verify-project`).
 
 ## How it works
 
-Marketing Ops access flows through a per-project OpenFGA team object, `team:marketing-ops-<uid>`,
-which is granted the project's `marketing_ops` relation. `marketing_ops` implies both
-`marketing_auditor` and `campaign_manager` (see the [FGA model](https://github.com/linuxfoundation/lfx-v2-helm/blob/main/charts/lfx-platform/files/model.fga)),
-so one team grant covers all three. Membership in that team, not the team->project reference
-itself, is what's granted or revoked per user.
+project-service writes `team:marketing-ops#member` on the `global_marketing_ops` relation of every
+project whose stage is not `Prospect` or `Formation - Confidential`. In the
+[FGA model](https://github.com/linuxfoundation/lfx-v2-helm/blob/main/charts/lfx-platform/files/model.fga),
+`global_marketing_ops` feeds `campaign_manager` on that project and the cascading
+`marketing_auditor`, so membership of `team:marketing-ops` is the whole grant.
 
-`--global` targets the root project (see `scripts/root-project-setup`) instead of a specific
-project UID. Because `marketing_ops` also resolves `from parent`, a grant on the root project
-cascades down to every project in the hierarchy — the same mechanism a project-scoped grant uses,
-just applied one level higher.
+`campaign_manager` is withheld on `Prospect` and `Formation - Confidential` projects, so pass an
+active project as `--verify-project`; a grant verified on a withheld project fails its
+`campaign_manager` check.
 
-**Do not use `--global` after the [root team tuple cleanup](../root-team-tuple-cleanup/README.md)
-has run.** It writes a `marketing_ops` tuple on the root project, which is one of the legacy tuples
-that cleanup removes. Org-wide access then comes from membership in the `marketing-ops` team, which
-holds `global_marketing_ops` on each project; project-scoped grants are unaffected.
-
-**`ROOT` is only the root project's slug, not its OpenFGA object ID** — the object ID is a
-generated UUID (`scripts/root-project-setup/main.go` assigns `Slug: "ROOT"` separately from a
-`uuid.New()`-generated `UID`), and every other service references the root project as
-`project:<UID>`, never the literal `project:ROOT`. So `--global` requires you to pass that real
-UID explicitly via `--root-uid <uid>`; the script will not guess it. Resolve it once per
-environment via a nats-box pod:
-
-```bash
-kubectl --context <ctx> exec -n lfx <nats-box-pod> -- \
-  nats request lfx.projects-api.slug_to_uid "ROOT" --server=nats://lfx-platform-nats:4222
-```
-
-`grant` re-checks `marketing_ops`, `marketing_auditor`, `campaign_manager`, and the underlying team
-membership tuple with `--consistency HIGHER_CONSISTENCY` (bypassing OpenFGA's check-query cache) and
-fails loudly if any of them aren't `true` afterward. `revoke` only asserts team membership is
-`false` — the tuple it actually deletes — and *reports* (without asserting) the three derived
-relations, since `marketing_auditor`/`campaign_manager` have independent grant paths
-(`executive_director`, or an ancestor `--global` grant) that a project-level revoke can't touch;
-asserting them `false` would fail a revoke that worked correctly for anyone holding access another
-way. `check` reports the same four values without asserting anything, so it can also confirm the
-*absence* of access (e.g. after a revoke done some other way).
-
-`grant --global` additionally accepts `--verify-project <uid>`, which samples one real descendant
-project after the root write to confirm the cascade actually reached it — the root-object check
-alone only proves the tuple exists on the root, not that anything inherited it.
+`grant` writes one tuple, `user:<username> member team:marketing-ops`, then re-checks
+`marketing_auditor` and `campaign_manager` on the verify project and the membership tuple with
+`--consistency HIGHER_CONSISTENCY` (bypassing OpenFGA's check-query cache), and fails loudly if any
+of them aren't `true`. `revoke` deletes that tuple, asserts membership is `false`, and *reports*
+(without asserting) the two derived relations, since they have independent grant paths
+(`executive_director`, or a direct `marketing_auditor` team grant) that the revoke can't touch.
+`check` reports the same three values without asserting anything.
 
 `grant`/`revoke` are safe to re-run: writing a tuple that already exists, or deleting one that's
 already gone, is treated as success rather than an error (`--on-duplicate`/`--on-missing ignore`).
@@ -83,34 +53,26 @@ This requires OpenFGA server **v1.10.0+**; confirm the running version in the ta
 ## Usage
 
 ```bash
-./marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
-./marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
-./marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+./marketing-ops-grant.sh grant  --env dev|prod --user <username> --verify-project <uid>
+./marketing-ops-grant.sh revoke --env dev|prod --user <username> --verify-project <uid>
+./marketing-ops-grant.sh check  --env dev|prod --user <username> --verify-project <uid>
 ```
 
 ### Examples
 
 ```bash
-# Grant a user Marketing Ops access on one project
-./marketing-ops-grant.sh grant --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
-
-# Grant a user Marketing Ops access on every project
-./marketing-ops-grant.sh grant --env prod --user alice.example --global --root-uid 00000000-0000-0000-0000-000000000002
+# Grant a user Marketing Ops access on every project, verified on one active project
+./marketing-ops-grant.sh grant --env prod --user alice.example --verify-project 00000000-0000-0000-0000-000000000001
 
 # Just report what's currently granted, without changing anything or asserting a result
-./marketing-ops-grant.sh check --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
+./marketing-ops-grant.sh check --env prod --user alice.example --verify-project 00000000-0000-0000-0000-000000000001
 
 # Revoke
-./marketing-ops-grant.sh revoke --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
+./marketing-ops-grant.sh revoke --env prod --user alice.example --verify-project 00000000-0000-0000-0000-000000000001
 ```
 
-`revoke` only removes the user's team membership — the team->project `marketing_ops` reference is
-left in place by design, matching the API's behavior. Access is controlled purely by team
-membership, which stays trivially re-grantable without re-establishing the reference tuple.
-
-`grant --env prod --global` and `revoke --env prod --global` — the highest-blast-radius invocations,
-since `--user` is not validated against the auth service — both prompt you to re-type the username
-before writing anything.
+Every prod `grant` and `revoke` changes access on every project, and `--user` is not validated
+against the auth service, so both prompt you to re-type the username before writing anything.
 
 ## Configuring environments
 
@@ -125,8 +87,8 @@ aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <you
 
 The script reads the OpenFGA store ID from the selected environment's Heimdall
 deployment. No environment-specific store ID is committed or accepted through
-`FGA_STORE_ID`. For a prod `--global` grant or revoke it reads the store ID again
-after the username confirmation and exits without writing if it changed.
+`FGA_STORE_ID`. For a prod grant or revoke it reads the store ID again after the
+username confirmation and exits without writing if it changed.
 
 Dev and prod are separate AWS accounts and EKS clusters (both happen to be named `lfx-v2`) with
 independently seeded FGA stores — a `kubectl` context pointed at the wrong one will silently read
