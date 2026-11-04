@@ -977,8 +977,9 @@ func validateProjectName(name string) error {
 // stored Username, Name and Avatar, so an unchanged roster saves without auth-service lookups.
 // Reused entries ignore request-supplied username, name and avatar. Every other entry (new or
 // changed email, stored entry without a username, conflicting stored duplicates, no email)
-// goes through enrichAllRoleFields, retaining its display-field fallback. existing is read only; it stays the OldSettings
-// snapshot of the settings-updated event.
+// goes through enrichAllRoleFields, retaining its display-field fallback.
+// existing is read only; it stays the OldSettings snapshot of the
+// settings-updated event.
 func (s *ProjectsService) enrichUpdatedRoleFields(
 	ctx context.Context,
 	payload *projsvc.UpdateProjectSettingsPayload,
