@@ -56,6 +56,8 @@ case " $* " in
     if [[ -n "${FAKE_MEMBER_LOGS:-}" ]] && grep -qF '"query","check"' "${dir}/last_run" \
       && grep -qF '"member","team:marketing-ops"' "${dir}/last_run"; then
       printf '%s\n' "$FAKE_MEMBER_LOGS"
+    elif [[ -n "${FAKE_CAMPAIGN_LOGS:-}" ]] && grep -qF '"campaign_manager"' "${dir}/last_run"; then
+      printf '%s\n' "$FAKE_CAMPAIGN_LOGS"
     else
       printf '%s\n' "${FAKE_LOGS:-{\"allowed\":true\}}"
     fi
@@ -246,6 +248,18 @@ test_revoke_deletes_only_the_global_team_membership() {
   teardown
 }
 
+test_failed_grant_verification_says_the_membership_was_written() {
+  setup
+  RC=0
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+    FAKE_CAMPAIGN_LOGS='{"allowed":false}' \
+    bash "$SCRIPT" grant --env dev --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
+  check "a grant whose campaign_manager check fails exits non-zero" '[[ "$RC" -ne 0 && "$OUT" == *"FAIL  campaign_manager = false"* ]]'
+  check "says the membership was written" '[[ "$OUT" == *"membership was written"* ]]'
+  check "made exactly one write" '[[ $(grep -c "\"tuple\",\"write\"" "${WORK}/runs") -eq 1 ]]'
+  teardown
+}
+
 test_prod_confirmation_mismatch_is_refused() {
   local action
   for action in grant revoke; do
@@ -265,6 +279,7 @@ test_verify_project_is_required
 test_verify_project_must_be_a_uuid
 test_revoke_deletes_only_the_global_team_membership
 test_prod_confirmation_mismatch_is_refused
+test_failed_grant_verification_says_the_membership_was_written
 test_caller_store_id_is_refused
 test_heimdall_store_id_must_be_one_ulid
 test_pod_output_masks_store_id

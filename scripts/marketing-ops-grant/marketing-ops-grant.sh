@@ -268,7 +268,8 @@ verify_grant() {
   if [[ "$ok" == true ]]; then
     echo "Verification PASSED."
   else
-    echo "Verification FAILED — see above." >&2
+    echo "Verification FAILED — see above. The ${TEAM_OBJECT} membership was written;" >&2
+    echo "run \`revoke\` to undo it if this grant should not stand." >&2
     exit 1
   fi
 }
