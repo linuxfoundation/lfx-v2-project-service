@@ -47,9 +47,19 @@ case " $* " in
     fi
     printf '{"items":[{"spec":{"template":{"spec":{"containers":[{"env":[{"name":"OPENFGA_STORE_ID","value":"%s"}]}]}}}}]}\n' "$store"
     ;;
-  *" run "*) printf 'run %s\n' "$*" >>"${dir}/runs" ;;
+  *" run "*)
+    printf 'run %s\n' "$*" >>"${dir}/runs"
+    printf '%s\n' "$*" >"${dir}/last_run"
+    ;;
   *" get pod "*) printf Succeeded ;;
-  *" logs "*) printf '%s\n' "${FAKE_LOGS:-{\"allowed\":true\}}" ;;
+  *" logs "*)
+    if [[ -n "${FAKE_MEMBER_LOGS:-}" ]] && grep -qF '"query","check"' "${dir}/last_run" \
+      && grep -qF '"member","team:marketing-ops"' "${dir}/last_run"; then
+      printf '%s\n' "$FAKE_MEMBER_LOGS"
+    else
+      printf '%s\n' "${FAKE_LOGS:-{\"allowed\":true\}}"
+    fi
+    ;;
   *) : ;;
 esac
 FAKE
@@ -67,6 +77,16 @@ run_grant() {
   OUT="$(printf 'alice.example\n' | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
     FAKE_STORE_FIRST="$1" FAKE_STORE_LATER="${2:-}" \
     bash "$SCRIPT" grant --env prod --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
+}
+
+# run_prod_confirmed ACTION TYPED -- prod grant or revoke against a stable store,
+# with the operator typing TYPED at the confirmation prompt. The membership
+# check reports false, as it does after a successful revoke.
+run_prod_confirmed() {
+  RC=0
+  OUT="$(printf '%s\n' "$2" | PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" \
+    FAKE_STORE_FIRST="$STORE_A" FAKE_MEMBER_LOGS='{"allowed":false}' \
+    bash "$SCRIPT" "$1" --env prod --user alice.example --verify-project "$PROJECT_UID" 2>&1)" || RC=$?
 }
 
 # run_check   -- dev check, which runs pods without a confirmation prompt.
@@ -204,11 +224,47 @@ test_verify_project_is_required() {
   teardown
 }
 
+test_verify_project_must_be_a_uuid() {
+  setup
+  RC=0
+  OUT="$(PATH="${WORK}/bin:${PATH}" FAKE_KUBECTL_DIR="$WORK" FAKE_STORE_FIRST="$STORE_A" \
+    bash "$SCRIPT" grant --env dev --user alice.example --verify-project "${PROJECT_UID}x" 2>&1)" || RC=$?
+  check "refuses a malformed --verify-project" '[[ "$RC" -ne 0 && "$OUT" == *"not a project UUID"* ]]'
+  check "does not look Heimdall up for a malformed --verify-project" '[[ ! -s "${WORK}/lookups" ]]'
+  check "creates no pod for a malformed --verify-project" '[[ ! -s "${WORK}/runs" ]]'
+  teardown
+}
+
+test_revoke_deletes_only_the_global_team_membership() {
+  setup
+  run_prod_confirmed revoke alice.example
+  check "revoke succeeds" '[[ "$RC" -eq 0 ]]'
+  check "deletes the user from team:marketing-ops" 'grep -q "\"tuple\",\"delete\",\"user:alice.example\",\"member\",\"team:marketing-ops\"" "${WORK}/runs"'
+  check "makes exactly one delete" '[[ $(grep -c "\"tuple\",\"delete\"" "${WORK}/runs") -eq 1 ]]'
+  check "makes no write" '! grep -q "\"tuple\",\"write\"" "${WORK}/runs"'
+  check "reports the remaining relations without failing" 'grep -q "marketing_auditor = true" <<<"$OUT"'
+  teardown
+}
+
+test_prod_confirmation_mismatch_is_refused() {
+  local action
+  for action in grant revoke; do
+    setup
+    run_prod_confirmed "$action" bob
+    check "${action} refuses a mismatched confirmation" '[[ "$RC" -ne 0 && "$OUT" == *"Confirmation did not match"* ]]'
+    check "${action} creates no pod after a mismatched confirmation" '[[ ! -s "${WORK}/runs" ]]'
+    teardown
+  done
+}
+
 test_store_switch_during_confirmation_is_refused
 test_stable_store_still_writes
 test_grant_writes_only_the_global_team_membership
 test_removed_scope_flags_are_refused
 test_verify_project_is_required
+test_verify_project_must_be_a_uuid
+test_revoke_deletes_only_the_global_team_membership
+test_prod_confirmation_mismatch_is_refused
 test_caller_store_id_is_refused
 test_heimdall_store_id_must_be_one_ulid
 test_pod_output_masks_store_id

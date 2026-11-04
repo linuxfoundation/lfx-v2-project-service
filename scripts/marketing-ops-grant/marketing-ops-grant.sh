@@ -67,6 +67,13 @@ done
 
 [[ -n "$ENV_NAME" && -n "$USERNAME" && -n "$VERIFY_PROJECT_UID" ]] || usage
 
+# A grant writes before it verifies, so a typo here would leave the membership
+# written and the verification failing.
+[[ "$VERIFY_PROJECT_UID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || {
+  echo "--verify-project '${VERIFY_PROJECT_UID}' is not a project UUID" >&2
+  exit 1
+}
+
 [[ -z "${FGA_STORE_ID:-}" ]] || {
   echo "FGA_STORE_ID is resolved from Heimdall; unset it to avoid an ambiguous target" >&2
   exit 1
