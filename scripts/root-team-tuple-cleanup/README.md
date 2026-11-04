@@ -110,9 +110,8 @@ must also confirm that:
 - organization-auditor reconciliation no longer derives its team set from the
   legacy root tuples.
 
-Running `scripts/marketing-ops-grant` with `--global` writes a
-`marketing_ops` tuple on the root project again; do not use it after this
-cleanup.
+`scripts/marketing-ops-grant` no longer writes any project tuple; it grants
+Marketing Ops access through membership of `team:marketing-ops`.
 
 ## Exit codes
 
