@@ -541,12 +541,23 @@ func TestProjectsService_CreateProject(t *testing.T) {
 		})
 	}
 
+	successIndex := -1
+	for i := range tests {
+		if tests[i].name == "successful project creation" {
+			successIndex = i
+			break
+		}
+	}
+	require.NotEqual(t, -1, successIndex, "successful project creation fixture must exist")
+	successCase := tests[successIndex]
+	require.False(t, successCase.wantErr, "origin fixture must expect success")
+
 	// The same human may write through either product: origin never replaces actor.
 	for _, origin := range []string{"", events.OriginV1SyncHelper} {
 		t.Run("event origin "+origin, func(t *testing.T) {
 			svc, repo, publisher := setupServiceForTesting()
 			svc.Resolver = NewUserResolver(nil)
-			tt := tests[0]
+			tt := successCase
 			if tt.setupUserReader != nil {
 				tt.setupUserReader(svc.UserReader.(*domainmocks.MockUserReader))
 			}
@@ -2897,12 +2908,23 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 		})
 	}
 
+	successIndex := -1
+	for i := range tests {
+		if tests[i].name == "successful update — publishes FGA update_access message with writers" {
+			successIndex = i
+			break
+		}
+	}
+	require.NotEqual(t, -1, successIndex, "successful settings update fixture must exist")
+	successCase := tests[successIndex]
+	require.False(t, successCase.wantErr, "origin fixture must expect success")
+
 	// The same human may write through either product: origin never replaces actor.
 	for _, origin := range []string{"", events.OriginV1SyncHelper} {
 		t.Run("event origin "+origin, func(t *testing.T) {
 			svc, repo, publisher := setupServiceForTesting()
 			svc.Resolver = NewUserResolver(nil)
-			tt := tests[0]
+			tt := successCase
 			if tt.setupUserReader != nil {
 				tt.setupUserReader(svc.UserReader.(*domainmocks.MockUserReader))
 			}
