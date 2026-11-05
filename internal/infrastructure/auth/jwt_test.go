@@ -5,8 +5,19 @@ package auth
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"log/slog"
 	"testing"
+	"time"
+
+	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -340,6 +351,92 @@ func TestJWTAuth_ConfigurationHandling(t *testing.T) {
 				if auth != nil {
 					assert.Equal(t, tt.config, auth.config)
 				}
+			}
+		})
+	}
+}
+
+func TestJWTAuth_ParseIdentity(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	wrongKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	jwtValidator, err := validator.New(
+		func(context.Context) (interface{}, error) { return &key.PublicKey, nil },
+		signatureAlgorithm, defaultIssuer, []string{defaultAudience},
+		validator.WithCustomClaims(customClaims),
+	)
+	require.NoError(t, err)
+	auth := &JWTAuth{validator: jwtValidator, logger: slog.Default()}
+
+	tests := []struct {
+		name     string
+		origin   any
+		omit     bool
+		mutate   func(map[string]any)
+		wrongKey bool
+		mock     bool
+		wantErr  bool
+	}{
+		{name: "signed origin with human attribution", origin: events.OriginV1SyncHelper},
+		{name: "legacy absent claim", omit: true},
+		{name: "empty claim", origin: ""},
+		{name: "null is unspecified", origin: nil},
+		{name: "unknown origin", origin: "other_source", wantErr: true},
+		{name: "non-string origin", origin: true, wantErr: true},
+		{name: "array origin", origin: []string{events.OriginV1SyncHelper}, wantErr: true},
+		{name: "invalid signature", origin: events.OriginV1SyncHelper, wrongKey: true, wantErr: true},
+		{name: "wrong issuer", origin: events.OriginV1SyncHelper, mutate: func(c map[string]any) { c["iss"] = "untrusted" }, wantErr: true},
+		{name: "wrong audience", origin: events.OriginV1SyncHelper, mutate: func(c map[string]any) { c["aud"] = "other-service" }, wantErr: true},
+		{name: "expired token", origin: events.OriginV1SyncHelper, mutate: func(c map[string]any) { c["exp"] = time.Now().Add(-time.Hour).Unix() }, wantErr: true},
+		{name: "missing principal", origin: events.OriginV1SyncHelper, mutate: func(c map[string]any) { delete(c, "principal") }, wantErr: true},
+		{name: "mock bypass never trusts token origin", origin: events.OriginV1SyncHelper, mock: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := map[string]any{
+				"iss": defaultIssuer, "aud": defaultAudience,
+				"exp":       time.Now().Add(time.Minute).Unix(),
+				"principal": "test-user", "email": "test@example.com",
+			}
+			if !tt.omit {
+				claims[events.OriginClaim] = tt.origin
+			}
+			if tt.mutate != nil {
+				tt.mutate(claims)
+			}
+			header, err := json.Marshal(map[string]string{"alg": "PS256", "typ": "JWT"})
+			require.NoError(t, err)
+			payload, err := json.Marshal(claims)
+			require.NoError(t, err)
+			input := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload)
+			digest := sha256.Sum256([]byte(input))
+			signingKey := key
+			if tt.wrongKey {
+				signingKey = wrongKey
+			}
+			signature, err := rsa.SignPSS(rand.Reader, signingKey, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
+			require.NoError(t, err)
+			token := input + "." + base64.RawURLEncoding.EncodeToString(signature)
+			auth.config.MockLocalPrincipal = ""
+			if tt.mock {
+				auth.config.MockLocalPrincipal = "test-user"
+			}
+			identity, err := auth.ParseIdentity(t.Context(), token)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, domain.AuthIdentity{}, identity)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "test-user", identity.Principal)
+			if tt.mock {
+				assert.Empty(t, identity.Email)
+				assert.Empty(t, identity.Origin)
+			} else {
+				assert.Equal(t, "test@example.com", identity.Email)
+				wantOrigin, _ := tt.origin.(string)
+				assert.Equal(t, wantOrigin, identity.Origin)
 			}
 		})
 	}

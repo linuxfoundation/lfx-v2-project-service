@@ -15,6 +15,11 @@ type MockJWTAuth struct {
 	mock.Mock
 }
 
+func (m *MockJWTAuth) ParseIdentity(ctx context.Context, token string) (domain.AuthIdentity, error) {
+	args := m.Called(ctx, token)
+	return args.Get(0).(domain.AuthIdentity), args.Error(1)
+}
+
 func (m *MockJWTAuth) ParsePrincipal(ctx context.Context, token string) (string, error) {
 	args := m.Called(ctx, token)
 	return args.String(0), args.Error(1)

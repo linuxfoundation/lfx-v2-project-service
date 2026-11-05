@@ -262,11 +262,13 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g.Go(func() error {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		origin, _ := ctx.Value(constants.OriginContextID).(string)
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:        projectDB.UID,
 			OldSettings:       events.ProjectSettings{},
 			NewSettings:       proj.ToEventSettings(),
 			Actor:             events.Actor{Username: principal},
+			Origin:            origin,
 			NotificationRoles: []string{roleMentorshipAdmin},
 		}
 		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
@@ -720,11 +722,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g.Go(func() error {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		origin, _ := ctx.Value(constants.OriginContextID).(string)
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  *payload.UID,
 			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
 			NewSettings: proj.ToEventSettings(),
 			Actor:       events.Actor{Username: principal},
+			Origin:      origin,
 		}
 		return s.Publisher.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})

@@ -16,6 +16,7 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -50,6 +51,7 @@ var (
 type HeimdallClaims struct {
 	Principal string `json:"principal"`
 	Email     string `json:"email,omitempty"`
+	Origin    string `json:"lfx_origin,omitempty"`
 }
 
 // Validate provides additional middleware validation of any claims defined in
@@ -57,6 +59,9 @@ type HeimdallClaims struct {
 func (c *HeimdallClaims) Validate(_ context.Context) error {
 	if c.Principal == "" {
 		return errors.New("principal must be provided")
+	}
+	if c.Origin != "" && c.Origin != events.OriginV1SyncHelper {
+		return errors.New("unsupported origin claim")
 	}
 	return nil
 }
@@ -132,17 +137,23 @@ func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string) (string, err
 
 // ParsePrincipalAndEmail extracts the principal and, when present, the email claim from the JWT.
 func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string) (string, string, error) {
+	identity, err := j.ParseIdentity(ctx, token)
+	return identity.Principal, identity.Email, err
+}
+
+// ParseIdentity extracts identity and origin only after signature and claims validation.
+func (j *JWTAuth) ParseIdentity(ctx context.Context, token string) (domain.AuthIdentity, error) {
 	// To avoid having to use a valid JWT token for local development, we can use the
 	// MockLocalPrincipal configuration parameter.
 	if j.config.MockLocalPrincipal != "" {
 		j.logger.InfoContext(ctx, "JWT authentication is disabled, returning mock principal",
 			"principal", j.config.MockLocalPrincipal,
 		)
-		return j.config.MockLocalPrincipal, "", nil
+		return domain.AuthIdentity{Principal: j.config.MockLocalPrincipal}, nil
 	}
 
 	if j.validator == nil {
-		return "", "", errors.New("JWT validator is not set up")
+		return domain.AuthIdentity{}, errors.New("JWT validator is not set up")
 	}
 
 	parsedJWT, err := j.validator.ValidateToken(ctx, token)
@@ -161,22 +172,26 @@ func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string) (str
 				errString = errString[:firstColon+secondColon+1]
 			}
 		}
-		return "", "", errors.New(errString)
+		return domain.AuthIdentity{}, errors.New(errString)
 	}
 
 	claims, ok := parsedJWT.(*validator.ValidatedClaims)
 	if !ok {
-		return "", "", errors.New("failed to get validated authorization claims")
+		return domain.AuthIdentity{}, errors.New("failed to get validated authorization claims")
 	}
 
 	customClaims, ok := claims.CustomClaims.(*HeimdallClaims)
 	if !ok {
-		return "", "", errors.New("failed to get custom authorization claims")
+		return domain.AuthIdentity{}, errors.New("failed to get custom authorization claims")
 	}
 
 	j.logger.DebugContext(ctx, "JWT principal parsed",
 		"principal", customClaims.Principal,
 	)
 
-	return customClaims.Principal, customClaims.Email, nil
+	return domain.AuthIdentity{
+		Principal: customClaims.Principal,
+		Email:     customClaims.Email,
+		Origin:    customClaims.Origin,
+	}, nil
 }

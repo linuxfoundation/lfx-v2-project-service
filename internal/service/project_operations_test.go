@@ -540,6 +540,37 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			mockUserReader.AssertExpectations(t)
 		})
 	}
+
+	// The same human may write through either product: origin never replaces actor.
+	for _, origin := range []string{"", events.OriginV1SyncHelper} {
+		t.Run("event origin "+origin, func(t *testing.T) {
+			svc, repo, publisher := setupServiceForTesting()
+			svc.Resolver = NewUserResolver(nil)
+			tt := tests[0]
+			if tt.setupUserReader != nil {
+				tt.setupUserReader(svc.UserReader.(*domainmocks.MockUserReader))
+			}
+			tt.setupMocks(repo, publisher)
+			ctx := context.WithValue(t.Context(), constants.PrincipalContextID, "test-user")
+			if origin != "" {
+				ctx = context.WithValue(ctx, constants.OriginContextID, origin)
+			}
+			_, err := svc.CreateProject(ctx, tt.payload)
+			require.NoError(t, err)
+			var settingsEvents int
+			for _, call := range publisher.Calls {
+				if call.Method == "SendProjectEventMessage" {
+					msg := call.Arguments.Get(2).(events.ProjectSettingsUpdatedMessage)
+					assert.Equal(t, "test-user", msg.Actor.Username)
+					assert.Equal(t, origin, msg.Origin)
+					settingsEvents++
+				}
+			}
+			assert.Equal(t, 1, settingsEvents)
+			repo.AssertExpectations(t)
+			publisher.AssertExpectations(t)
+		})
+	}
 }
 
 func TestProjectsService_GetOneProjectBase(t *testing.T) {
@@ -2863,6 +2894,37 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
 			mockUserReader.AssertExpectations(t)
+		})
+	}
+
+	// The same human may write through either product: origin never replaces actor.
+	for _, origin := range []string{"", events.OriginV1SyncHelper} {
+		t.Run("event origin "+origin, func(t *testing.T) {
+			svc, repo, publisher := setupServiceForTesting()
+			svc.Resolver = NewUserResolver(nil)
+			tt := tests[0]
+			if tt.setupUserReader != nil {
+				tt.setupUserReader(svc.UserReader.(*domainmocks.MockUserReader))
+			}
+			tt.setupMocks(repo, publisher)
+			ctx := context.WithValue(t.Context(), constants.PrincipalContextID, "test-user")
+			if origin != "" {
+				ctx = context.WithValue(ctx, constants.OriginContextID, origin)
+			}
+			_, err := svc.UpdateProjectSettings(ctx, tt.payload)
+			require.NoError(t, err)
+			var settingsEvents int
+			for _, call := range publisher.Calls {
+				if call.Method == "SendProjectEventMessage" {
+					msg := call.Arguments.Get(2).(events.ProjectSettingsUpdatedMessage)
+					assert.Equal(t, "test-user", msg.Actor.Username)
+					assert.Equal(t, origin, msg.Origin)
+					settingsEvents++
+				}
+			}
+			assert.Equal(t, 1, settingsEvents)
+			repo.AssertExpectations(t)
+			publisher.AssertExpectations(t)
 		})
 	}
 }

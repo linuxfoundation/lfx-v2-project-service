@@ -99,6 +99,43 @@ Projects and content publish differently:
 
 Update base deliberately does not republish access unless a field that affects it changed. The settings update is the authoritative publisher of role changes, and republishing access from a base update could re-grant a user that a concurrent settings write had just revoked.
 
+### Authenticated settings-event origin
+
+The public `events.ProjectSettingsUpdatedMessage` contract in `pkg/events/project.go`
+on `lfx.projects-api.project_settings.updated` includes an optional `origin` string.
+Both HTTP project creation and settings updates copy it from the optional signed
+Heimdall JWT claim `lfx_origin` (`events.OriginClaim`). The only supported non-empty
+claim is `v1_sync_helper` (`events.OriginV1SyncHelper`). Signature, PS256 algorithm,
+issuer, audience, expiry and principal validation still apply. Unknown non-empty
+strings or non-string claims reject authentication; absent, empty or null claims
+mean unspecified/legacy origin. Local mock authentication never trusts token origin.
+Plain HTTP headers and JSON payload fields cannot set the authenticated origin.
+
+Origin identifies the integration, **not** the person. The JWT principal remains
+the impersonated human; `Actor.Username`, audit stamps and notification attribution
+are unchanged. Origin is per request/event, not a stored property of a project, so
+a later direct edit by the same human has no inherited sync origin.
+
+Consumers must trust only the service's event subject and its existing NATS access
+boundary: the event itself is not separately signed. Protect publish permissions
+and Heimdall signing keys; possession of a trusted signing key already permits
+impersonation. Origin is not a new authorization grant or a way to disable notifications.
+
+Old consumers ignore the additive field. New consumers treat a missing/empty origin
+as legacy, not proof of a direct v2 edit; unknown event values must not be classified
+as v1. The sync-helper drops exactly `v1_sync_helper` before pending-write comparisons,
+preventing relayed PCC edits from echoing back even when the actor is a human.
+
+Rollout requires a released SDK containing the canonical field/constants and an
+origin-aware project-service on **all** replicas before relying on bridge suppression.
+Then deploy the origin-signing/consuming bridge. Old service replicas discard the
+claim and old bridge processes do not sign it; either combination still emits
+unclassifiable legacy events. Maintain the staff-edit freeze and single enabled
+writer through pod transitions and wait for in-flight work/replication to settle
+before resuming edits. No replay or drift repair is implied. This prevents signed
+origin echoes, not all concurrent writes: the v1 staff PATCH still has no CAS.
+
+
 ### Documents and folders
 
 - Upload needs a name, a file name and a non-empty file of up to 10 MB, with an allow-listed content type. The bytes are sniffed: an allow-listed sniffed type replaces the declared one, a sniffed type outside the list is rejected, and when sniffing cannot tell (`application/octet-stream`, as for legacy `.doc` or `.xls`) the declared type is kept unverified. The name reservation is taken first, then the file is stored, then the metadata. A failure after a step undoes the earlier steps.
