@@ -116,9 +116,15 @@ This service publishes the following NATS events:
     "project_uid": "string",
     "old_settings": { /* ProjectSettings object */ },
     "new_settings": { /* ProjectSettings object */ },
+    "actor": { "username": "test-user" },
+    "origin": "v1_sync_helper",
     "notification_roles": ["mentorship_program_admin"]
   }
   ```
+
+  The optional `origin` identifies the integration, not the human actor. Omitted or empty
+  values mean legacy/unspecified origin; see [authenticated settings-event origin](docs/service-overview.md#authenticated-settings-event-origin)
+  for validation, trust boundaries and rollout requirements.
 
 - `lfx.projects-api.project_document.created`: Published when a file document is uploaded. Triggers email notifications to project writers and auditors.
 - `lfx.projects-api.project_link.created`: Published when a link is added to a project. Triggers email notifications to project writers and auditors.

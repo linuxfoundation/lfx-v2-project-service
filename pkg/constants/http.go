@@ -42,3 +42,9 @@ type contextEmail string
 // EmailContextID is the context ID for the JWT-claimed email of the authenticated principal.
 // Matches meeting-service and is populated by JWTAuth as a fallback when auth-service lookup fails.
 const EmailContextID contextEmail = "email"
+
+// contextOrigin is the type for the authenticated write-origin context key.
+type contextOrigin string
+
+// OriginContextID carries only the origin extracted from a validated JWT.
+const OriginContextID contextOrigin = "lfx_origin"

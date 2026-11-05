@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -129,7 +130,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				api, mockRepo, _ := setupAPI()
-				api.auth.(*auth.MockJWTAuth).On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("test-user", "", nil)
+				api.auth.(*auth.MockJWTAuth).On("ParseIdentity", mock.Anything, mock.Anything).Return(domain.AuthIdentity{Principal: "test-user"}, nil)
 				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, uid).Return(&models.ProjectBase{UID: uid, Slug: "test-project", Name: "Test Project"}, uint64(4), nil)
 				mockRepo.On("ProjectExists", mock.Anything, uid).Return(true, nil)
 				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, uid).Return(&models.ProjectSettings{UID: uid}, uint64(8), nil)
@@ -151,7 +152,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		mockAuth := api.auth.(*auth.MockJWTAuth)
 		// If the body were read in full, the request would reach the security
 		// handler, which fails the request with this error.
-		mockAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", errors.New("auth reached"))
+		mockAuth.On("ParseIdentity", mock.Anything, mock.Anything).Return(domain.AuthIdentity{}, errors.New("auth reached"))
 		handler := newHTTPHandler(api)
 
 		// A well-formed create-project body padded past the limit with an
@@ -165,13 +166,13 @@ func TestNewHTTPHandler(t *testing.T) {
 		handler.ServeHTTP(res, req)
 
 		assert.Equal(t, http.StatusBadRequest, res.Code)
-		mockAuth.AssertNotCalled(t, "ParsePrincipalAndEmail", mock.Anything, mock.Anything)
+		mockAuth.AssertNotCalled(t, "ParseIdentity", mock.Anything, mock.Anything)
 	})
 
 	t.Run("request bodies within the limit reach the endpoint", func(t *testing.T) {
 		api, _, _ := setupAPI()
 		mockAuth := api.auth.(*auth.MockJWTAuth)
-		mockAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", errors.New("auth reached"))
+		mockAuth.On("ParseIdentity", mock.Anything, mock.Anything).Return(domain.AuthIdentity{}, errors.New("auth reached"))
 		handler := newHTTPHandler(api)
 
 		body := `{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":""}`
@@ -181,6 +182,6 @@ func TestNewHTTPHandler(t *testing.T) {
 		res := httptest.NewRecorder()
 		handler.ServeHTTP(res, req)
 
-		mockAuth.AssertCalled(t, "ParsePrincipalAndEmail", mock.Anything, mock.Anything)
+		mockAuth.AssertCalled(t, "ParseIdentity", mock.Anything, mock.Anything)
 	})
 }

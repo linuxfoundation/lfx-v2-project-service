@@ -12,6 +12,13 @@ package events
 
 import "time"
 
+const (
+	// OriginClaim is the optional signed Heimdall JWT claim used to identify a write's source.
+	OriginClaim = "lfx_origin"
+	// OriginV1SyncHelper identifies writes relayed from v1, independently of the human actor.
+	OriginV1SyncHelper = "v1_sync_helper"
+)
+
 // InviteInfo holds the pending invite metadata for a user without an LFID.
 type InviteInfo struct {
 	UID       string     `json:"uid"`
@@ -55,11 +62,14 @@ type Actor struct {
 // lfx.projects-api.project_settings.updated whenever project settings change.
 // It carries both the before and after states so subscribers can diff them.
 type ProjectSettingsUpdatedMessage struct {
-	ProjectUID        string          `json:"project_uid"`
-	OldSettings       ProjectSettings `json:"old_settings"`
-	NewSettings       ProjectSettings `json:"new_settings"`
-	Actor             Actor           `json:"actor"`
-	NotificationRoles []string        `json:"notification_roles,omitempty"`
+	ProjectUID  string          `json:"project_uid"`
+	OldSettings ProjectSettings `json:"old_settings"`
+	NewSettings ProjectSettings `json:"new_settings"`
+	Actor       Actor           `json:"actor"`
+	// Origin comes only from the validated JWT claim, never from request headers or payloads.
+	// Empty means legacy/unspecified origin and must not be inferred from Actor.
+	Origin            string   `json:"origin,omitempty"`
+	NotificationRoles []string `json:"notification_roles,omitempty"`
 }
 
 // ProjectDocumentCreatedMessage is published on lfx.projects-api.project_document.created

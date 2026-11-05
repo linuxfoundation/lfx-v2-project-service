@@ -22,6 +22,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
 // resourceMocks holds the mocked dependencies behind the folder, link and
@@ -122,61 +123,33 @@ func TestLivez(t *testing.T) {
 
 func TestJWTAuth(t *testing.T) {
 	tests := []struct {
-		name          string
-		bearerToken   string
-		schema        *security.JWTScheme
-		expectedError bool
-		expectedEmail string
-		expectedUser  string
-		setupMocks    func(*auth.MockJWTAuth)
+		name     string
+		identity domain.AuthIdentity
+		err      error
 	}{
-		{
-			name:          "valid token with email",
-			bearerToken:   "test-valid-token",
-			schema:        &security.JWTScheme{},
-			expectedError: false,
-			expectedUser:  "user1",
-			expectedEmail: "user1@example.com",
-			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("user1", "user1@example.com", nil)
-			},
-		},
-		{
-			name:          "valid token without email",
-			bearerToken:   "test-valid-token-no-email",
-			schema:        &security.JWTScheme{},
-			expectedError: false,
-			expectedUser:  "user1",
-			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("user1", "", nil)
-			},
-		},
-		{
-			name:          "invalid token",
-			bearerToken:   "invalid.token",
-			schema:        &security.JWTScheme{},
-			expectedError: true,
-			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", assert.AnError)
-			},
-		},
+		{name: "human token with email", identity: domain.AuthIdentity{Principal: "test-user", Email: "test@example.com"}},
+		{name: "legacy token", identity: domain.AuthIdentity{Principal: "test-user"}},
+		{name: "signed origin preserves human", identity: domain.AuthIdentity{Principal: "test-user", Email: "test@example.com", Origin: events.OriginV1SyncHelper}},
+		{name: "invalid token", err: assert.AnError},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, _, _ := setupAPI()
-			tt.setupMocks(api.auth.(*auth.MockJWTAuth))
-
-			ctx, err := api.JWTAuth(context.Background(), tt.bearerToken, tt.schema)
-
-			if tt.expectedError {
-				assert.Error(t, err)
+			mockAuth := api.auth.(*auth.MockJWTAuth)
+			mockAuth.On("ParseIdentity", mock.Anything, "test-token").Return(tt.identity, tt.err).Once()
+			// A pre-existing context value cannot override the validated token.
+			ctx := context.WithValue(t.Context(), constants.OriginContextID, "untrusted")
+			ctx, err := api.JWTAuth(ctx, "test-token", &security.JWTScheme{})
+			mockAuth.AssertExpectations(t)
+			if tt.err != nil {
+				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedUser, ctx.Value(constants.PrincipalContextID))
-			if tt.expectedEmail != "" {
-				assert.Equal(t, tt.expectedEmail, ctx.Value(constants.EmailContextID))
+			assert.Equal(t, tt.identity.Principal, ctx.Value(constants.PrincipalContextID))
+			assert.Equal(t, tt.identity.Origin, ctx.Value(constants.OriginContextID))
+			if tt.identity.Email != "" {
+				assert.Equal(t, tt.identity.Email, ctx.Value(constants.EmailContextID))
 			} else {
 				assert.Nil(t, ctx.Value(constants.EmailContextID))
 			}
