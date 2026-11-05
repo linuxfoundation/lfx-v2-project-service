@@ -135,7 +135,6 @@ writer through pod transitions and wait for in-flight work/replication to settle
 before resuming edits. No replay or drift repair is implied. This prevents signed
 origin echoes, not all concurrent writes: the v1 staff PATCH still has no CAS.
 
-
 ### Documents and folders
 
 - Upload needs a name, a file name and a non-empty file of up to 10 MB, with an allow-listed content type. The bytes are sniffed: an allow-listed sniffed type replaces the declared one, a sniffed type outside the list is rejected, and when sniffing cannot tell (`application/octet-stream`, as for legacy `.doc` or `.xls`) the declared type is kept unverified. The name reservation is taken first, then the file is stored, then the metadata. A failure after a step undoes the earlier steps.
