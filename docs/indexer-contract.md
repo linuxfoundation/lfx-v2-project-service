@@ -48,12 +48,20 @@ project access metadata so the indexer can retain the same access fields on the
 delete record.
 
 Every `IndexingConfig` value for every resource type is sent as a concrete
-string; the service does not rely on the indexer's `{{ }}` template expansion.
-Until the indexer removes that expansion (lfx-self-serve-ops#1367), a `{{ ... }}`
-typed into a name, description, or mission statement is still expanded or
-blanked by the indexer in `sort_name`, `name_and_aliases`, `fulltext`, and
-`tags`; `data` keeps the literal text. After expansion is removed, run
-`project-cli sync reindex-projects --force` to repair any affected documents.
+value; the service does not rely on the indexer's `{{ }}` template expansion.
+Deploy prerequisite: this requires the indexer change that stops template
+errors in search fields from failing a message (lfx-v2-indexer-service,
+lfx-self-serve-ops#1367). On an older indexer, a name such as `{{ uid.x }}`
+rejects the whole message and freezes the project's search document.
+
+Until the indexer removes expansion, a `{{ ... }}` typed into a name,
+description, or mission statement is still expanded or blanked by the indexer
+in `sort_name`, `name_and_aliases`, `fulltext`, and `tags`, and a typed `\{{`
+loses its backslash; `data` keeps the literal text. After expansion is
+removed, repair any affected documents with
+`project-cli sync reindex-projects --all --update` (projects and settings) and
+`project-cli sync document-audit-users --reindex-only --update` (links,
+folders, and documents).
 
 ---
 
