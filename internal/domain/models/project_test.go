@@ -141,21 +141,21 @@ func TestProjectSettingsTags(t *testing.T) {
 		{
 			name:     "empty settings",
 			settings: &ProjectSettings{},
-			expected: []string{},
+			expected: nil,
 		},
 		{
 			name: "settings with UID only",
 			settings: &ProjectSettings{
 				UID: "settings-123",
 			},
-			expected: []string{},
+			expected: []string{"settings-123"},
 		},
 		{
 			name: "settings with MissionStatement only",
 			settings: &ProjectSettings{
 				MissionStatement: "Our mission is to test",
 			},
-			expected: []string{},
+			expected: []string{"Our mission is to test"},
 		},
 		{
 			name: "settings with all tag fields",
@@ -163,7 +163,7 @@ func TestProjectSettingsTags(t *testing.T) {
 				UID:              "settings-123",
 				MissionStatement: "Our mission is to test",
 			},
-			expected: []string{},
+			expected: []string{"settings-123", "Our mission is to test"},
 		},
 		{
 			name: "settings with all fields including non-tag fields",
@@ -185,7 +185,7 @@ func TestProjectSettingsTags(t *testing.T) {
 				CreatedAt: &now,
 				UpdatedAt: &now,
 			},
-			expected: []string{},
+			expected: []string{"settings-123", "Our mission is to test"},
 		},
 	}
 
@@ -203,44 +203,26 @@ func TestProjectBase_IndexingConfig(t *testing.T) {
 		assert.Nil(t, p.IndexingConfig())
 	})
 
-	t.Run("populates templatized fields", func(t *testing.T) {
-		p := &ProjectBase{Public: true, Name: "Test Project", Slug: "test-project", Description: "desc", ParentUID: "parent-1"}
+	t.Run("populates concrete values", func(t *testing.T) {
+		p := &ProjectBase{UID: "proj-1", Public: true, Name: "Test Project", Slug: "test-project", Description: "desc", ParentUID: "parent-1"}
 		cfg := p.IndexingConfig()
 		require.NotNil(t, cfg)
-		assert.Equal(t, "{{ uid }}", cfg.ObjectID)
+		assert.Equal(t, "proj-1", cfg.ObjectID)
 		require.NotNil(t, cfg.Public)
 		assert.True(t, *cfg.Public)
-		assert.Equal(t, "project:{{ uid }}", cfg.AccessCheckObject)
+		assert.Equal(t, "project:proj-1", cfg.AccessCheckObject)
 		assert.Equal(t, "viewer", cfg.AccessCheckRelation)
-		assert.Equal(t, "project:{{ uid }}", cfg.HistoryCheckObject)
+		assert.Equal(t, "project:proj-1", cfg.HistoryCheckObject)
 		assert.Equal(t, "writer_guard", cfg.HistoryCheckRelation)
-		assert.Equal(t, "{{ name }}", cfg.SortName)
-		assert.Equal(t, []string{"{{ name }}", "{{ slug }}"}, cfg.NameAndAliases)
-		assert.Equal(t, []string{"project:{{ parent_uid }}"}, cfg.ParentRefs)
-		assert.Equal(t, "{{ name }} {{ slug }} {{ description }}", cfg.Fulltext)
-		assert.Equal(t, []string{"project_slug:{{ slug }}"}, cfg.Tags)
+		assert.Equal(t, "Test Project", cfg.SortName)
+		assert.Equal(t, []string{"Test Project", "test-project"}, cfg.NameAndAliases)
+		assert.Equal(t, []string{"project:parent-1"}, cfg.ParentRefs)
+		assert.Equal(t, "Test Project test-project desc", cfg.Fulltext)
+		assert.Equal(t, []string{"project_slug:test-project"}, cfg.Tags)
 	})
 }
 
-func TestProjectBase_TagsTemplatized(t *testing.T) {
-	tests := []struct {
-		name string
-		obj  *ProjectBase
-		want []string
-	}{
-		{name: "nil project", obj: nil, want: nil},
-		{name: "empty project", obj: &ProjectBase{}, want: nil},
-		{name: "slug set", obj: &ProjectBase{Slug: "test-project"}, want: []string{"project_slug:{{ slug }}"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.obj.TagsTemplatized())
-		})
-	}
-}
-
-func TestProjectBase_ParentRefsTemplatized(t *testing.T) {
+func TestProjectBase_ParentRefs(t *testing.T) {
 	tests := []struct {
 		name string
 		obj  *ProjectBase
@@ -248,17 +230,17 @@ func TestProjectBase_ParentRefsTemplatized(t *testing.T) {
 	}{
 		{name: "nil project", obj: nil, want: nil},
 		{name: "no parent", obj: &ProjectBase{}, want: nil},
-		{name: "parent set", obj: &ProjectBase{ParentUID: "parent-1"}, want: []string{"project:{{ parent_uid }}"}},
+		{name: "parent set", obj: &ProjectBase{ParentUID: "parent-1"}, want: []string{"project:parent-1"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+			assert.Equal(t, tt.want, tt.obj.ParentRefs())
 		})
 	}
 }
 
-func TestProjectBase_NameAndAliasesTemplatized(t *testing.T) {
+func TestProjectBase_NameAndAliases(t *testing.T) {
 	tests := []struct {
 		name    string
 		project *ProjectBase
@@ -266,19 +248,19 @@ func TestProjectBase_NameAndAliasesTemplatized(t *testing.T) {
 	}{
 		{name: "nil project", project: nil, want: nil},
 		{name: "empty project", project: &ProjectBase{}, want: nil},
-		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: []string{"{{ name }}"}},
-		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: []string{"{{ slug }}"}},
-		{name: "name and slug", project: &ProjectBase{Name: "Test Project", Slug: "test-project"}, want: []string{"{{ name }}", "{{ slug }}"}},
+		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: []string{"Test Project"}},
+		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: []string{"test-project"}},
+		{name: "name and slug", project: &ProjectBase{Name: "Test Project", Slug: "test-project"}, want: []string{"Test Project", "test-project"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.project.NameAndAliasesTemplatized())
+			assert.Equal(t, tt.want, tt.project.NameAndAliases())
 		})
 	}
 }
 
-func TestProjectBase_FulltextTemplatized(t *testing.T) {
+func TestProjectBase_Fulltext(t *testing.T) {
 	tests := []struct {
 		name    string
 		project *ProjectBase
@@ -286,40 +268,20 @@ func TestProjectBase_FulltextTemplatized(t *testing.T) {
 	}{
 		{name: "nil project", project: nil, want: ""},
 		{name: "empty project", project: &ProjectBase{}, want: ""},
-		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: "{{ name }}"},
-		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: "{{ slug }}"},
-		{name: "description only", project: &ProjectBase{Description: "desc"}, want: "{{ description }}"},
-		{name: "all fields", project: &ProjectBase{Name: "Test Project", Slug: "test-project", Description: "desc"}, want: "{{ name }} {{ slug }} {{ description }}"},
+		{name: "name only", project: &ProjectBase{Name: "Test Project"}, want: "Test Project"},
+		{name: "slug only", project: &ProjectBase{Slug: "test-project"}, want: "test-project"},
+		{name: "description only", project: &ProjectBase{Description: "desc"}, want: "desc"},
+		{name: "all fields", project: &ProjectBase{Name: "Test Project", Slug: "test-project", Description: "desc"}, want: "Test Project test-project desc"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.project.FulltextTemplatized())
+			assert.Equal(t, tt.want, tt.project.Fulltext())
 		})
 	}
 }
 
-func TestProjectSettings_TagsTemplatized(t *testing.T) {
-	tests := []struct {
-		name     string
-		settings *ProjectSettings
-		want     []string
-	}{
-		{name: "nil settings", settings: nil, want: nil},
-		{name: "empty settings", settings: &ProjectSettings{}, want: nil},
-		{name: "uid only", settings: &ProjectSettings{UID: "p1"}, want: []string{"{{ uid }}"}},
-		{name: "mission statement only", settings: &ProjectSettings{MissionStatement: "m"}, want: []string{"{{ mission_statement }}"}},
-		{name: "uid and mission statement", settings: &ProjectSettings{UID: "p1", MissionStatement: "m"}, want: []string{"{{ uid }}", "{{ mission_statement }}"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.settings.TagsTemplatized())
-		})
-	}
-}
-
-func TestProjectSettings_ParentRefsTemplatized(t *testing.T) {
+func TestProjectSettings_ParentRefs(t *testing.T) {
 	tests := []struct {
 		name string
 		obj  *ProjectSettings
@@ -327,12 +289,12 @@ func TestProjectSettings_ParentRefsTemplatized(t *testing.T) {
 	}{
 		{name: "nil settings", obj: nil, want: nil},
 		{name: "no uid", obj: &ProjectSettings{}, want: nil},
-		{name: "uid set", obj: &ProjectSettings{UID: "p1"}, want: []string{"project:{{ uid }}"}},
+		{name: "uid set", obj: &ProjectSettings{UID: "p1"}, want: []string{"project:p1"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.obj.ParentRefsTemplatized())
+			assert.Equal(t, tt.want, tt.obj.ParentRefs())
 		})
 	}
 }
@@ -347,12 +309,12 @@ func TestProjectSettings_IndexingConfig(t *testing.T) {
 		p := &ProjectSettings{UID: "settings-1", MissionStatement: "m"}
 		cfg := p.IndexingConfig("p1")
 		require.NotNil(t, cfg)
-		assert.Equal(t, "{{ uid }}", cfg.ObjectID)
+		assert.Equal(t, "settings-1", cfg.ObjectID)
 		assert.Equal(t, "project:p1", cfg.AccessCheckObject)
 		assert.Equal(t, "auditor_guard", cfg.AccessCheckRelation)
 		assert.Equal(t, "project:p1", cfg.HistoryCheckObject)
 		assert.Equal(t, "writer_guard", cfg.HistoryCheckRelation)
-		assert.Equal(t, []string{"project:{{ uid }}"}, cfg.ParentRefs)
-		assert.Equal(t, []string{"{{ uid }}", "{{ mission_statement }}"}, cfg.Tags)
+		assert.Equal(t, []string{"project:settings-1"}, cfg.ParentRefs)
+		assert.Equal(t, []string{"settings-1", "m"}, cfg.Tags)
 	})
 }

@@ -167,12 +167,12 @@ A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `
 
 ### Tags
 
-Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved by the indexer using the document's own field values.
+All `IndexingConfig` values for projects and project settings are sent as concrete strings; the service does not use the indexer's `{{ }}` template expansion (see `lfx-v2-indexer-service/docs/client-guide.md`).
 
-| Tag Template | Resolved Example | Purpose |
+| Tag Format | Example | Purpose |
 |---|---|---|
-| `{{ uid }}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
-| `{{ mission_statement }}` | `Advancing open source...` | Lookup by mission statement text |
+| `{uid}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
+| `{mission_statement}` | `Advancing open source...` | Lookup by mission statement text |
 
 > Tags are only emitted when the corresponding field is non-empty.
 
