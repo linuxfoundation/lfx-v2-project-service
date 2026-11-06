@@ -220,6 +220,17 @@ func TestProjectBase_IndexingConfig(t *testing.T) {
 		assert.Equal(t, "Test Project test-project desc", cfg.Fulltext)
 		assert.Equal(t, []string{"project_slug:test-project"}, cfg.Tags)
 	})
+
+	// lfx-self-serve-ops#1367: user text is sent as-is, never as a template.
+	t.Run("template-shaped user text is sent literally", func(t *testing.T) {
+		p := &ProjectBase{UID: "proj-1", Name: "Acme {{ uid.x }}", Description: `C\{{ x }}`}
+		cfg := p.IndexingConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, "proj-1", cfg.ObjectID)
+		assert.Equal(t, "Acme {{ uid.x }}", cfg.SortName)
+		assert.Equal(t, []string{"Acme {{ uid.x }}"}, cfg.NameAndAliases)
+		assert.Equal(t, `Acme {{ uid.x }} C\{{ x }}`, cfg.Fulltext)
+	})
 }
 
 func TestProjectBase_ParentRefs(t *testing.T) {

@@ -47,6 +47,14 @@ folder, and document delete messages include `IndexingConfig` with the owning
 project access metadata so the indexer can retain the same access fields on the
 delete record.
 
+Every `IndexingConfig` value for every resource type is sent as a concrete
+string; the service does not rely on the indexer's `{{ }}` template expansion.
+Until the indexer removes that expansion (lfx-self-serve-ops#1367), a `{{ ... }}`
+typed into a name, description, or mission statement is still expanded or
+blanked by the indexer in `sort_name`, `name_and_aliases`, `fulltext`, and
+`tags`; `data` keeps the literal text. After expansion is removed, run
+`project-cli sync reindex-projects --force` to repair any affected documents.
+
 ---
 
 ## Project
@@ -166,8 +174,6 @@ A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `
 | `expires_at` | timestamp (optional) | Invite expiry time (RFC3339); absent if the invite service did not return an expiry |
 
 ### Tags
-
-All `IndexingConfig` values for projects and project settings are sent as concrete strings; the service does not use the indexer's `{{ }}` template expansion (see `lfx-v2-indexer-service/docs/client-guide.md`).
 
 | Tag Format | Example | Purpose |
 |---|---|---|
