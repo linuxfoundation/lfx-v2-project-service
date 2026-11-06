@@ -221,7 +221,7 @@ func TestProjectBase_IndexingConfig(t *testing.T) {
 		assert.Equal(t, []string{"project_slug:test-project"}, cfg.Tags)
 	})
 
-	// lfx-self-serve-ops#1367: user text is sent as-is, never as a template.
+	// User text is sent as-is, never as a template.
 	t.Run("template-shaped user text is sent literally", func(t *testing.T) {
 		p := &ProjectBase{UID: "proj-1", Name: "Acme {{ uid.x }}", Description: `C\{{ x }}`}
 		cfg := p.IndexingConfig()
@@ -329,7 +329,7 @@ func TestProjectSettings_IndexingConfig(t *testing.T) {
 		assert.Equal(t, []string{"settings-1", "m"}, cfg.Tags)
 	})
 
-	// lfx-self-serve-ops#1367: user text is sent as-is, never as a template.
+	// User text is sent as-is, never as a template.
 	t.Run("template-shaped user text is sent literally", func(t *testing.T) {
 		p := &ProjectSettings{UID: "s-1", MissionStatement: "Our {{ uid }} mission"}
 		cfg := p.IndexingConfig("p1")

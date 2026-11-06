@@ -91,9 +91,8 @@ func (p *ProjectBase) Tags() []string {
 }
 
 // IndexingConfig generates an IndexingConfig for indexing this project.
-// Every value is concrete: the indexer's {{ }} template expansion is being
-// removed, and user text such as the project name must never be parsed as a
-// template (lfx-self-serve-ops#1367).
+// Every value is concrete: user text such as the project name must never be
+// parsed as an indexer template (linuxfoundation/lfx-v2-indexer-service#89).
 func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 	if p == nil {
 		return nil
