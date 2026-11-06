@@ -328,4 +328,12 @@ func TestProjectSettings_IndexingConfig(t *testing.T) {
 		assert.Equal(t, []string{"project:settings-1"}, cfg.ParentRefs)
 		assert.Equal(t, []string{"settings-1", "m"}, cfg.Tags)
 	})
+
+	// lfx-self-serve-ops#1367: user text is sent as-is, never as a template.
+	t.Run("template-shaped user text is sent literally", func(t *testing.T) {
+		p := &ProjectSettings{UID: "s-1", MissionStatement: "Our {{ uid }} mission"}
+		cfg := p.IndexingConfig("p1")
+		require.NotNil(t, cfg)
+		assert.Equal(t, []string{"s-1", "Our {{ uid }} mission"}, cfg.Tags)
+	})
 }
