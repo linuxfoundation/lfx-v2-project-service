@@ -82,6 +82,9 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `legal_parent_uid` | string (optional) | UID of the legal parent entity |
 | `funding` | string (optional) | Legacy funding value |
 | `funding_model` | []string (optional) | Funding model types |
+| `industry` | []string (optional) | Industry sectors (v1 `Industry` / `industry__c`) |
+| `technology` | []string (optional) | Technology sectors (v1 `Technology` / `technology__c`) |
+| `technical_activity_type` | []string (optional) | Technical activity types (v1 `TechActivityType` / `technical_activity_type__c`) |
 | `entity_dissolution_date` | timestamp (optional) | Date the legal entity was dissolved |
 | `entity_formation_document_url` | string (optional) | URL to the formation document |
 | `formation_date` | timestamp (optional) | Date the project was formed |
