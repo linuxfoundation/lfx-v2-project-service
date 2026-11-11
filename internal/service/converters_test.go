@@ -175,6 +175,20 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "formation lead contact without LFID",
+			input: &projsvc.ProjectSettings{UID: misc.StringPtr("test-uid"), FormationLead: &projsvc.FormationLead{
+				Name: misc.StringPtr("Alice Example"), Email: misc.StringPtr("alice@example.com"), Avatar: misc.StringPtr("https://example.com/avatar.png"),
+			}},
+			expected: &models.ProjectSettings{UID: "test-uid", FormationLead: &models.FormationLead{
+				Name: "Alice Example", Email: "alice@example.com", Avatar: "https://example.com/avatar.png",
+			}},
+		},
+		{
+			name:     "empty formation lead clears contact",
+			input:    &projsvc.ProjectSettings{UID: misc.StringPtr("test-uid"), FormationLead: &projsvc.FormationLead{}},
+			expected: &models.ProjectSettings{UID: "test-uid"},
+		},
+		{
 			name: "with mentorship program admins",
 			input: &projsvc.ProjectSettings{
 				UID: misc.StringPtr("test-uid"),
@@ -314,6 +328,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				assert.Equal(t, tt.expected.MentorshipProgramAdmins, result.MentorshipProgramAdmins)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
+				assert.Equal(t, tt.expected.FormationLead, result.FormationLead)
 			}
 		})
 	}

@@ -98,6 +98,7 @@ var _ = Service("project-service", func() {
 			ProjectMentorshipProgramAdminsAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
+			ProjectFormationLeadAttribute()
 
 			// TODO: figure out what the required attributes are for projects
 			// Same requirements apply to PUT endpoints.
@@ -280,6 +281,7 @@ var _ = Service("project-service", func() {
 			ProjectMentorshipProgramAdminsUpdateAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
+			ProjectFormationLeadAttribute()
 		})
 
 		Result(ProjectSettings)

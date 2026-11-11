@@ -27,6 +27,13 @@ type UserInfo struct {
 	Invite   *InviteInfo `json:"invite,omitempty"`
 }
 
+// FormationLead is a v1 contact, not necessarily an LFID user or an access-control role.
+type FormationLead struct {
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Avatar string `json:"avatar"`
+}
+
 // ProjectBase is the key-value store representation of a project base.
 type ProjectBase struct {
 	UID                        string     `json:"uid"`
@@ -58,18 +65,19 @@ type ProjectBase struct {
 
 // ProjectSettings is the key-value store representation of a project settings.
 type ProjectSettings struct {
-	UID                     string     `json:"uid"`
-	MissionStatement        string     `json:"mission_statement"`
-	AnnouncementDate        *time.Time `json:"announcement_date"`
-	Auditors                []UserInfo `json:"auditors"`
-	Writers                 []UserInfo `json:"writers"`
-	MeetingCoordinators     []UserInfo `json:"meeting_coordinators"`
-	ExecutiveDirector       *UserInfo  `json:"executive_director,omitempty"`
-	MentorshipProgramAdmins []UserInfo `json:"mentorship_program_admins"`
-	ProgramManager          *UserInfo  `json:"program_manager,omitempty"`
-	OpportunityOwner        *UserInfo  `json:"opportunity_owner,omitempty"`
-	CreatedAt               *time.Time `json:"created_at"`
-	UpdatedAt               *time.Time `json:"updated_at"`
+	UID                     string         `json:"uid"`
+	MissionStatement        string         `json:"mission_statement"`
+	AnnouncementDate        *time.Time     `json:"announcement_date"`
+	Auditors                []UserInfo     `json:"auditors"`
+	Writers                 []UserInfo     `json:"writers"`
+	MeetingCoordinators     []UserInfo     `json:"meeting_coordinators"`
+	ExecutiveDirector       *UserInfo      `json:"executive_director,omitempty"`
+	MentorshipProgramAdmins []UserInfo     `json:"mentorship_program_admins"`
+	ProgramManager          *UserInfo      `json:"program_manager,omitempty"`
+	OpportunityOwner        *UserInfo      `json:"opportunity_owner,omitempty"`
+	FormationLead           *FormationLead `json:"formation_lead,omitempty"`
+	CreatedAt               *time.Time     `json:"created_at"`
+	UpdatedAt               *time.Time     `json:"updated_at"`
 }
 
 // Tags generates a consistent set of tags for the project base.

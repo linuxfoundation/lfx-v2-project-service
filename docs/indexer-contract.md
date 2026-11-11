@@ -152,6 +152,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `formation_lead` | object (optional) | v1 Formation Lead contact. Object has `name`, `email`, and `avatar` strings; no LFX username or FGA relation. |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 

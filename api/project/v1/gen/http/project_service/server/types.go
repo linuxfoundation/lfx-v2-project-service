@@ -85,6 +85,9 @@ type CreateProjectRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadRequestBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -161,6 +164,9 @@ type UpdateProjectSettingsRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadRequestBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 }
 
 // CreateProjectLinkRequestBody is the type of the "project-service" service
@@ -282,6 +288,9 @@ type CreateProjectResponseBody struct {
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadResponseBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -374,6 +383,9 @@ type UpdateProjectSettingsResponseBody struct {
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadResponseBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -1296,6 +1308,9 @@ type ProjectFullResponseBody struct {
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadResponseBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 }
 
 // UserInfoResponseBody is used to define fields on response body types.
@@ -1321,6 +1336,16 @@ type InviteInfoResponseBody struct {
 	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
 	// RFC3339 expiry timestamp of the invite
 	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
+}
+
+// FormationLeadResponseBody is used to define fields on response body types.
+type FormationLeadResponseBody struct {
+	// Formation Lead name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Formation Lead email
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Optional Formation Lead avatar URL
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -1403,6 +1428,9 @@ type ProjectSettingsResponseBody struct {
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLeadResponseBody `form:"formation_lead,omitempty" json:"formation_lead,omitempty" xml:"formation_lead,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -1514,6 +1542,16 @@ type InviteInfoRequestBody struct {
 	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
 }
 
+// FormationLeadRequestBody is used to define fields on request body types.
+type FormationLeadRequestBody struct {
+	// Formation Lead name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Formation Lead email
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Optional Formation Lead avatar URL
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+}
+
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
 // the "get-projects" endpoint of the "project-service" service.
 func NewGetProjectsResponseBody(res *projectservice.GetProjectsResult) *GetProjectsResponseBody {
@@ -1598,6 +1636,9 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 	}
 	if res.OpportunityOwner != nil {
 		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoResponseBody(res.OpportunityOwner)
+	}
+	if res.FormationLead != nil {
+		body.FormationLead = marshalProjectserviceFormationLeadToFormationLeadResponseBody(res.FormationLead)
 	}
 	return body
 }
@@ -1685,6 +1726,9 @@ func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSetti
 	if res.ProjectSettings.OpportunityOwner != nil {
 		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoResponseBody(res.ProjectSettings.OpportunityOwner)
 	}
+	if res.ProjectSettings.FormationLead != nil {
+		body.FormationLead = marshalProjectserviceFormationLeadToFormationLeadResponseBody(res.ProjectSettings.FormationLead)
+	}
 	return body
 }
 
@@ -1770,6 +1814,9 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 	}
 	if res.OpportunityOwner != nil {
 		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoResponseBody(res.OpportunityOwner)
+	}
+	if res.FormationLead != nil {
+		body.FormationLead = marshalProjectserviceFormationLeadToFormationLeadResponseBody(res.FormationLead)
 	}
 	return body
 }
@@ -2812,6 +2859,9 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 	if body.OpportunityOwner != nil {
 		v.OpportunityOwner = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(body.OpportunityOwner)
 	}
+	if body.FormationLead != nil {
+		v.FormationLead = unmarshalFormationLeadRequestBodyToProjectserviceFormationLead(body.FormationLead)
+	}
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.XSync = xSync
@@ -2921,6 +2971,9 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 	}
 	if body.OpportunityOwner != nil {
 		v.OpportunityOwner = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(body.OpportunityOwner)
+	}
+	if body.FormationLead != nil {
+		v.FormationLead = unmarshalFormationLeadRequestBodyToProjectserviceFormationLead(body.FormationLead)
 	}
 	v.UID = &uid
 	v.Version = version
@@ -3222,6 +3275,11 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	if body.FormationLead != nil {
+		if err2 := ValidateFormationLeadRequestBody(body.FormationLead); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	return
 }
 
@@ -3358,6 +3416,11 @@ func ValidateUpdateProjectSettingsRequestBody(body *UpdateProjectSettingsRequest
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	if body.FormationLead != nil {
+		if err2 := ValidateFormationLeadRequestBody(body.FormationLead); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	return
 }
 
@@ -3446,6 +3509,15 @@ func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
 func ValidateInviteInfoRequestBody(body *InviteInfoRequestBody) (err error) {
 	if body.ExpiresAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.expires_at", *body.ExpiresAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateFormationLeadRequestBody runs the validations defined on
+// FormationLeadRequestBody
+func ValidateFormationLeadRequestBody(body *FormationLeadRequestBody) (err error) {
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.email", *body.Email, "^$|^[a-zA-Z0-9._%+'\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"))
 	}
 	return
 }

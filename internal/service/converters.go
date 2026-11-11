@@ -125,6 +125,7 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 		if settings.OpportunityOwner != nil {
 			full.OpportunityOwner = convertUserToAPI(settings.OpportunityOwner)
 		}
+		full.FormationLead = formationLeadToAPI(settings.FormationLead)
 
 		// Handle settings fields that are pointers
 		if settings.AnnouncementDate != nil {
@@ -380,6 +381,14 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 	if settings.OpportunityOwner != nil {
 		s.OpportunityOwner = convertUserFromAPI(settings.OpportunityOwner, existingOO)
 	}
+	if settings.FormationLead != nil {
+		name, email, avatar := settings.FormationLead.Name, settings.FormationLead.Email, settings.FormationLead.Avatar
+		if (name != nil && *name != "") || (email != nil && *email != "") || (avatar != nil && *avatar != "") {
+			s.FormationLead = &models.FormationLead{
+				Name: misc.ValueOrZero(name), Email: misc.ValueOrZero(email), Avatar: misc.ValueOrZero(avatar),
+			}
+		}
+	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
 		if err != nil {
@@ -435,6 +444,7 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	if s.OpportunityOwner != nil {
 		settings.OpportunityOwner = convertUserToAPI(s.OpportunityOwner)
 	}
+	settings.FormationLead = formationLeadToAPI(s.FormationLead)
 
 	// Handle settings fields that are pointers
 	if s.AnnouncementDate != nil {
@@ -448,6 +458,13 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 
 	return settings
+}
+
+func formationLeadToAPI(lead *models.FormationLead) *projsvc.FormationLead {
+	if lead == nil {
+		return nil
+	}
+	return &projsvc.FormationLead{Name: &lead.Name, Email: &lead.Email, Avatar: &lead.Avatar}
 }
 
 // convertUsersToAPI converts domain UserInfo slice to API UserInfo slice
@@ -667,9 +684,17 @@ func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
 		MentorshipProgramAdmins: domainUsersToEvent(s.MentorshipProgramAdmins),
 		ProgramManager:          domainUserPtrToEvent(s.ProgramManager),
 		OpportunityOwner:        domainUserPtrToEvent(s.OpportunityOwner),
+		FormationLead:           formationLeadToEvent(s.FormationLead),
 		CreatedAt:               s.CreatedAt,
 		UpdatedAt:               s.UpdatedAt,
 	}
+}
+
+func formationLeadToEvent(lead *models.FormationLead) *events.FormationLead {
+	if lead == nil {
+		return nil
+	}
+	return &events.FormationLead{Name: lead.Name, Email: lead.Email, Avatar: lead.Avatar}
 }
 
 // DomainSettingsToSummary converts an internal ProjectSettings domain model to

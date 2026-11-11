@@ -3088,6 +3088,9 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 	if v.OpportunityOwner != nil {
 		res.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.OpportunityOwner)
 	}
+	if v.FormationLead != nil {
+		res.FormationLead = unmarshalFormationLeadResponseBodyToProjectserviceFormationLead(v.FormationLead)
+	}
 
 	return res
 }
@@ -3121,6 +3124,22 @@ func unmarshalInviteInfoResponseBodyToProjectserviceInviteInfo(v *InviteInfoResp
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// unmarshalFormationLeadResponseBodyToProjectserviceFormationLead builds a
+// value of type *projectservice.FormationLead from a value of type
+// *FormationLeadResponseBody.
+func unmarshalFormationLeadResponseBodyToProjectserviceFormationLead(v *FormationLeadResponseBody) *projectservice.FormationLead {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.FormationLead{
+		Name:   v.Name,
+		Email:  v.Email,
+		Avatar: v.Avatar,
 	}
 
 	return res
@@ -3160,6 +3179,22 @@ func marshalProjectserviceInviteInfoToInviteInfoRequestBody(v *projectservice.In
 	return res
 }
 
+// marshalProjectserviceFormationLeadToFormationLeadRequestBody builds a value
+// of type *FormationLeadRequestBody from a value of type
+// *projectservice.FormationLead.
+func marshalProjectserviceFormationLeadToFormationLeadRequestBody(v *projectservice.FormationLead) *FormationLeadRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &FormationLeadRequestBody{
+		Name:   v.Name,
+		Email:  v.Email,
+		Avatar: v.Avatar,
+	}
+
+	return res
+}
+
 // marshalUserInfoRequestBodyToProjectserviceUserInfo builds a value of type
 // *projectservice.UserInfo from a value of type *UserInfoRequestBody.
 func marshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) *projectservice.UserInfo {
@@ -3189,6 +3224,22 @@ func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequest
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// marshalFormationLeadRequestBodyToProjectserviceFormationLead builds a value
+// of type *projectservice.FormationLead from a value of type
+// *FormationLeadRequestBody.
+func marshalFormationLeadRequestBodyToProjectserviceFormationLead(v *FormationLeadRequestBody) *projectservice.FormationLead {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.FormationLead{
+		Name:   v.Name,
+		Email:  v.Email,
+		Avatar: v.Avatar,
 	}
 
 	return res
