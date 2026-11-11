@@ -2536,6 +2536,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					Writers:           []models.UserInfo{{Username: "alice-lfid", Email: "alice@example.com"}},
 					ExecutiveDirector: &models.UserInfo{Username: "ed-lfid", Email: "ed@example.com"},
 					ProgramManager:    &models.UserInfo{Username: "pm-lfid", Email: "pm@example.com"},
+					FormationLead:     &models.FormationLead{Name: "Alice Example", Email: "alice@example.com"},
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
@@ -2543,7 +2544,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return s.ProgramManager == nil &&
 						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "ed-lfid" &&
-						len(s.Writers) == 1 && s.Writers[0].Username == "alice-lfid"
+						len(s.Writers) == 1 && s.Writers[0].Username == "alice-lfid" &&
+						s.FormationLead != nil && s.FormationLead.Email == "alice@example.com"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2561,9 +2563,79 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					assert.Nil(t, msg.NewSettings.ProgramManager)
 					require.NotNil(t, msg.OldSettings.ProgramManager)
 					assert.Equal(t, "pm-lfid", msg.OldSettings.ProgramManager.Username)
+					require.NotNil(t, msg.NewSettings.FormationLead)
+					assert.Equal(t, "alice@example.com", msg.NewSettings.FormationLead.Email)
 				})
 			},
 			wantErr: false,
+		},
+		{
+			name: "formation lead updated from supplied contact",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				FormationLead: &projsvc.FormationLead{
+					Name: misc.StringPtr("Bob Fixture"), Email: misc.StringPtr("o'connor@example.com"),
+					Avatar: misc.StringPtr("https://example.com/bob.png"),
+				},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existing := &models.ProjectSettings{UID: "project-uid-1", FormationLead: &models.FormationLead{
+					Name: "Alice Example", Email: "alice@example.com",
+				}}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existing, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return s.FormationLead != nil && *s.FormationLead == (models.FormationLead{
+						Name: "Bob Fixture", Email: "o'connor@example.com", Avatar: "https://example.com/bob.png",
+					})
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(events.ProjectSettingsUpdatedMessage)
+					require.True(t, ok)
+					require.NotNil(t, msg.OldSettings.FormationLead)
+					assert.Equal(t, "alice@example.com", msg.OldSettings.FormationLead.Email)
+					require.NotNil(t, msg.NewSettings.FormationLead)
+					assert.Equal(t, "o'connor@example.com", msg.NewSettings.FormationLead.Email)
+				})
+			},
+			validate: func(t *testing.T, settings *projsvc.ProjectSettings) {
+				require.NotNil(t, settings.FormationLead)
+				assert.Equal(t, "o'connor@example.com", *settings.FormationLead.Email)
+			},
+		},
+		{
+			name: "empty formation lead clears stored contact",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"),
+				FormationLead: &projsvc.FormationLead{},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existing := &models.ProjectSettings{UID: "project-uid-1", FormationLead: &models.FormationLead{
+					Name: "Alice Example", Email: "alice@example.com",
+				}}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, "project-uid-1").Return(existing, uint64(1), nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return s.FormationLead == nil
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1"}, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(events.ProjectSettingsUpdatedMessage)
+					require.True(t, ok)
+					require.NotNil(t, msg.OldSettings.FormationLead)
+					assert.Equal(t, "alice@example.com", msg.OldSettings.FormationLead.Email)
+					assert.Nil(t, msg.NewSettings.FormationLead)
+				})
+			},
+			validate: func(t *testing.T, settings *projsvc.ProjectSettings) {
+				assert.Nil(t, settings.FormationLead)
+			},
 		},
 		{
 			// Identities are reused within a role only: an auditor added as a writer is

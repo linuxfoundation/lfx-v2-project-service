@@ -222,6 +222,9 @@ type CreateProjectPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLead
 }
 
 // DeleteProjectDocumentPayload is the payload type of the project-service
@@ -308,6 +311,16 @@ type ForbiddenError struct {
 	Code string
 	// Error message
 	Message string
+}
+
+// Formation Lead contact details from the v1 project record.
+type FormationLead struct {
+	// Formation Lead name
+	Name *string
+	// Formation Lead email
+	Email *string
+	// Optional Formation Lead avatar URL
+	Avatar *string
 }
 
 // GetOneProjectBasePayload is the payload type of the project-service service
@@ -633,6 +646,9 @@ type ProjectFull struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLead
 }
 
 // ProjectLink is the result type of the project-service service
@@ -685,6 +701,9 @@ type ProjectSettings struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLead
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -810,6 +829,9 @@ type UpdateProjectSettingsPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Formation Lead; omit on settings update to preserve, send an empty object to
+	// clear
+	FormationLead *FormationLead
 }
 
 // UploadProjectDocumentPayload is the payload type of the project-service

@@ -109,6 +109,7 @@ func ProjectSettingsAttributes() {
 	ProjectMentorshipProgramAdminsAttribute()
 	ProjectProgramManagerAttribute()
 	ProjectOpportunityOwnerAttribute()
+	ProjectFormationLeadAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 }
@@ -385,6 +386,21 @@ func ProjectWritersAttribute() {
 			},
 		})
 	})
+}
+
+// FormationLead is the v1 project formation contact; unlike UserInfo it does not carry an LFID.
+var FormationLead = Type("FormationLead", func() {
+	Description("Formation Lead contact details from the v1 project record.")
+	Attribute("name", String, "Formation Lead name")
+	Attribute("email", String, "Formation Lead email", func() {
+		Pattern(`^$|^[a-zA-Z0-9._%+'\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	})
+	Attribute("avatar", String, "Optional Formation Lead avatar URL")
+})
+
+// ProjectFormationLeadAttribute adds the Formation Lead to project settings.
+func ProjectFormationLeadAttribute() {
+	Attribute("formation_lead", FormationLead, "Formation Lead; omit on settings update to preserve, send an empty object to clear")
 }
 
 // ProjectExecutiveDirectorAttribute is the DSL attribute for a project executive director.

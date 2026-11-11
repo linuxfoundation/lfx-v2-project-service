@@ -211,6 +211,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
 		ProgramManager:          payload.ProgramManager,
 		OpportunityOwner:        payload.OpportunityOwner,
+		FormationLead:           payload.FormationLead,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -659,6 +660,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	if mentorshipProgramAdmins == nil {
 		mentorshipProgramAdmins = convertUsersToAPI(existingProjectSettingsDB.MentorshipProgramAdmins)
 	}
+	// Unlike the other staff fields, the v1 formation contact is optional on
+	// settings PUTs: unrelated settings writes must not erase it.
+	formationLead := payload.FormationLead
+	if formationLead == nil {
+		formationLead = formationLeadToAPI(existingProjectSettingsDB.FormationLead)
+	}
 
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
@@ -673,6 +680,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		MentorshipProgramAdmins: mentorshipProgramAdmins,
 		ProgramManager:          payload.ProgramManager,
 		OpportunityOwner:        payload.OpportunityOwner,
+		FormationLead:           formationLead,
 		UpdatedAt:               misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {

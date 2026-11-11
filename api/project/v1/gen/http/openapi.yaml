@@ -1415,6 +1415,28 @@ definitions:
         required:
             - code
             - message
+    FormationLead:
+        title: FormationLead
+        type: object
+        properties:
+            avatar:
+                type: string
+                description: Optional Formation Lead avatar URL
+                example: Non laudantium qui consequatur sit.
+            email:
+                type: string
+                description: Formation Lead email
+                example: ""
+                pattern: ^$|^[a-zA-Z0-9._%+'\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$
+            name:
+                type: string
+                description: Formation Lead name
+                example: Fugit quibusdam.
+        description: Formation Lead contact details from the v1 project record.
+        example:
+            avatar: Deserunt aut.
+            email: ""
+            name: Quos nihil doloribus labore eligendi.
     InternalServerError:
         title: InternalServerError
         type: object
@@ -1880,6 +1902,8 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            formation_lead:
+                $ref: '#/definitions/FormationLead'
             funding:
                 type: string
                 description: The funding status of the project
@@ -1892,7 +1916,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Alternate Funding
+                    example: Membership
                     enum:
                         - Crowdfunding
                         - Membership
@@ -2051,6 +2075,10 @@ definitions:
                 name: Jane Smith
                 username: janesmith456
             formation_date: "2021-01-01"
+            formation_lead:
+                avatar: Quasi magnam et quia et error.
+                email: YZ@s.QBD
+                name: Nesciunt sint eaque reiciendis.
             funding: Funded
             funding_model:
                 - Crowdfunding
@@ -2294,6 +2322,8 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            formation_lead:
+                $ref: '#/definitions/FormationLead'
             funding:
                 type: string
                 description: The funding status of the project
@@ -2306,7 +2336,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Membership
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -2455,6 +2485,10 @@ definitions:
                 name: Jane Smith
                 username: janesmith456
             formation_date: "2021-01-01"
+            formation_lead:
+                avatar: Corporis iure omnis blanditiis distinctio et occaecati.
+                email: ""
+                name: Vel expedita dolorum dolores perferendis quisquam.
             funding: Funded
             funding_model:
                 - Crowdfunding
@@ -2558,6 +2592,10 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
+                      formation_lead:
+                        avatar: Quasi magnam et quia et error.
+                        email: YZ@s.QBD
+                        name: Nesciunt sint eaque reiciendis.
                       funding: Funded
                       funding_model:
                         - Crowdfunding
@@ -2633,156 +2671,10 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
-                      funding: Funded
-                      funding_model:
-                        - Crowdfunding
-                      is_foundation: false
-                      legal_entity_name: Example Foundation LLC
-                      legal_entity_type: Subproject
-                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.svg
-                      meeting_coordinators:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      mentorship_program_admins:
-                        - avatar: https://example.com/avatar.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                      name: Foo Foundation
-                      opportunity_owner:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      program_manager:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      public: true
-                      repository_url: https://example.com/project
-                      slug: project-slug
-                      stage: Formation - Exploratory
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      updated_at: "2021-01-01T00:00:00Z"
-                      website_url: https://example.com
-                      writers:
-                        - avatar: https://example.com/avatar3.jpg
-                          email: alice.johnson@example.com
-                          name: Alice Johnson
-                          username: alicejohnson789
-                        - avatar: https://example.com/avatar4.jpg
-                          email: bob.wilson@example.com
-                          name: Bob Wilson
-                          username: bobwilson101
-                    - announcement_date: "2021-01-01"
-                      auditors:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      autojoin_enabled: false
-                      category: Active
-                      charter_url: https://example.com/charter.pdf
-                      contact_email: project-lead@example.com
-                      created_at: "2021-01-01T00:00:00Z"
-                      description: project foo is a project about bar
-                      entity_dissolution_date: "2021-12-31"
-                      entity_formation_document_url: https://example.com/formation.pdf
-                      executive_director:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      formation_date: "2021-01-01"
-                      funding: Funded
-                      funding_model:
-                        - Crowdfunding
-                      is_foundation: false
-                      legal_entity_name: Example Foundation LLC
-                      legal_entity_type: Subproject
-                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.svg
-                      meeting_coordinators:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      mentorship_program_admins:
-                        - avatar: https://example.com/avatar.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                      name: Foo Foundation
-                      opportunity_owner:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      program_manager:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      public: true
-                      repository_url: https://example.com/project
-                      slug: project-slug
-                      stage: Formation - Exploratory
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      updated_at: "2021-01-01T00:00:00Z"
-                      website_url: https://example.com
-                      writers:
-                        - avatar: https://example.com/avatar3.jpg
-                          email: alice.johnson@example.com
-                          name: Alice Johnson
-                          username: alicejohnson789
-                        - avatar: https://example.com/avatar4.jpg
-                          email: bob.wilson@example.com
-                          name: Bob Wilson
-                          username: bobwilson101
-                    - announcement_date: "2021-01-01"
-                      auditors:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      autojoin_enabled: false
-                      category: Active
-                      charter_url: https://example.com/charter.pdf
-                      contact_email: project-lead@example.com
-                      created_at: "2021-01-01T00:00:00Z"
-                      description: project foo is a project about bar
-                      entity_dissolution_date: "2021-12-31"
-                      entity_formation_document_url: https://example.com/formation.pdf
-                      executive_director:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      formation_date: "2021-01-01"
+                      formation_lead:
+                        avatar: Quasi magnam et quia et error.
+                        email: YZ@s.QBD
+                        name: Nesciunt sint eaque reiciendis.
                       funding: Funded
                       funding_model:
                         - Crowdfunding
@@ -2860,6 +2752,10 @@ definitions:
                     name: Jane Smith
                     username: janesmith456
                   formation_date: "2021-01-01"
+                  formation_lead:
+                    avatar: Quasi magnam et quia et error.
+                    email: YZ@s.QBD
+                    name: Nesciunt sint eaque reiciendis.
                   funding: Funded
                   funding_model:
                     - Crowdfunding
@@ -2935,6 +2831,168 @@ definitions:
                     name: Jane Smith
                     username: janesmith456
                   formation_date: "2021-01-01"
+                  formation_lead:
+                    avatar: Quasi magnam et quia et error.
+                    email: YZ@s.QBD
+                    name: Nesciunt sint eaque reiciendis.
+                  funding: Funded
+                  funding_model:
+                    - Crowdfunding
+                  is_foundation: false
+                  legal_entity_name: Example Foundation LLC
+                  legal_entity_type: Subproject
+                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  logo_url: https://example.com/logo.svg
+                  meeting_coordinators:
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                  name: Foo Foundation
+                  opportunity_owner:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  program_manager:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  public: true
+                  repository_url: https://example.com/project
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  updated_at: "2021-01-01T00:00:00Z"
+                  website_url: https://example.com
+                  writers:
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
+                - announcement_date: "2021-01-01"
+                  auditors:
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  contact_email: project-lead@example.com
+                  created_at: "2021-01-01T00:00:00Z"
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  executive_director:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  formation_date: "2021-01-01"
+                  formation_lead:
+                    avatar: Quasi magnam et quia et error.
+                    email: YZ@s.QBD
+                    name: Nesciunt sint eaque reiciendis.
+                  funding: Funded
+                  funding_model:
+                    - Crowdfunding
+                  is_foundation: false
+                  legal_entity_name: Example Foundation LLC
+                  legal_entity_type: Subproject
+                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  logo_url: https://example.com/logo.svg
+                  meeting_coordinators:
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                  name: Foo Foundation
+                  opportunity_owner:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  program_manager:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  public: true
+                  repository_url: https://example.com/project
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  updated_at: "2021-01-01T00:00:00Z"
+                  website_url: https://example.com
+                  writers:
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
+                - announcement_date: "2021-01-01"
+                  auditors:
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  contact_email: project-lead@example.com
+                  created_at: "2021-01-01T00:00:00Z"
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  executive_director:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
+                  formation_date: "2021-01-01"
+                  formation_lead:
+                    avatar: Quasi magnam et quia et error.
+                    email: YZ@s.QBD
+                    name: Nesciunt sint eaque reiciendis.
                   funding: Funded
                   funding_model:
                     - Crowdfunding
@@ -3196,6 +3254,8 @@ definitions:
                       username: janesmith456
             executive_director:
                 $ref: '#/definitions/UserInfo'
+            formation_lead:
+                $ref: '#/definitions/FormationLead'
             meeting_coordinators:
                 type: array
                 items:
@@ -3258,6 +3318,10 @@ definitions:
                 email: jane.smith@example.com
                 name: Jane Smith
                 username: janesmith456
+            formation_lead:
+                avatar: Corporis iure omnis blanditiis distinctio et occaecati.
+                email: ""
+                name: Vel expedita dolorum dolores perferendis quisquam.
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -3371,6 +3435,8 @@ definitions:
                 format: date-time
             executive_director:
                 $ref: '#/definitions/UserInfo'
+            formation_lead:
+                $ref: '#/definitions/FormationLead'
             meeting_coordinators:
                 type: array
                 items:
@@ -3445,6 +3511,10 @@ definitions:
                 email: jane.smith@example.com
                 name: Jane Smith
                 username: janesmith456
+            formation_lead:
+                avatar: Quasi magnam et quia et error.
+                email: YZ@s.QBD
+                name: Nesciunt sint eaque reiciendis.
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
