@@ -82,6 +82,10 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 	if len(base.FundingModel) > 0 {
 		full.FundingModel = base.FundingModel
 	}
+	// Retain nil vs empty slices for the classification fields on read.
+	full.Industry = base.Industry
+	full.Technology = base.Technology
+	full.TechnicalActivityType = base.TechnicalActivityType
 	// Handle base fields that are pointers
 	if base.CreatedAt != nil {
 		full.CreatedAt = misc.StringPtr(base.CreatedAt.Format(time.RFC3339))
@@ -187,6 +191,9 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*models.ProjectBase, 
 	if project.FundingModel != nil {
 		p.FundingModel = project.FundingModel
 	}
+	p.Industry = project.Industry
+	p.Technology = project.Technology
+	p.TechnicalActivityType = project.TechnicalActivityType
 	if project.EntityDissolutionDate != nil {
 		entityDissolutionDate, err := time.Parse(time.DateOnly, *project.EntityDissolutionDate)
 		if err != nil {
@@ -305,6 +312,10 @@ func ConvertToServiceProjectBase(p *models.ProjectBase) *projsvc.ProjectBase {
 	if len(p.FundingModel) > 0 {
 		project.FundingModel = p.FundingModel
 	}
+	// Retain nil vs empty slices for the classification fields on read.
+	project.Industry = p.Industry
+	project.Technology = p.Technology
+	project.TechnicalActivityType = p.TechnicalActivityType
 
 	// Handle date fields that are pointers
 	if p.EntityDissolutionDate != nil {

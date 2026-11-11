@@ -47,6 +47,19 @@ func TestConvertToDBProjectBase(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "multi-value classifications and explicit clear",
+			input: &projsvc.ProjectBase{
+				Industry:              []string{"Energy & Climate", "Manufacturing"},
+				Technology:            []string{"Blockchain", "Linux Kernel"},
+				TechnicalActivityType: []string{},
+			},
+			expected: &models.ProjectBase{
+				Industry:              []string{"Energy & Climate", "Manufacturing"},
+				Technology:            []string{"Blockchain", "Linux Kernel"},
+				TechnicalActivityType: []string{},
+			},
+		},
+		{
 			name:     "nil input",
 			input:    nil,
 			expected: &models.ProjectBase{},
@@ -90,6 +103,9 @@ func TestConvertToDBProjectBase(t *testing.T) {
 				assert.Equal(t, tt.expected.Public, result.Public)
 				assert.Equal(t, tt.expected.ParentUID, result.ParentUID)
 				assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
+				assert.Equal(t, tt.expected.Industry, result.Industry)
+				assert.Equal(t, tt.expected.Technology, result.Technology)
+				assert.Equal(t, tt.expected.TechnicalActivityType, result.TechnicalActivityType)
 			}
 		})
 	}
@@ -346,6 +362,17 @@ func TestConvertToProjectFull(t *testing.T) {
 		expected *projsvc.ProjectFull
 	}{
 		{
+			name: "classifications appear in full project without settings",
+			base: &models.ProjectBase{
+				UID: "test-uid", Industry: []string{"Energy & Climate"},
+				Technology: []string{"Blockchain", "Linux Kernel"}, TechnicalActivityType: []string{},
+			},
+			expected: &projsvc.ProjectFull{
+				UID: misc.StringPtr("test-uid"), Slug: misc.StringPtr(""), Public: misc.BoolPtr(false), AutojoinEnabled: misc.BoolPtr(false),
+				Industry: []string{"Energy & Climate"}, Technology: []string{"Blockchain", "Linux Kernel"}, TechnicalActivityType: []string{},
+			},
+		},
+		{
 			name: "complete project with settings",
 			base: &models.ProjectBase{
 				UID:           "test-uid",
@@ -455,6 +482,9 @@ func TestConvertToProjectFull(t *testing.T) {
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 				assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
+				assert.Equal(t, tt.expected.Industry, result.Industry)
+				assert.Equal(t, tt.expected.Technology, result.Technology)
+				assert.Equal(t, tt.expected.TechnicalActivityType, result.TechnicalActivityType)
 			}
 		})
 	}
@@ -513,6 +543,16 @@ func TestConvertToServiceProjectBase(t *testing.T) {
 				AutojoinEnabled: misc.BoolPtr(false),
 			},
 		},
+		{
+			name: "classifications appear in project base",
+			input: &models.ProjectBase{
+				Industry: []string{"Energy & Climate"}, Technology: []string{"Blockchain"}, TechnicalActivityType: []string{},
+			},
+			expected: &projsvc.ProjectBase{
+				UID: misc.StringPtr(""), Slug: misc.StringPtr(""), Public: misc.BoolPtr(false), AutojoinEnabled: misc.BoolPtr(false),
+				Industry: []string{"Energy & Climate"}, Technology: []string{"Blockchain"}, TechnicalActivityType: []string{},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -529,6 +569,9 @@ func TestConvertToServiceProjectBase(t *testing.T) {
 				assert.Equal(t, tt.expected.Stage, result.Stage)
 			}
 			assert.Equal(t, tt.expected.ContactEmail, result.ContactEmail)
+			assert.Equal(t, tt.expected.Industry, result.Industry)
+			assert.Equal(t, tt.expected.Technology, result.Technology)
+			assert.Equal(t, tt.expected.TechnicalActivityType, result.TechnicalActivityType)
 		})
 	}
 }

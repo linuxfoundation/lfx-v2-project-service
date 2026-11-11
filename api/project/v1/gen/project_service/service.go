@@ -176,6 +176,15 @@ type CreateProjectPayload struct {
 	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string
 	// The URL of the project charter document
 	CharterURL *string
 	// The legal entity type of the project
@@ -491,6 +500,15 @@ type ProjectBase struct {
 	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string
 	// The URL of the project charter document
 	CharterURL *string
 	// The legal entity type of the project
@@ -596,6 +614,15 @@ type ProjectFull struct {
 	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string
 	// The URL of the project charter document
 	CharterURL *string
 	// The legal entity type of the project
@@ -768,6 +795,15 @@ type UpdateProjectBasePayload struct {
 	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry" json:"industry" xml:"industry"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology" json:"technology" xml:"technology"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type" json:"technical_activity_type" xml:"technical_activity_type"`
 	// The URL of the project charter document
 	CharterURL *string
 	// The legal entity type of the project

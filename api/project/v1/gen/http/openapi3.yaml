@@ -68,12 +68,17 @@ paths:
                                         username: janesmith456
                                       formation_date: "2021-01-01"
                                       formation_lead:
-                                        avatar: Quasi magnam et quia et error.
-                                        email: YZ@s.QBD
-                                        name: Nesciunt sint eaque reiciendis.
+                                        avatar: Et soluta itaque architecto et.
+                                        email: YV@b.gV
+                                        name: Corporis velit quis quo.
                                       funding: Funded
                                       funding_model:
                                         - Crowdfunding
+                                      industry:
+                                        - Sed iste et aut.
+                                        - Blanditiis enim velit perspiciatis.
+                                        - Doloremque rerum minus sunt.
+                                        - Alias corporis ullam ut non.
                                       is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
@@ -110,6 +115,16 @@ paths:
                                       repository_url: https://example.com/project
                                       slug: project-slug
                                       stage: Formation - Exploratory
+                                      technical_activity_type:
+                                        - Nihil sit.
+                                        - Autem minus itaque consequuntur at.
+                                        - Adipisci quas ex et.
+                                        - Omnis quia autem vel.
+                                      technology:
+                                        - Autem at.
+                                        - Nobis rerum provident ipsum et.
+                                        - Optio necessitatibus maiores corrupti non.
+                                        - Exercitationem ducimus culpa ea.
                                       uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
@@ -147,12 +162,17 @@ paths:
                                         username: janesmith456
                                       formation_date: "2021-01-01"
                                       formation_lead:
-                                        avatar: Quasi magnam et quia et error.
-                                        email: YZ@s.QBD
-                                        name: Nesciunt sint eaque reiciendis.
+                                        avatar: Et soluta itaque architecto et.
+                                        email: YV@b.gV
+                                        name: Corporis velit quis quo.
                                       funding: Funded
                                       funding_model:
                                         - Crowdfunding
+                                      industry:
+                                        - Sed iste et aut.
+                                        - Blanditiis enim velit perspiciatis.
+                                        - Doloremque rerum minus sunt.
+                                        - Alias corporis ullam ut non.
                                       is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
@@ -189,6 +209,16 @@ paths:
                                       repository_url: https://example.com/project
                                       slug: project-slug
                                       stage: Formation - Exploratory
+                                      technical_activity_type:
+                                        - Nihil sit.
+                                        - Autem minus itaque consequuntur at.
+                                        - Adipisci quas ex et.
+                                        - Omnis quia autem vel.
+                                      technology:
+                                        - Autem at.
+                                        - Nobis rerum provident ipsum et.
+                                        - Optio necessitatibus maiores corrupti non.
+                                        - Exercitationem ducimus culpa ea.
                                       uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
@@ -226,12 +256,17 @@ paths:
                                         username: janesmith456
                                       formation_date: "2021-01-01"
                                       formation_lead:
-                                        avatar: Quasi magnam et quia et error.
-                                        email: YZ@s.QBD
-                                        name: Nesciunt sint eaque reiciendis.
+                                        avatar: Et soluta itaque architecto et.
+                                        email: YV@b.gV
+                                        name: Corporis velit quis quo.
                                       funding: Funded
                                       funding_model:
                                         - Crowdfunding
+                                      industry:
+                                        - Sed iste et aut.
+                                        - Blanditiis enim velit perspiciatis.
+                                        - Doloremque rerum minus sunt.
+                                        - Alias corporis ullam ut non.
                                       is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
@@ -268,6 +303,16 @@ paths:
                                       repository_url: https://example.com/project
                                       slug: project-slug
                                       stage: Formation - Exploratory
+                                      technical_activity_type:
+                                        - Nihil sit.
+                                        - Autem minus itaque consequuntur at.
+                                        - Adipisci quas ex et.
+                                        - Omnis quia autem vel.
+                                      technology:
+                                        - Autem at.
+                                        - Nobis rerum provident ipsum et.
+                                        - Optio necessitatibus maiores corrupti non.
+                                        - Exercitationem ducimus culpa ea.
                                       uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
@@ -367,12 +412,15 @@ paths:
                                 username: janesmith456
                             formation_date: "2021-01-01"
                             formation_lead:
-                                avatar: Corporis iure omnis blanditiis distinctio et occaecati.
-                                email: ""
-                                name: Vel expedita dolorum dolores perferendis quisquam.
+                                avatar: Blanditiis quo.
+                                email: q@P.dqO
+                                name: Voluptatem eum.
                             funding: Funded
                             funding_model:
                                 - Crowdfunding
+                            industry:
+                                - Voluptatem eaque.
+                                - Quia voluptatem tempora fugiat.
                             is_foundation: false
                             legal_entity_name: Example Foundation LLC
                             legal_entity_type: Subproject
@@ -409,6 +457,14 @@ paths:
                             repository_url: https://example.com/project
                             slug: project-slug
                             stage: Formation - Exploratory
+                            technical_activity_type:
+                                - Ut adipisci unde.
+                                - Cum et eum itaque incidunt molestiae.
+                            technology:
+                                - Deleniti saepe iusto quia doloribus aut sunt.
+                                - Minima aliquam iusto suscipit vel.
+                                - Fugit beatae laboriosam corrupti sed.
+                                - Neque ipsum perferendis asperiores.
                             website_url: https://example.com
                             writers:
                                 - avatar: https://example.com/avatar3.jpg
@@ -452,12 +508,17 @@ paths:
                                     username: janesmith456
                                 formation_date: "2021-01-01"
                                 formation_lead:
-                                    avatar: Quasi magnam et quia et error.
-                                    email: YZ@s.QBD
-                                    name: Nesciunt sint eaque reiciendis.
+                                    avatar: Et soluta itaque architecto et.
+                                    email: YV@b.gV
+                                    name: Corporis velit quis quo.
                                 funding: Funded
                                 funding_model:
                                     - Crowdfunding
+                                industry:
+                                    - Error sequi eum.
+                                    - Molestiae qui.
+                                    - Alias veniam qui sit ullam.
+                                    - Voluptatem veniam sunt velit ad et repellat.
                                 is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
@@ -494,6 +555,13 @@ paths:
                                 repository_url: https://example.com/project
                                 slug: project-slug
                                 stage: Formation - Exploratory
+                                technical_activity_type:
+                                    - Magnam laboriosam possimus doloremque dolores sunt.
+                                    - Eos eveniet dignissimos tempore.
+                                technology:
+                                    - Aliquam et et.
+                                    - Eius odio aliquam earum nihil totam iste.
+                                    - Qui ut.
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
                                 website_url: https://example.com
@@ -697,6 +765,9 @@ paths:
                                 funding: Funded
                                 funding_model:
                                     - Crowdfunding
+                                industry:
+                                    - Nesciunt id accusantium sit.
+                                    - Iure quia eaque ut.
                                 is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
@@ -708,6 +779,14 @@ paths:
                                 repository_url: https://example.com/project
                                 slug: project-slug
                                 stage: Formation - Exploratory
+                                technical_activity_type:
+                                    - Dolor hic unde cupiditate.
+                                    - Voluptate eveniet eaque est.
+                                technology:
+                                    - Dolor quidem cumque in quisquam.
+                                    - Reiciendis ea quae modi id.
+                                    - Eos perspiciatis sed et accusantium a.
+                                    - Id aut dolorem est.
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
                                 website_url: https://example.com
@@ -804,6 +883,11 @@ paths:
                             funding: Funded
                             funding_model:
                                 - Crowdfunding
+                            industry:
+                                - Ex beatae laudantium.
+                                - Dicta unde illum.
+                                - Ea voluptatibus.
+                                - Eligendi officiis quasi omnis dolor.
                             is_foundation: false
                             legal_entity_name: Example Foundation LLC
                             legal_entity_type: Subproject
@@ -815,6 +899,14 @@ paths:
                             repository_url: https://example.com/project
                             slug: project-slug
                             stage: Formation - Exploratory
+                            technical_activity_type:
+                                - Sit sunt suscipit eaque sit.
+                                - Ipsum voluptatem qui repellendus dicta quia dignissimos.
+                                - Sunt et nam autem et.
+                            technology:
+                                - Quae quia voluptatem commodi voluptas.
+                                - Sint et in dicta esse.
+                                - Ducimus dolore dolorem omnis.
                             website_url: https://example.com
             responses:
                 "200":
@@ -836,6 +928,9 @@ paths:
                                 funding: Funded
                                 funding_model:
                                     - Crowdfunding
+                                industry:
+                                    - Est ad sit eligendi.
+                                    - Consequatur vel repudiandae assumenda ut.
                                 is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
@@ -847,6 +942,13 @@ paths:
                                 repository_url: https://example.com/project
                                 slug: project-slug
                                 stage: Formation - Exploratory
+                                technical_activity_type:
+                                    - Consequatur fugiat error consequuntur dolor perspiciatis.
+                                    - Consequatur pariatur voluptatem cupiditate et.
+                                technology:
+                                    - Aut quos enim.
+                                    - In consequuntur et autem sint laborum.
+                                    - Est blanditiis consequatur voluptatem quo voluptatibus delectus.
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
                                 website_url: https://example.com
@@ -2013,9 +2115,9 @@ paths:
                                     name: Jane Smith
                                     username: janesmith456
                                 formation_lead:
-                                    avatar: Quasi magnam et quia et error.
-                                    email: YZ@s.QBD
-                                    name: Nesciunt sint eaque reiciendis.
+                                    avatar: Et soluta itaque architecto et.
+                                    email: YV@b.gV
+                                    name: Corporis velit quis quo.
                                 meeting_coordinators:
                                     - avatar: https://example.com/avatar1.jpg
                                       email: john.doe@example.com
@@ -2150,9 +2252,9 @@ paths:
                                 name: Jane Smith
                                 username: janesmith456
                             formation_lead:
-                                avatar: Corporis iure omnis blanditiis distinctio et occaecati.
-                                email: ""
-                                name: Vel expedita dolorum dolores perferendis quisquam.
+                                avatar: Blanditiis quo.
+                                email: q@P.dqO
+                                name: Voluptatem eum.
                             meeting_coordinators:
                                 - avatar: https://example.com/avatar1.jpg
                                   email: john.doe@example.com
@@ -2212,9 +2314,9 @@ paths:
                                     name: Jane Smith
                                     username: janesmith456
                                 formation_lead:
-                                    avatar: Quasi magnam et quia et error.
-                                    email: YZ@s.QBD
-                                    name: Nesciunt sint eaque reiciendis.
+                                    avatar: Et soluta itaque architecto et.
+                                    email: YV@b.gV
+                                    name: Corporis velit quis quo.
                                 meeting_coordinators:
                                     - avatar: https://example.com/avatar1.jpg
                                       email: john.doe@example.com
@@ -2571,7 +2673,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Alternate Funding
+                        example: Crowdfunding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -2579,6 +2681,17 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                industry:
+                    type: array
+                    items:
+                        type: string
+                        example: Sunt non amet.
+                    description: Industry sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Veritatis magnam laudantium et ut magni.
+                        - Consequatur quisquam eius ipsa sapiente praesentium magnam.
+                        - Et est repellat quo quisquam autem maiores.
+                        - Ea sed et autem.
                 is_foundation:
                     type: boolean
                     description: Whether the project is a foundation
@@ -2677,6 +2790,27 @@ components:
                         - Formation - On Hold
                         - Formation - Disengaged
                         - Prospect
+                technical_activity_type:
+                    type: array
+                    items:
+                        type: string
+                        example: Nihil qui unde culpa distinctio sit et.
+                    description: Technical activity types of the project; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Nobis facere odit dolor unde.
+                        - Animi ipsam voluptatem dolores aliquid mollitia.
+                        - Quibusdam eos sunt laboriosam magnam possimus quisquam.
+                technology:
+                    type: array
+                    items:
+                        type: string
+                        example: Est inventore.
+                    description: Technology sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Reiciendis ut.
+                        - Iste magni in suscipit totam blanditiis.
+                        - Veniam rerum quos.
+                        - Est et reprehenderit aut tenetur in ad.
                 website_url:
                     type: string
                     description: The URL of the project website
@@ -2721,12 +2855,17 @@ components:
                     username: janesmith456
                 formation_date: "2021-01-01"
                 formation_lead:
-                    avatar: Corporis iure omnis blanditiis distinctio et occaecati.
-                    email: ""
-                    name: Vel expedita dolorum dolores perferendis quisquam.
+                    avatar: Blanditiis quo.
+                    email: q@P.dqO
+                    name: Voluptatem eum.
                 funding: Funded
                 funding_model:
                     - Crowdfunding
+                industry:
+                    - Libero dolore.
+                    - Tenetur saepe sit non labore.
+                    - Ut blanditiis esse.
+                    - Exercitationem maiores.
                 is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
@@ -2763,6 +2902,12 @@ components:
                 repository_url: https://example.com/project
                 slug: project-slug
                 stage: Formation - Exploratory
+                technical_activity_type:
+                    - Harum mollitia deserunt id.
+                    - Inventore placeat aut expedita.
+                technology:
+                    - Soluta non perferendis adipisci adipisci eveniet.
+                    - Ut sit.
                 website_url: https://example.com
                 writers:
                     - avatar: https://example.com/avatar3.jpg
@@ -2801,21 +2946,21 @@ components:
                 avatar:
                     type: string
                     description: Optional Formation Lead avatar URL
-                    example: Et quod quo.
+                    example: Modi esse.
                 email:
                     type: string
                     description: Formation Lead email
-                    example: +w@4.dke
+                    example: ""
                     pattern: ^$|^[a-zA-Z0-9._%+'\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$
                 name:
                     type: string
                     description: Formation Lead name
-                    example: In est dicta beatae et.
+                    example: Repudiandae dolore.
             description: Formation Lead contact details from the v1 project record.
             example:
-                avatar: Ex nulla.
-                email: U@-4.NKM
-                name: Quo eum consequatur.
+                avatar: Nulla illum dolor exercitationem veniam laborum enim.
+                email: dk@M.uVF
+                name: Aperiam atque est officia.
         GetProjectsResponseBody:
             type: object
             properties:
@@ -2850,12 +2995,17 @@ components:
                             username: janesmith456
                           formation_date: "2021-01-01"
                           formation_lead:
-                            avatar: Quasi magnam et quia et error.
-                            email: YZ@s.QBD
-                            name: Nesciunt sint eaque reiciendis.
+                            avatar: Et soluta itaque architecto et.
+                            email: YV@b.gV
+                            name: Corporis velit quis quo.
                           funding: Funded
                           funding_model:
                             - Crowdfunding
+                          industry:
+                            - Sed iste et aut.
+                            - Blanditiis enim velit perspiciatis.
+                            - Doloremque rerum minus sunt.
+                            - Alias corporis ullam ut non.
                           is_foundation: false
                           legal_entity_name: Example Foundation LLC
                           legal_entity_type: Subproject
@@ -2892,6 +3042,16 @@ components:
                           repository_url: https://example.com/project
                           slug: project-slug
                           stage: Formation - Exploratory
+                          technical_activity_type:
+                            - Nihil sit.
+                            - Autem minus itaque consequuntur at.
+                            - Adipisci quas ex et.
+                            - Omnis quia autem vel.
+                          technology:
+                            - Autem at.
+                            - Nobis rerum provident ipsum et.
+                            - Optio necessitatibus maiores corrupti non.
+                            - Exercitationem ducimus culpa ea.
                           uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           updated_at: "2021-01-01T00:00:00Z"
                           website_url: https://example.com
@@ -2929,12 +3089,17 @@ components:
                             username: janesmith456
                           formation_date: "2021-01-01"
                           formation_lead:
-                            avatar: Quasi magnam et quia et error.
-                            email: YZ@s.QBD
-                            name: Nesciunt sint eaque reiciendis.
+                            avatar: Et soluta itaque architecto et.
+                            email: YV@b.gV
+                            name: Corporis velit quis quo.
                           funding: Funded
                           funding_model:
                             - Crowdfunding
+                          industry:
+                            - Sed iste et aut.
+                            - Blanditiis enim velit perspiciatis.
+                            - Doloremque rerum minus sunt.
+                            - Alias corporis ullam ut non.
                           is_foundation: false
                           legal_entity_name: Example Foundation LLC
                           legal_entity_type: Subproject
@@ -2971,6 +3136,16 @@ components:
                           repository_url: https://example.com/project
                           slug: project-slug
                           stage: Formation - Exploratory
+                          technical_activity_type:
+                            - Nihil sit.
+                            - Autem minus itaque consequuntur at.
+                            - Adipisci quas ex et.
+                            - Omnis quia autem vel.
+                          technology:
+                            - Autem at.
+                            - Nobis rerum provident ipsum et.
+                            - Optio necessitatibus maiores corrupti non.
+                            - Exercitationem ducimus culpa ea.
                           uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           updated_at: "2021-01-01T00:00:00Z"
                           website_url: https://example.com
@@ -3010,12 +3185,17 @@ components:
                         username: janesmith456
                       formation_date: "2021-01-01"
                       formation_lead:
-                        avatar: Quasi magnam et quia et error.
-                        email: YZ@s.QBD
-                        name: Nesciunt sint eaque reiciendis.
+                        avatar: Et soluta itaque architecto et.
+                        email: YV@b.gV
+                        name: Corporis velit quis quo.
                       funding: Funded
                       funding_model:
                         - Crowdfunding
+                      industry:
+                        - Sed iste et aut.
+                        - Blanditiis enim velit perspiciatis.
+                        - Doloremque rerum minus sunt.
+                        - Alias corporis ullam ut non.
                       is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
@@ -3052,6 +3232,16 @@ components:
                       repository_url: https://example.com/project
                       slug: project-slug
                       stage: Formation - Exploratory
+                      technical_activity_type:
+                        - Nihil sit.
+                        - Autem minus itaque consequuntur at.
+                        - Adipisci quas ex et.
+                        - Omnis quia autem vel.
+                      technology:
+                        - Autem at.
+                        - Nobis rerum provident ipsum et.
+                        - Optio necessitatibus maiores corrupti non.
+                        - Exercitationem ducimus culpa ea.
                       uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
@@ -3089,12 +3279,17 @@ components:
                         username: janesmith456
                       formation_date: "2021-01-01"
                       formation_lead:
-                        avatar: Quasi magnam et quia et error.
-                        email: YZ@s.QBD
-                        name: Nesciunt sint eaque reiciendis.
+                        avatar: Et soluta itaque architecto et.
+                        email: YV@b.gV
+                        name: Corporis velit quis quo.
                       funding: Funded
                       funding_model:
                         - Crowdfunding
+                      industry:
+                        - Sed iste et aut.
+                        - Blanditiis enim velit perspiciatis.
+                        - Doloremque rerum minus sunt.
+                        - Alias corporis ullam ut non.
                       is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
@@ -3131,6 +3326,16 @@ components:
                       repository_url: https://example.com/project
                       slug: project-slug
                       stage: Formation - Exploratory
+                      technical_activity_type:
+                        - Nihil sit.
+                        - Autem minus itaque consequuntur at.
+                        - Adipisci quas ex et.
+                        - Omnis quia autem vel.
+                      technology:
+                        - Autem at.
+                        - Nobis rerum provident ipsum et.
+                        - Optio necessitatibus maiores corrupti non.
+                        - Exercitationem ducimus culpa ea.
                       uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
@@ -3287,6 +3492,17 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                industry:
+                    type: array
+                    items:
+                        type: string
+                        example: Aliquam non unde eum consectetur molestiae.
+                    description: Industry sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Ullam officia neque error.
+                        - Soluta et officia.
+                        - Dolore quia.
+                        - Dolorem nihil.
                 is_foundation:
                     type: boolean
                     description: Whether the project is a foundation
@@ -3351,6 +3567,26 @@ components:
                         - Formation - On Hold
                         - Formation - Disengaged
                         - Prospect
+                technical_activity_type:
+                    type: array
+                    items:
+                        type: string
+                        example: Rerum quos.
+                    description: Technical activity types of the project; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Adipisci dolorem.
+                        - Vel est molestiae ut ab cupiditate molestiae.
+                        - Dolore odio animi in quibusdam non ipsum.
+                        - Et veritatis inventore placeat.
+                technology:
+                    type: array
+                    items:
+                        type: string
+                        example: Maxime harum omnis et.
+                    description: Technology sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Eligendi sapiente non molestiae rerum qui.
+                        - Quia ipsum dolorem quam quo sit.
                 uid:
                     type: string
                     description: Project UID -- v2 uid, not related to v1 id directly
@@ -3380,6 +3616,10 @@ components:
                 funding: Funded
                 funding_model:
                     - Crowdfunding
+                industry:
+                    - Dolores est.
+                    - Et ratione nemo sit.
+                    - Recusandae qui ut molestias consequatur quibusdam.
                 is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
@@ -3391,6 +3631,13 @@ components:
                 repository_url: https://example.com/project
                 slug: project-slug
                 stage: Formation - Exploratory
+                technical_activity_type:
+                    - Magnam repellendus doloribus rerum esse odio.
+                    - Numquam soluta et ut molestiae adipisci.
+                    - Quod quaerat repellat modi quia ut.
+                technology:
+                    - Architecto consequatur labore illo eos.
+                    - In architecto suscipit.
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2021-01-01T00:00:00Z"
                 website_url: https://example.com
@@ -3617,7 +3864,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Membership
+                        example: Alternate Funding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -3625,6 +3872,16 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                industry:
+                    type: array
+                    items:
+                        type: string
+                        example: Cupiditate velit voluptas omnis ullam quo modi.
+                    description: Industry sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Animi et sint.
+                        - Fuga neque nemo sint.
+                        - Ut dolor animi placeat.
                 is_foundation:
                     type: boolean
                     description: Whether the project is a foundation
@@ -3721,6 +3978,27 @@ components:
                         - Formation - On Hold
                         - Formation - Disengaged
                         - Prospect
+                technical_activity_type:
+                    type: array
+                    items:
+                        type: string
+                        example: Dolorem doloremque id voluptatem eligendi facere.
+                    description: Technical activity types of the project; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Deserunt et dolores iusto maxime.
+                        - Totam nisi.
+                        - Aut exercitationem.
+                        - Voluptatem voluptate corrupti doloribus dolores et nemo.
+                technology:
+                    type: array
+                    items:
+                        type: string
+                        example: Non rem labore voluptas tenetur.
+                    description: Technology sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Eius esse sequi aperiam ea eaque ut.
+                        - Dolor omnis.
+                        - Nobis asperiores vitae impedit aliquid.
                 uid:
                     type: string
                     description: Project UID -- v2 uid, not related to v1 id directly
@@ -3777,12 +4055,16 @@ components:
                     username: janesmith456
                 formation_date: "2021-01-01"
                 formation_lead:
-                    avatar: Corrupti quisquam et assumenda fuga.
-                    email: oP@7.QJx
-                    name: Sunt repellat aut consequatur earum ea accusantium.
+                    avatar: Distinctio et occaecati dolore.
+                    email: W@Z.cY
+                    name: Exercitationem vel expedita dolorum.
                 funding: Funded
                 funding_model:
                     - Crowdfunding
+                industry:
+                    - Non eos et asperiores.
+                    - Rerum vel ad provident et quia.
+                    - Delectus ducimus atque.
                 is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
@@ -3819,6 +4101,12 @@ components:
                 repository_url: https://example.com/project
                 slug: project-slug
                 stage: Formation - Exploratory
+                technical_activity_type:
+                    - Dicta odit deleniti ab consequatur sunt.
+                    - Mollitia saepe dicta nulla ut incidunt accusamus.
+                technology:
+                    - Dolorem fugiat.
+                    - Non sed enim sequi ea commodi et.
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2021-01-01T00:00:00Z"
                 website_url: https://example.com
@@ -4001,9 +4289,9 @@ components:
                     name: Jane Smith
                     username: janesmith456
                 formation_lead:
-                    avatar: Corrupti quisquam et assumenda fuga.
-                    email: oP@7.QJx
-                    name: Sunt repellat aut consequatur earum ea accusantium.
+                    avatar: Distinctio et occaecati dolore.
+                    email: W@Z.cY
+                    name: Exercitationem vel expedita dolorum.
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -4144,7 +4432,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Membership
+                        example: Crowdfunding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -4152,6 +4440,17 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                industry:
+                    type: array
+                    items:
+                        type: string
+                        example: Non quam commodi cum autem culpa.
+                    description: Industry sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Sequi est impedit.
+                        - Facere omnis molestiae magni possimus eius.
+                        - Necessitatibus sit ipsum in voluptatem.
+                        - Quia itaque ea unde dolorum nisi atque.
                 is_foundation:
                     type: boolean
                     description: Whether the project is a foundation
@@ -4218,6 +4517,26 @@ components:
                         - Formation - On Hold
                         - Formation - Disengaged
                         - Prospect
+                technical_activity_type:
+                    type: array
+                    items:
+                        type: string
+                        example: Sit eum quibusdam voluptas velit.
+                    description: Technical activity types of the project; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Ullam consequuntur earum molestiae.
+                        - Dolores ut et eius quibusdam tempore explicabo.
+                        - Possimus dicta adipisci consequatur.
+                technology:
+                    type: array
+                    items:
+                        type: string
+                        example: Eligendi a harum illo molestiae.
+                    description: Technology sectors to which the project applies; omit on update to preserve, send an empty array to clear
+                    example:
+                        - Modi molestiae fugit ea eum.
+                        - Blanditiis non.
+                        - Repudiandae qui.
                 website_url:
                     type: string
                     description: The URL of the project website
@@ -4235,6 +4554,11 @@ components:
                 funding: Funded
                 funding_model:
                     - Crowdfunding
+                industry:
+                    - Eaque corrupti aut maxime rerum vero fugit.
+                    - Et incidunt porro et neque.
+                    - Possimus a consequatur voluptatum et architecto iusto.
+                    - Aliquid unde nostrum asperiores.
                 is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
@@ -4246,6 +4570,13 @@ components:
                 repository_url: https://example.com/project
                 slug: project-slug
                 stage: Formation - Exploratory
+                technical_activity_type:
+                    - Unde perspiciatis minima dolore placeat consequatur.
+                    - Labore nam nostrum.
+                technology:
+                    - Ipsum fugit consectetur possimus.
+                    - Porro quas asperiores assumenda sunt voluptas numquam.
+                    - Rerum maiores rerum.
                 website_url: https://example.com
             required:
                 - slug
@@ -4341,9 +4672,9 @@ components:
                     name: Jane Smith
                     username: janesmith456
                 formation_lead:
-                    avatar: Corporis iure omnis blanditiis distinctio et occaecati.
-                    email: ""
-                    name: Vel expedita dolorum dolores perferendis quisquam.
+                    avatar: Blanditiis quo.
+                    email: q@P.dqO
+                    name: Voluptatem eum.
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com

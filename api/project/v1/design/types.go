@@ -74,6 +74,7 @@ func ProjectBaseAttributes() {
 	ProjectCategoryAttribute()
 	ProjectFundingAttribute()
 	ProjectFundingModelAttribute()
+	ProjectClassificationAttributes()
 	ProjectCharterURLAttribute()
 	ProjectLegalEntityTypeAttribute()
 	ProjectLegalEntityNameAttribute()
@@ -88,6 +89,28 @@ func ProjectBaseAttributes() {
 	ProjectContactEmailAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
+}
+
+// ProjectClassificationAttributes describes the v1 multi-value project classifications.
+func ProjectClassificationAttributes() {
+	Attribute("industry", ArrayOf(String), "Industry sectors to which the project applies; omit on update to preserve, send an empty array to clear")
+	Attribute("technology", ArrayOf(String), "Technology sectors to which the project applies; omit on update to preserve, send an empty array to clear")
+	Attribute("technical_activity_type", ArrayOf(String), "Technical activity types of the project; omit on update to preserve, send an empty array to clear")
+}
+
+// ProjectClassificationUpdateAttributes preserves explicit empty arrays in generated clients.
+func ProjectClassificationUpdateAttributes() {
+	for _, field := range []struct{ name, description string }{
+		{"industry", "Industry sectors to which the project applies"},
+		{"technology", "Technology sectors to which the project applies"},
+		{"technical_activity_type", "Technical activity types of the project"},
+	} {
+		Attribute(field.name, ArrayOf(String), field.description+"; omit on update to preserve, send an empty array to clear", func() {
+			Meta("struct:tag:form", field.name)
+			Meta("struct:tag:json", field.name)
+			Meta("struct:tag:xml", field.name)
+		})
+	}
 }
 
 // ProjectSettings is the DSL type for a project settings.

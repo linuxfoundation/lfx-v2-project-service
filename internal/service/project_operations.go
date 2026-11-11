@@ -190,6 +190,9 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		LegalParentUID:             payload.LegalParentUID,
 		Funding:                    payload.Funding,
 		FundingModel:               payload.FundingModel,
+		Industry:                   payload.Industry,
+		Technology:                 payload.Technology,
+		TechnicalActivityType:      payload.TechnicalActivityType,
 		EntityDissolutionDate:      payload.EntityDissolutionDate,
 		EntityFormationDocumentURL: payload.EntityFormationDocumentURL,
 		FormationDate:              payload.FormationDate,
@@ -500,6 +503,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		LegalParentUID:             payload.LegalParentUID,
 		Funding:                    payload.Funding,
 		FundingModel:               payload.FundingModel,
+		Industry:                   payload.Industry,
+		Technology:                 payload.Technology,
+		TechnicalActivityType:      payload.TechnicalActivityType,
 		EntityDissolutionDate:      payload.EntityDissolutionDate,
 		EntityFormationDocumentURL: payload.EntityFormationDocumentURL,
 		AutojoinEnabled:            payload.AutojoinEnabled,
@@ -513,6 +519,18 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 	if existingProjectDB.CreatedAt != nil {
 		project.CreatedAt = misc.StringPtr(existingProjectDB.CreatedAt.Format(time.RFC3339))
+	}
+
+	// These fields are newly introduced: legacy clients omit them on a full PUT.
+	// A non-nil empty slice represents an explicit clear.
+	if project.Industry == nil {
+		project.Industry = existingProjectDB.Industry
+	}
+	if project.Technology == nil {
+		project.Technology = existingProjectDB.Technology
+	}
+	if project.TechnicalActivityType == nil {
+		project.TechnicalActivityType = existingProjectDB.TechnicalActivityType
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)

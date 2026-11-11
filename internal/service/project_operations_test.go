@@ -154,18 +154,25 @@ func TestProjectsService_CreateProject(t *testing.T) {
 		{
 			name: "successful project creation",
 			payload: &projsvc.CreateProjectPayload{
-				Slug:         "test-project",
-				Name:         "Test Project",
-				Description:  "Test Description",
-				Public:       misc.BoolPtr(true),
-				Stage:        misc.StringPtr("incubating"),
-				Category:     misc.StringPtr("foundation"),
-				ContactEmail: misc.StringPtr("project-lead@example.com"),
-				XSync:        misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
+				Slug:                  "test-project",
+				Name:                  "Test Project",
+				Description:           "Test Description",
+				Public:                misc.BoolPtr(true),
+				Stage:                 misc.StringPtr("incubating"),
+				Category:              misc.StringPtr("foundation"),
+				ContactEmail:          misc.StringPtr("project-lead@example.com"),
+				Industry:              []string{"Energy & Climate", "Manufacturing"},
+				Technology:            []string{"Blockchain"},
+				TechnicalActivityType: []string{"Open Data"},
+				XSync:                 misc.BoolPtr(true), //nolint:staticcheck // SA1019: deprecated no-op field the API still accepts
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
-				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
+				mockRepo.On("CreateProject", mock.Anything, mock.MatchedBy(func(p *models.ProjectBase) bool {
+					return assert.ObjectsAreEqual([]string{"Energy & Climate", "Manufacturing"}, p.Industry) &&
+						assert.ObjectsAreEqual([]string{"Blockchain"}, p.Technology) &&
+						assert.ObjectsAreEqual([]string{"Open Data"}, p.TechnicalActivityType)
+				}), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope")).Return(nil).Times(2)
 				mockBuilder.On("PublishAccessMessage",
 					mock.Anything,
@@ -197,6 +204,9 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				assert.Equal(t, "Test Description", *result.Description)
 				assert.Equal(t, true, *result.Public)
 				assert.Equal(t, "project-lead@example.com", *result.ContactEmail)
+				assert.Equal(t, []string{"Energy & Climate", "Manufacturing"}, result.Industry)
+				assert.Equal(t, []string{"Blockchain"}, result.Technology)
+				assert.Equal(t, []string{"Open Data"}, result.TechnicalActivityType)
 			},
 		},
 		{
@@ -1252,6 +1262,53 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		expectedErr  error
 		validate     func(*testing.T, *projsvc.ProjectBase)
 	}{
+		{
+			name: "omitted classifications preserve stored values on base PUT",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project",
+			},
+			setupMocks: func(repo *domainmocks.MockProjectRepository, publisher *domainmocks.MockMessageBuilder) {
+				repo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{
+					UID: "project-uid-1", Slug: "test-project", Industry: []string{"Energy & Climate"},
+					Technology: []string{"Blockchain"}, TechnicalActivityType: []string{"Open Data"},
+				}, nil)
+				repo.On("UpdateProjectBase", mock.Anything, mock.MatchedBy(func(p *models.ProjectBase) bool {
+					return assert.ObjectsAreEqual([]string{"Energy & Climate"}, p.Industry) &&
+						assert.ObjectsAreEqual([]string{"Blockchain"}, p.Technology) &&
+						assert.ObjectsAreEqual([]string{"Open Data"}, p.TechnicalActivityType)
+				}), uint64(1)).Return(nil)
+				publisher.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything).Return(nil)
+			},
+			validate: func(t *testing.T, result *projsvc.ProjectBase) {
+				assert.Equal(t, []string{"Energy & Climate"}, result.Industry)
+				assert.Equal(t, []string{"Blockchain"}, result.Technology)
+				assert.Equal(t, []string{"Open Data"}, result.TechnicalActivityType)
+			},
+		},
+		{
+			name: "explicit empty classification arrays clear and other fields update independently",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID: misc.StringPtr("project-uid-1"), IfMatch: misc.StringPtr("1"), Slug: "test-project", Name: "Test Project",
+				Industry: []string{}, Technology: []string{"Linux Kernel"}, TechnicalActivityType: []string{},
+			},
+			setupMocks: func(repo *domainmocks.MockProjectRepository, publisher *domainmocks.MockMessageBuilder) {
+				repo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{
+					UID: "project-uid-1", Slug: "test-project", Industry: []string{"Energy & Climate"},
+					Technology: []string{"Blockchain"}, TechnicalActivityType: []string{"Open Data"},
+				}, nil)
+				repo.On("UpdateProjectBase", mock.Anything, mock.MatchedBy(func(p *models.ProjectBase) bool {
+					return p.Industry != nil && len(p.Industry) == 0 &&
+						assert.ObjectsAreEqual([]string{"Linux Kernel"}, p.Technology) &&
+						p.TechnicalActivityType != nil && len(p.TechnicalActivityType) == 0
+				}), uint64(1)).Return(nil)
+				publisher.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything).Return(nil)
+			},
+			validate: func(t *testing.T, result *projsvc.ProjectBase) {
+				assert.Equal(t, []string{}, result.Industry)
+				assert.Equal(t, []string{"Linux Kernel"}, result.Technology)
+				assert.Equal(t, []string{}, result.TechnicalActivityType)
+			},
+		},
 		{
 			// Public changes false→true: FGA update_access must be published.
 			name: "successful update — Public changed — publishes FGA update_access message",

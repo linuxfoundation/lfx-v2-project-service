@@ -283,6 +283,56 @@ func TestUpdateProjectSettingsHTTPClearsMentorshipAdmins(t *testing.T) {
 	assert.Empty(t, received.MentorshipProgramAdmins)
 }
 
+func TestUpdateProjectBaseHTTPClassificationArrays(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		industry []string
+		wantNil  bool
+	}{
+		{name: "omitted classification is preserved", wantNil: true},
+		{name: "explicit empty classification is cleared", industry: []string{}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var received *projsvc.UpdateProjectBasePayload
+			mux := goahttp.NewMuxer()
+			handler := projsvchttpserver.NewUpdateProjectBaseHandler(
+				func(_ context.Context, req any) (any, error) {
+					var ok bool
+					received, ok = req.(*projsvc.UpdateProjectBasePayload)
+					require.True(t, ok)
+					return &projsvc.ProjectBase{UID: received.UID, Industry: received.Industry}, nil
+				}, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil,
+			)
+			projsvchttpserver.MountUpdateProjectBaseHandler(mux, handler)
+			server := httptest.NewServer(mux)
+			defer server.Close()
+			serverURL, err := url.Parse(server.URL)
+			require.NoError(t, err)
+			client := projsvchttpclient.NewClient(serverURL.Scheme, serverURL.Host, server.Client(), goahttp.RequestEncoder, goahttp.ResponseDecoder, false)
+			version := "1"
+			uid := "00000000-0000-4000-8000-000000000001"
+			ifMatch := "1"
+			_, err = client.UpdateProjectBase()(t.Context(), &projsvc.UpdateProjectBasePayload{
+				UID: &uid, Version: &version, IfMatch: &ifMatch,
+				Slug: "test-project", Description: "Test description", Name: "Test Project",
+				Industry: tt.industry, Technology: []string{}, TechnicalActivityType: []string{},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, received)
+			if tt.wantNil {
+				assert.Nil(t, received.Industry)
+			} else {
+				assert.NotNil(t, received.Industry)
+				assert.Empty(t, received.Industry)
+			}
+			assert.NotNil(t, received.Technology)
+			assert.Empty(t, received.Technology)
+			assert.NotNil(t, received.TechnicalActivityType)
+			assert.Empty(t, received.TechnicalActivityType)
+		})
+	}
+}
+
 func TestResolveProjectSlug(t *testing.T) {
 	tests := []struct {
 		name            string

@@ -2635,6 +2635,24 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 			res.FundingModel[i] = val
 		}
 	}
+	if v.Industry != nil {
+		res.Industry = make([]string, len(v.Industry))
+		for i, val := range v.Industry {
+			res.Industry[i] = val
+		}
+	}
+	if v.Technology != nil {
+		res.Technology = make([]string, len(v.Technology))
+		for i, val := range v.Technology {
+			res.Technology[i] = val
+		}
+	}
+	if v.TechnicalActivityType != nil {
+		res.TechnicalActivityType = make([]string, len(v.TechnicalActivityType))
+		for i, val := range v.TechnicalActivityType {
+			res.TechnicalActivityType[i] = val
+		}
+	}
 	if v.Writers != nil {
 		res.Writers = make([]*UserInfoResponseBody, len(v.Writers))
 		for i, val := range v.Writers {

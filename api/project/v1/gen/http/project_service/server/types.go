@@ -39,6 +39,15 @@ type CreateProjectRequestBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology,omitempty" json:"technology,omitempty" xml:"technology,omitempty"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type,omitempty" json:"technical_activity_type,omitempty" xml:"technical_activity_type,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -113,6 +122,15 @@ type UpdateProjectBaseRequestBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry" json:"industry" xml:"industry"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology" json:"technology" xml:"technology"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type" json:"technical_activity_type" xml:"technical_activity_type"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -238,6 +256,15 @@ type CreateProjectResponseBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology,omitempty" json:"technology,omitempty" xml:"technology,omitempty"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type,omitempty" json:"technical_activity_type,omitempty" xml:"technical_activity_type,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -326,6 +353,15 @@ type UpdateProjectBaseResponseBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology,omitempty" json:"technology,omitempty" xml:"technology,omitempty"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type,omitempty" json:"technical_activity_type,omitempty" xml:"technical_activity_type,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -1258,6 +1294,15 @@ type ProjectFullResponseBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology,omitempty" json:"technology,omitempty" xml:"technology,omitempty"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type,omitempty" json:"technical_activity_type,omitempty" xml:"technical_activity_type,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -1372,6 +1417,15 @@ type ProjectBaseResponseBody struct {
 	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// Industry sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Industry []string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Technology sectors to which the project applies; omit on update to preserve,
+	// send an empty array to clear
+	Technology []string `form:"technology,omitempty" json:"technology,omitempty" xml:"technology,omitempty"`
+	// Technical activity types of the project; omit on update to preserve, send an
+	// empty array to clear
+	TechnicalActivityType []string `form:"technical_activity_type,omitempty" json:"technical_activity_type,omitempty" xml:"technical_activity_type,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
 	// The legal entity type of the project
@@ -1604,6 +1658,24 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 			body.FundingModel[i] = val
 		}
 	}
+	if res.Industry != nil {
+		body.Industry = make([]string, len(res.Industry))
+		for i, val := range res.Industry {
+			body.Industry[i] = val
+		}
+	}
+	if res.Technology != nil {
+		body.Technology = make([]string, len(res.Technology))
+		for i, val := range res.Technology {
+			body.Technology[i] = val
+		}
+	}
+	if res.TechnicalActivityType != nil {
+		body.TechnicalActivityType = make([]string, len(res.TechnicalActivityType))
+		for i, val := range res.TechnicalActivityType {
+			body.TechnicalActivityType[i] = val
+		}
+	}
 	if res.Writers != nil {
 		body.Writers = make([]*UserInfoResponseBody, len(res.Writers))
 		for i, val := range res.Writers {
@@ -1677,6 +1749,24 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 		body.FundingModel = make([]string, len(res.Project.FundingModel))
 		for i, val := range res.Project.FundingModel {
 			body.FundingModel[i] = val
+		}
+	}
+	if res.Project.Industry != nil {
+		body.Industry = make([]string, len(res.Project.Industry))
+		for i, val := range res.Project.Industry {
+			body.Industry[i] = val
+		}
+	}
+	if res.Project.Technology != nil {
+		body.Technology = make([]string, len(res.Project.Technology))
+		for i, val := range res.Project.Technology {
+			body.Technology[i] = val
+		}
+	}
+	if res.Project.TechnicalActivityType != nil {
+		body.TechnicalActivityType = make([]string, len(res.Project.TechnicalActivityType))
+		for i, val := range res.Project.TechnicalActivityType {
+			body.TechnicalActivityType[i] = val
 		}
 	}
 	return body
@@ -1766,6 +1856,24 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 		body.FundingModel = make([]string, len(res.FundingModel))
 		for i, val := range res.FundingModel {
 			body.FundingModel[i] = val
+		}
+	}
+	if res.Industry != nil {
+		body.Industry = make([]string, len(res.Industry))
+		for i, val := range res.Industry {
+			body.Industry[i] = val
+		}
+	}
+	if res.Technology != nil {
+		body.Technology = make([]string, len(res.Technology))
+		for i, val := range res.Technology {
+			body.Technology[i] = val
+		}
+	}
+	if res.TechnicalActivityType != nil {
+		body.TechnicalActivityType = make([]string, len(res.TechnicalActivityType))
+		for i, val := range res.TechnicalActivityType {
+			body.TechnicalActivityType[i] = val
 		}
 	}
 	return body
@@ -2826,6 +2934,24 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 			v.FundingModel[i] = val
 		}
 	}
+	if body.Industry != nil {
+		v.Industry = make([]string, len(body.Industry))
+		for i, val := range body.Industry {
+			v.Industry[i] = val
+		}
+	}
+	if body.Technology != nil {
+		v.Technology = make([]string, len(body.Technology))
+		for i, val := range body.Technology {
+			v.Technology[i] = val
+		}
+	}
+	if body.TechnicalActivityType != nil {
+		v.TechnicalActivityType = make([]string, len(body.TechnicalActivityType))
+		for i, val := range body.TechnicalActivityType {
+			v.TechnicalActivityType[i] = val
+		}
+	}
 	if body.Writers != nil {
 		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
@@ -2921,6 +3047,24 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 		v.FundingModel = make([]string, len(body.FundingModel))
 		for i, val := range body.FundingModel {
 			v.FundingModel[i] = val
+		}
+	}
+	if body.Industry != nil {
+		v.Industry = make([]string, len(body.Industry))
+		for i, val := range body.Industry {
+			v.Industry[i] = val
+		}
+	}
+	if body.Technology != nil {
+		v.Technology = make([]string, len(body.Technology))
+		for i, val := range body.Technology {
+			v.Technology[i] = val
+		}
+	}
+	if body.TechnicalActivityType != nil {
+		v.TechnicalActivityType = make([]string, len(body.TechnicalActivityType))
+		for i, val := range body.TechnicalActivityType {
+			v.TechnicalActivityType[i] = val
 		}
 	}
 	v.UID = &uid
