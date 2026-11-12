@@ -47,6 +47,24 @@ folder, and document delete messages include `IndexingConfig` with the owning
 project access metadata so the indexer can retain the same access fields on the
 delete record.
 
+Every `IndexingConfig` value for every resource type is sent as a concrete
+value; the service does not rely on the indexer's `{{ }}` template expansion.
+Deploy prerequisite: this requires the indexer change that stops template
+errors in search fields from failing a message
+(linuxfoundation/lfx-v2-indexer-service#87). On an older indexer, a name such
+as `{{ uid.x }}` rejects the whole message and freezes the project's search
+document.
+
+Until the indexer removes expansion
+(linuxfoundation/lfx-v2-indexer-service#89), a `{{ ... }}` typed into a name,
+description, or mission statement is still expanded or blanked by the indexer
+in `sort_name`, `name_and_aliases`, `fulltext`, and `tags`, and a typed `\{{`
+loses its backslash; `data` keeps the literal text. After expansion is
+removed, repair any affected documents with
+`project-cli sync reindex-projects --all --update` (projects and settings) and
+`project-cli sync document-audit-users --reindex-only --update` (links,
+folders, and documents).
+
 ---
 
 ## Project
@@ -171,12 +189,10 @@ A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `
 
 ### Tags
 
-Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved by the indexer using the document's own field values.
-
-| Tag Template | Resolved Example | Purpose |
+| Tag Format | Example | Purpose |
 |---|---|---|
-| `{{ uid }}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
-| `{{ mission_statement }}` | `Advancing open source...` | Lookup by mission statement text |
+| `{uid}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
+| `{mission_statement}` | `Advancing open source...` | Lookup by mission statement text |
 
 > Tags are only emitted when the corresponding field is non-empty.
 
