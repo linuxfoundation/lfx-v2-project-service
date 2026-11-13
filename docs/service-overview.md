@@ -140,6 +140,8 @@ origin echoes, not all concurrent writes: the v1 staff PATCH still has no CAS.
 
 - Upload needs a name, a file name and a non-empty file of up to 10 MB, with an allow-listed content type. The bytes are sniffed: an allow-listed sniffed type replaces the declared one, a sniffed type outside the list is rejected, and when sniffing cannot tell (`application/octet-stream`, as for legacy `.doc` or `.xls`) the declared type is kept unverified. The name reservation is taken first, then the file is stored, then the metadata. A failure after a step undoes the earlier steps.
 - A folder name is unique within its project. A folder that still contains a link or document cannot be deleted.
+- **Known gap: folder delete race.** Creating a link in a folder, or moving a link into one, checks that the folder exists and then writes the link; deleting a folder checks that it is empty and then deletes it. The two writes use different keys and nothing ties them together, so a delete that lands between the check and the write can leave a link pointing at a folder that no longer exists, and it skips the not-empty rule. Nothing repairs this yet (see the index-drift note under [When publishing fails](#when-publishing-fails)).
+- A link's `name` is limited to 255 characters, its `url` to 2048 and its `description` to 4096; the API rejects longer values on create and update.
 
 ### Settings written by events
 

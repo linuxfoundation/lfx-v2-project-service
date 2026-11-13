@@ -1046,7 +1046,7 @@ paths:
             tags:
                 - project-service
             summary: update-project-link project-service
-            description: Update a project link. Replaces its name, URL, description and folder; omitting folder_uid moves the link to the project root.
+            description: 'Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.'
             operationId: project-service#update-project-link
             parameters:
                 - name: v
@@ -2391,6 +2391,7 @@ definitions:
                 type: string
                 description: A description of the link
                 example: A description of the resource
+                maxLength: 4096
             folder_uid:
                 type: string
                 description: Folder UID to place the link in (optional)
@@ -2401,11 +2402,13 @@ definitions:
                 description: Link display name
                 example: My Resource
                 minLength: 1
+                maxLength: 255
             url:
                 type: string
                 description: The URL of the link
                 example: https://example.com
                 format: uri
+                maxLength: 2048
         example:
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -3678,6 +3681,7 @@ definitions:
                 type: string
                 description: A description of the link
                 example: A description of the resource
+                maxLength: 4096
             folder_uid:
                 type: string
                 description: Folder UID to place the link in (omit for the project root)
@@ -3688,11 +3692,13 @@ definitions:
                 description: Link display name
                 example: My Resource
                 minLength: 1
+                maxLength: 255
             url:
                 type: string
                 description: The URL of the link
                 example: https://example.com
                 format: uri
+                maxLength: 2048
         example:
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee

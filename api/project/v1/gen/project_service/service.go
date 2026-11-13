@@ -42,7 +42,7 @@ type Service interface {
 	CreateProjectLink(context.Context, *CreateProjectLinkPayload) (res *ProjectLink, err error)
 	// Get a single project link.
 	GetProjectLink(context.Context, *GetProjectLinkPayload) (res *GetProjectLinkResult, err error)
-	// Update a project link. Replaces its name, URL, description and folder;
+	// Update a project link. Full replace: omitting description clears it, and
 	// omitting folder_uid moves the link to the project root.
 	UpdateProjectLink(context.Context, *UpdateProjectLinkPayload) (res *ProjectLink, err error)
 	// Delete a project link.

@@ -412,7 +412,7 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    create-project-link: Create a new link for a project.`)
 	fmt.Fprintln(os.Stderr, `    get-project-link: Get a single project link.`)
-	fmt.Fprintln(os.Stderr, `    update-project-link: Update a project link. Replaces its name, URL, description and folder; omitting folder_uid moves the link to the project root.`)
+	fmt.Fprintln(os.Stderr, `    update-project-link: Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.`)
 	fmt.Fprintln(os.Stderr, `    delete-project-link: Delete a project link.`)
 	fmt.Fprintln(os.Stderr, `    create-project-folder: Create a new folder for a project.`)
 	fmt.Fprintln(os.Stderr, `    get-project-folder: Get a single project folder.`)
@@ -713,7 +713,7 @@ func projectServiceUpdateProjectLinkUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Update a project link. Replaces its name, URL, description and folder; omitting folder_uid moves the link to the project root.`)
+	fmt.Fprintln(os.Stderr, `Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)

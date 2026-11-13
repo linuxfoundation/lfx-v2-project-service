@@ -19,12 +19,20 @@ var _ = Service("project-service", func() {
 			XSyncAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			ResourceNameAttribute("name", "Link display name")
+			Attribute("name", String, "Link display name", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
 			Attribute("url", String, "The URL of the link", func() {
 				Format(FormatURI)
+				MaxLength(2048)
 				Example("https://example.com")
 			})
-			ResourceDescriptionAttribute("description", "A description of the link")
+			Attribute("description", String, "A description of the link", func() {
+				MaxLength(4096)
+				Example("A description of the resource")
+			})
 			ResourceUIDAttribute("folder_uid", "Folder UID to place the link in (optional)")
 			Required("uid", "name", "url")
 		})
@@ -94,7 +102,7 @@ var _ = Service("project-service", func() {
 	})
 
 	Method("update-project-link", func() {
-		Description("Update a project link. Replaces its name, URL, description and folder; omitting folder_uid moves the link to the project root.")
+		Description("Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.")
 
 		Security(JWTAuth)
 
@@ -105,12 +113,20 @@ var _ = Service("project-service", func() {
 			VersionAttribute()
 			ProjectUIDAttribute()
 			ResourceUIDAttribute("link_uid", "Link UID")
-			ResourceNameAttribute("name", "Link display name")
+			Attribute("name", String, "Link display name", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
 			Attribute("url", String, "The URL of the link", func() {
 				Format(FormatURI)
+				MaxLength(2048)
 				Example("https://example.com")
 			})
-			ResourceDescriptionAttribute("description", "A description of the link")
+			Attribute("description", String, "A description of the link", func() {
+				MaxLength(4096)
+				Example("A description of the resource")
+			})
 			ResourceUIDAttribute("folder_uid", "Folder UID to place the link in (omit for the project root)")
 			Required("uid", "link_uid", "name", "url")
 		})

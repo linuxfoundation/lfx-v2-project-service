@@ -446,9 +446,11 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 		ifMatch     *string
 		notReady    bool
 		skipEtag    bool
+		principal   string
 		setupMocks  func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan indexerTypes.IndexerMessageEnvelope)
 		wantErr     error
 		wantFolder  *string
+		wantEditor  string
 		wantTag     string
 		wantNoTag   string
 	}{
@@ -567,6 +569,24 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			wantNoTag: "folder_uid:" + oldFolderUID,
 		},
 		{
+			name:      "success keeps the creator and stamps the editor",
+			linkName:  "New name",
+			url:       "https://new.example.com",
+			ifMatch:   misc.StringPtr("3"),
+			principal: "editor",
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan indexerTypes.IndexerMessageEnvelope) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+				l.On("UpdateLink", mock.Anything, mock.MatchedBy(func(got *models.ProjectLink) bool {
+					return got.CreatedBy != nil && got.CreatedBy.Username == "creator" &&
+						got.UpdatedBy != nil && got.UpdatedBy.Username == "editor"
+				}), uint64(3)).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(a mock.Arguments) { indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
+			},
+			wantEditor: "editor",
+			wantTag:    "uploaded_by:creator",
+			wantNoTag:  "uploaded_by:editor",
+		},
+		{
 			name:     "skip etag validation writes at the fetched revision",
 			linkName: "New name",
 			url:      "https://new.example.com",
@@ -590,8 +610,15 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			svc.Config.SkipEtagValidation = tt.skipEtag
 			indexed := make(chan indexerTypes.IndexerMessageEnvelope, 1)
 			tt.setupMocks(mockLink, mockFolder, mockMsg, indexed)
+			ctx := context.Background()
+			if tt.principal != "" {
+				ctx = context.WithValue(ctx, constants.PrincipalContextID, tt.principal)
+				userReader := svc.UserReader.(*domainmocks.MockUserReader)
+				userReader.On("UserMetadataByPrincipal", mock.Anything, tt.principal).Return((*domain.UserMetadata)(nil), nil)
+				userReader.On("PrimaryEmailByUsername", mock.Anything, tt.principal).Return("", nil)
+			}
 
-			got, err := svc.UpdateLink(context.Background(), "proj-1", "link-1", tt.ifMatch, tt.linkName, tt.url, tt.description, tt.folderUID)
+			got, err := svc.UpdateLink(ctx, "proj-1", "link-1", tt.ifMatch, tt.linkName, tt.url, tt.description, tt.folderUID)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -600,6 +627,14 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.linkName, got.Name)
 				assert.Equal(t, tt.wantFolder, got.FolderUID)
+				if tt.wantEditor != "" {
+					if assert.NotNil(t, got.CreatedBy) {
+						assert.Equal(t, "creator", got.CreatedBy.Username)
+					}
+					if assert.NotNil(t, got.UpdatedBy) {
+						assert.Equal(t, tt.wantEditor, got.UpdatedBy.Username)
+					}
+				}
 				select {
 				case msg := <-indexed:
 					assert.Equal(t, indexerConstants.ActionUpdated, msg.Action)

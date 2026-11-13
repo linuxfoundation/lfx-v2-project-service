@@ -23,7 +23,7 @@ For what the service manages (projects and their settings, links, folders and do
 | `PUT` | `/projects/:id/settings` | Update project settings | |
 | `POST` | `/projects/:id/links` | Create a link | |
 | `GET` | `/projects/:id/links/:link_uid` | Get a link | Returns `ETag` header |
-| `PUT` | `/projects/:id/links/:link_uid` | Update a link's name, URL, description and folder | Requires `If-Match: <etag>`; omitting `folder_uid` moves the link to the project root |
+| `PUT` | `/projects/:id/links/:link_uid` | Update a link's name, URL, description and folder | Requires `If-Match: <etag>`; omitting `description` clears it; omitting `folder_uid` moves the link to the project root |
 | `DELETE` | `/projects/:id/links/:link_uid` | Delete a link | Requires `If-Match: <etag>` |
 | `POST` | `/projects/:id/folders` | Create a folder | Name must be unique per project |
 | `GET` | `/projects/:id/folders/:folder_uid` | Get a folder | Returns `ETag` header |
