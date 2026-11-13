@@ -67,6 +67,10 @@ type Client struct {
 	// get-project-link endpoint.
 	GetProjectLinkDoer goahttp.Doer
 
+	// UpdateProjectLink Doer is the HTTP client used to make requests to the
+	// update-project-link endpoint.
+	UpdateProjectLinkDoer goahttp.Doer
+
 	// DeleteProjectLink Doer is the HTTP client used to make requests to the
 	// delete-project-link endpoint.
 	DeleteProjectLinkDoer goahttp.Doer
@@ -137,6 +141,7 @@ func NewClient(
 		LivezDoer:                   doer,
 		CreateProjectLinkDoer:       doer,
 		GetProjectLinkDoer:          doer,
+		UpdateProjectLinkDoer:       doer,
 		DeleteProjectLinkDoer:       doer,
 		CreateProjectFolderDoer:     doer,
 		GetProjectFolderDoer:        doer,
@@ -426,6 +431,30 @@ func (c *Client) GetProjectLink() goa.Endpoint {
 		resp, err := c.GetProjectLinkDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "get-project-link", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateProjectLink returns an endpoint that makes HTTP requests to the
+// project-service service update-project-link server.
+func (c *Client) UpdateProjectLink() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateProjectLinkRequest(c.encoder)
+		decodeResponse = DecodeUpdateProjectLinkResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateProjectLinkRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateProjectLinkDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "update-project-link", err)
 		}
 		return decodeResponse(resp)
 	}

@@ -55,6 +55,7 @@ type LinkRepository interface {
 	GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error)
 	ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error)
 	CreateLink(ctx context.Context, link *models.ProjectLink) error
+	UpdateLink(ctx context.Context, link *models.ProjectLink, revision uint64) error
 	DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error
 }
 

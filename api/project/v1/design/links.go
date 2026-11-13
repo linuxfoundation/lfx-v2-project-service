@@ -19,12 +19,20 @@ var _ = Service("project-service", func() {
 			XSyncAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			ResourceNameAttribute("name", "Link display name")
+			Attribute("name", String, "Link display name", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
 			Attribute("url", String, "The URL of the link", func() {
 				Format(FormatURI)
+				MaxLength(2048)
 				Example("https://example.com")
 			})
-			ResourceDescriptionAttribute("description", "A description of the link")
+			Attribute("description", String, "A description of the link", func() {
+				MaxLength(4096)
+				Example("A description of the resource")
+			})
 			ResourceUIDAttribute("folder_uid", "Folder UID to place the link in (optional)")
 			Required("uid", "name", "url")
 		})
@@ -88,6 +96,63 @@ var _ = Service("project-service", func() {
 				Header("etag:ETag")
 			})
 			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
+	Method("update-project-link", func() {
+		Description("Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			XSyncAttribute()
+			IfMatchAttribute()
+			VersionAttribute()
+			ProjectUIDAttribute()
+			ResourceUIDAttribute("link_uid", "Link UID")
+			Attribute("name", String, "Link display name", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
+			Attribute("url", String, "The URL of the link", func() {
+				Format(FormatURI)
+				MaxLength(2048)
+				Example("https://example.com")
+			})
+			Attribute("description", String, "A description of the link", func() {
+				MaxLength(4096)
+				Example("A description of the resource")
+			})
+			ResourceUIDAttribute("folder_uid", "Folder UID to place the link in (omit for the project root)")
+			Required("uid", "link_uid", "name", "url")
+		})
+
+		Result(ProjectLink)
+
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("NotFound", NotFoundError, "Link or folder not found")
+		Error("Conflict", ConflictError, "Revision mismatch")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			PUT("/projects/{uid}/links/{link_uid}")
+			Params(func() {
+				Param("version:v")
+				Param("uid")
+				Param("link_uid")
+			})
+			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
+			Header("if_match:If-Match")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("NotFound", StatusNotFound)
+			Response("Conflict", StatusConflict)
 			Response("InternalServerError", StatusInternalServerError)
 			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})

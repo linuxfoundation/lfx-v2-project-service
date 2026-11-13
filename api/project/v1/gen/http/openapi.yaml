@@ -1042,6 +1042,99 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
+        put:
+            tags:
+                - project-service
+            summary: update-project-link project-service
+            description: 'Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.'
+            operationId: project-service#update-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: link_uid
+                  in: path
+                  description: Link UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+                - name: Update-Project-LinkRequestBody
+                  in: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceUpdateProjectLinkRequestBody'
+                    required:
+                        - name
+                        - url
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectLink'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
         delete:
             tags:
                 - project-service
@@ -2298,6 +2391,7 @@ definitions:
                 type: string
                 description: A description of the link
                 example: A description of the resource
+                maxLength: 4096
             folder_uid:
                 type: string
                 description: Folder UID to place the link in (optional)
@@ -2308,11 +2402,13 @@ definitions:
                 description: Link display name
                 example: My Resource
                 minLength: 1
+                maxLength: 255
             url:
                 type: string
                 description: The URL of the link
                 example: https://example.com
                 format: uri
+                maxLength: 2048
         example:
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -3577,6 +3673,40 @@ definitions:
             - description
             - name
             - parent_uid
+    ProjectServiceUpdateProjectLinkRequestBody:
+        title: ProjectServiceUpdateProjectLinkRequestBody
+        type: object
+        properties:
+            description:
+                type: string
+                description: A description of the link
+                example: A description of the resource
+                maxLength: 4096
+            folder_uid:
+                type: string
+                description: Folder UID to place the link in (omit for the project root)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Link display name
+                example: My Resource
+                minLength: 1
+                maxLength: 255
+            url:
+                type: string
+                description: The URL of the link
+                example: https://example.com
+                format: uri
+                maxLength: 2048
+        example:
+            description: A description of the resource
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+            url: https://example.com
+        required:
+            - name
+            - url
     ProjectServiceUpdateProjectSettingsRequestBody:
         title: ProjectServiceUpdateProjectSettingsRequestBody
         type: object

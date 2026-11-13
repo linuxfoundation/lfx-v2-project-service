@@ -34,6 +34,16 @@ func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetPr
 	}, nil
 }
 
+// UpdateProjectLink updates a project link.
+func (s *ProjectsAPI) UpdateProjectLink(ctx context.Context, payload *projsvc.UpdateProjectLinkPayload) (*projsvc.ProjectLink, error) {
+	link, err := s.service.UpdateLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch, payload.Name, payload.URL, misc.ValueOrZero(payload.Description), payload.FolderUID)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+
+	return service.ConvertToServiceLink(link), nil
+}
+
 // DeleteProjectLink deletes a project link.
 func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.DeleteProjectLinkPayload) error {
 	if err := s.service.DeleteLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch); err != nil {

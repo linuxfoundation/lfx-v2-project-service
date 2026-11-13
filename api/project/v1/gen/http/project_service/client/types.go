@@ -200,6 +200,19 @@ type CreateProjectLinkRequestBody struct {
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 }
 
+// UpdateProjectLinkRequestBody is the type of the "project-service" service
+// "update-project-link" endpoint HTTP request body.
+type UpdateProjectLinkRequestBody struct {
+	// Link display name
+	Name string `form:"name" json:"name" xml:"name"`
+	// The URL of the link
+	URL string `form:"url" json:"url" xml:"url"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the link in (omit for the project root)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+}
+
 // CreateProjectFolderRequestBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP request body.
 type CreateProjectFolderRequestBody struct {
@@ -463,6 +476,31 @@ type CreateProjectLinkResponseBody struct {
 // GetProjectLinkResponseBody is the type of the "project-service" service
 // "get-project-link" endpoint HTTP response body.
 type GetProjectLinkResponseBody ProjectLinkResponseBody
+
+// UpdateProjectLinkResponseBody is the type of the "project-service" service
+// "update-project-link" endpoint HTTP response body.
+type UpdateProjectLinkResponseBody struct {
+	// Link UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// User who created this resource
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
 
 // CreateProjectFolderResponseBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP response body.
@@ -924,6 +962,56 @@ type GetProjectLinkNotFoundResponseBody struct {
 // "project-service" service "get-project-link" endpoint HTTP response body for
 // the "ServiceUnavailable" error.
 type GetProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectLinkBadRequestResponseBody is the type of the "project-service"
+// service "update-project-link" endpoint HTTP response body for the
+// "BadRequest" error.
+type UpdateProjectLinkBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectLinkConflictResponseBody is the type of the "project-service"
+// service "update-project-link" endpoint HTTP response body for the "Conflict"
+// error.
+type UpdateProjectLinkConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "update-project-link" endpoint HTTP response body
+// for the "InternalServerError" error.
+type UpdateProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "update-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type UpdateProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "update-project-link" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type UpdateProjectLinkServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
@@ -1811,6 +1899,19 @@ func NewCreateProjectLinkRequestBody(p *projectservice.CreateProjectLinkPayload)
 	return body
 }
 
+// NewUpdateProjectLinkRequestBody builds the HTTP request body from the
+// payload of the "update-project-link" endpoint of the "project-service"
+// service.
+func NewUpdateProjectLinkRequestBody(p *projectservice.UpdateProjectLinkPayload) *UpdateProjectLinkRequestBody {
+	body := &UpdateProjectLinkRequestBody{
+		Name:        p.Name,
+		URL:         p.URL,
+		Description: p.Description,
+		FolderUID:   p.FolderUID,
+	}
+	return body
+}
+
 // NewCreateProjectFolderRequestBody builds the HTTP request body from the
 // payload of the "create-project-folder" endpoint of the "project-service"
 // service.
@@ -2669,6 +2770,84 @@ func NewGetProjectLinkNotFound(body *GetProjectLinkNotFoundResponseBody) *projec
 // NewGetProjectLinkServiceUnavailable builds a project-service service
 // get-project-link endpoint ServiceUnavailable error.
 func NewGetProjectLinkServiceUnavailable(body *GetProjectLinkServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkProjectLinkOK builds a "project-service" service
+// "update-project-link" endpoint result from a HTTP "OK" response.
+func NewUpdateProjectLinkProjectLinkOK(body *UpdateProjectLinkResponseBody) *projectservice.ProjectLink {
+	v := &projectservice.ProjectLink{
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		URL:         body.URL,
+		Description: body.Description,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(body.UpdatedBy)
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkBadRequest builds a project-service service
+// update-project-link endpoint BadRequest error.
+func NewUpdateProjectLinkBadRequest(body *UpdateProjectLinkBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkConflict builds a project-service service
+// update-project-link endpoint Conflict error.
+func NewUpdateProjectLinkConflict(body *UpdateProjectLinkConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkInternalServerError builds a project-service service
+// update-project-link endpoint InternalServerError error.
+func NewUpdateProjectLinkInternalServerError(body *UpdateProjectLinkInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkNotFound builds a project-service service
+// update-project-link endpoint NotFound error.
+func NewUpdateProjectLinkNotFound(body *UpdateProjectLinkNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectLinkServiceUnavailable builds a project-service service
+// update-project-link endpoint ServiceUnavailable error.
+func NewUpdateProjectLinkServiceUnavailable(body *UpdateProjectLinkServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
 	v := &projectservice.ServiceUnavailableError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -3659,6 +3838,45 @@ func ValidateGetProjectLinkResponseBody(body *GetProjectLinkResponseBody) (err e
 	return
 }
 
+// ValidateUpdateProjectLinkResponseBody runs the validations defined on
+// Update-Project-LinkResponseBody
+func ValidateUpdateProjectLinkResponseBody(body *UpdateProjectLinkResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.URL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateAuditUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateAuditUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
 // ValidateCreateProjectFolderResponseBody runs the validations defined on
 // Create-Project-FolderResponseBody
 func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBody) (err error) {
@@ -4284,6 +4502,66 @@ func ValidateGetProjectLinkNotFoundResponseBody(body *GetProjectLinkNotFoundResp
 // ValidateGetProjectLinkServiceUnavailableResponseBody runs the validations
 // defined on get-project-link_ServiceUnavailable_response_body
 func ValidateGetProjectLinkServiceUnavailableResponseBody(body *GetProjectLinkServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectLinkBadRequestResponseBody runs the validations defined
+// on update-project-link_BadRequest_response_body
+func ValidateUpdateProjectLinkBadRequestResponseBody(body *UpdateProjectLinkBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectLinkConflictResponseBody runs the validations defined
+// on update-project-link_Conflict_response_body
+func ValidateUpdateProjectLinkConflictResponseBody(body *UpdateProjectLinkConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectLinkInternalServerErrorResponseBody runs the
+// validations defined on update-project-link_InternalServerError_response_body
+func ValidateUpdateProjectLinkInternalServerErrorResponseBody(body *UpdateProjectLinkInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectLinkNotFoundResponseBody runs the validations defined
+// on update-project-link_NotFound_response_body
+func ValidateUpdateProjectLinkNotFoundResponseBody(body *UpdateProjectLinkNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectLinkServiceUnavailableResponseBody runs the validations
+// defined on update-project-link_ServiceUnavailable_response_body
+func ValidateUpdateProjectLinkServiceUnavailableResponseBody(body *UpdateProjectLinkServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

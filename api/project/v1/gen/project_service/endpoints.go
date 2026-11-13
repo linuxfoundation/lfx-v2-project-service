@@ -31,6 +31,7 @@ type Endpoints struct {
 	Livez                   goa.Endpoint
 	CreateProjectLink       goa.Endpoint
 	GetProjectLink          goa.Endpoint
+	UpdateProjectLink       goa.Endpoint
 	DeleteProjectLink       goa.Endpoint
 	CreateProjectFolder     goa.Endpoint
 	GetProjectFolder        goa.Endpoint
@@ -66,6 +67,7 @@ func NewEndpoints(s Service) *Endpoints {
 		Livez:                   NewLivezEndpoint(s),
 		CreateProjectLink:       NewCreateProjectLinkEndpoint(s, a.JWTAuth),
 		GetProjectLink:          NewGetProjectLinkEndpoint(s, a.JWTAuth),
+		UpdateProjectLink:       NewUpdateProjectLinkEndpoint(s, a.JWTAuth),
 		DeleteProjectLink:       NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
 		CreateProjectFolder:     NewCreateProjectFolderEndpoint(s, a.JWTAuth),
 		GetProjectFolder:        NewGetProjectFolderEndpoint(s, a.JWTAuth),
@@ -92,6 +94,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.Livez = m(e.Livez)
 	e.CreateProjectLink = m(e.CreateProjectLink)
 	e.GetProjectLink = m(e.GetProjectLink)
+	e.UpdateProjectLink = m(e.UpdateProjectLink)
 	e.DeleteProjectLink = m(e.DeleteProjectLink)
 	e.CreateProjectFolder = m(e.CreateProjectFolder)
 	e.GetProjectFolder = m(e.GetProjectFolder)
@@ -345,6 +348,29 @@ func NewGetProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.En
 			return nil, err
 		}
 		return s.GetProjectLink(ctx, p)
+	}
+}
+
+// NewUpdateProjectLinkEndpoint returns an endpoint function that calls the
+// method "update-project-link" of service "project-service".
+func NewUpdateProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateProjectLinkPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateProjectLink(ctx, p)
 	}
 }
 

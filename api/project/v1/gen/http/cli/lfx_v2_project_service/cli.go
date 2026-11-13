@@ -25,7 +25,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
+		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|update-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
 	}
 }
 
@@ -113,6 +113,15 @@ func ParseEndpoint(
 		projectServiceGetProjectLinkVersionFlag     = projectServiceGetProjectLinkFlags.String("version", "", "")
 		projectServiceGetProjectLinkBearerTokenFlag = projectServiceGetProjectLinkFlags.String("bearer-token", "", "")
 
+		projectServiceUpdateProjectLinkFlags           = flag.NewFlagSet("update-project-link", flag.ExitOnError)
+		projectServiceUpdateProjectLinkBodyFlag        = projectServiceUpdateProjectLinkFlags.String("body", "REQUIRED", "")
+		projectServiceUpdateProjectLinkUIDFlag         = projectServiceUpdateProjectLinkFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUpdateProjectLinkLinkUIDFlag     = projectServiceUpdateProjectLinkFlags.String("link-uid", "REQUIRED", "Link UID")
+		projectServiceUpdateProjectLinkVersionFlag     = projectServiceUpdateProjectLinkFlags.String("version", "", "")
+		projectServiceUpdateProjectLinkBearerTokenFlag = projectServiceUpdateProjectLinkFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectLinkXSyncFlag       = projectServiceUpdateProjectLinkFlags.String("x-sync", "", "")
+		projectServiceUpdateProjectLinkIfMatchFlag     = projectServiceUpdateProjectLinkFlags.String("if-match", "", "")
+
 		projectServiceDeleteProjectLinkFlags           = flag.NewFlagSet("delete-project-link", flag.ExitOnError)
 		projectServiceDeleteProjectLinkUIDFlag         = projectServiceDeleteProjectLinkFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceDeleteProjectLinkLinkUIDFlag     = projectServiceDeleteProjectLinkFlags.String("link-uid", "REQUIRED", "Link UID")
@@ -182,6 +191,7 @@ func ParseEndpoint(
 	projectServiceLivezFlags.Usage = projectServiceLivezUsage
 	projectServiceCreateProjectLinkFlags.Usage = projectServiceCreateProjectLinkUsage
 	projectServiceGetProjectLinkFlags.Usage = projectServiceGetProjectLinkUsage
+	projectServiceUpdateProjectLinkFlags.Usage = projectServiceUpdateProjectLinkUsage
 	projectServiceDeleteProjectLinkFlags.Usage = projectServiceDeleteProjectLinkUsage
 	projectServiceCreateProjectFolderFlags.Usage = projectServiceCreateProjectFolderUsage
 	projectServiceGetProjectFolderFlags.Usage = projectServiceGetProjectFolderUsage
@@ -260,6 +270,9 @@ func ParseEndpoint(
 
 			case "get-project-link":
 				epf = projectServiceGetProjectLinkFlags
+
+			case "update-project-link":
+				epf = projectServiceUpdateProjectLinkFlags
 
 			case "delete-project-link":
 				epf = projectServiceDeleteProjectLinkFlags
@@ -344,6 +357,9 @@ func ParseEndpoint(
 			case "get-project-link":
 				endpoint = c.GetProjectLink()
 				data, err = projectservicec.BuildGetProjectLinkPayload(*projectServiceGetProjectLinkUIDFlag, *projectServiceGetProjectLinkLinkUIDFlag, *projectServiceGetProjectLinkVersionFlag, *projectServiceGetProjectLinkBearerTokenFlag)
+			case "update-project-link":
+				endpoint = c.UpdateProjectLink()
+				data, err = projectservicec.BuildUpdateProjectLinkPayload(*projectServiceUpdateProjectLinkBodyFlag, *projectServiceUpdateProjectLinkUIDFlag, *projectServiceUpdateProjectLinkLinkUIDFlag, *projectServiceUpdateProjectLinkVersionFlag, *projectServiceUpdateProjectLinkBearerTokenFlag, *projectServiceUpdateProjectLinkXSyncFlag, *projectServiceUpdateProjectLinkIfMatchFlag)
 			case "delete-project-link":
 				endpoint = c.DeleteProjectLink()
 				data, err = projectservicec.BuildDeleteProjectLinkPayload(*projectServiceDeleteProjectLinkUIDFlag, *projectServiceDeleteProjectLinkLinkUIDFlag, *projectServiceDeleteProjectLinkVersionFlag, *projectServiceDeleteProjectLinkBearerTokenFlag, *projectServiceDeleteProjectLinkXSyncFlag, *projectServiceDeleteProjectLinkIfMatchFlag)
@@ -396,6 +412,7 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    create-project-link: Create a new link for a project.`)
 	fmt.Fprintln(os.Stderr, `    get-project-link: Get a single project link.`)
+	fmt.Fprintln(os.Stderr, `    update-project-link: Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.`)
 	fmt.Fprintln(os.Stderr, `    delete-project-link: Delete a project link.`)
 	fmt.Fprintln(os.Stderr, `    create-project-folder: Create a new folder for a project.`)
 	fmt.Fprintln(os.Stderr, `    get-project-folder: Get a single project folder.`)
@@ -680,6 +697,36 @@ func projectServiceGetProjectLinkUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service get-project-link --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --link-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceUpdateProjectLinkUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service update-project-link", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -link-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Update a project link. Full replace: omitting description clears it, and omitting folder_uid moves the link to the project root.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -link-uid STRING: Link UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service update-project-link --body '{\n      \"description\": \"A description of the resource\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\",\n      \"url\": \"https://example.com\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --link-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
 }
 
 func projectServiceDeleteProjectLinkUsage() {

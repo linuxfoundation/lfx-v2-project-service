@@ -95,6 +95,7 @@ Projects and content publish differently:
 | Update settings | settings | indexer, FGA, settings-updated event with the before and after snapshot |
 | Delete project | base, slug index, settings | indexer deletes, FGA `delete_access` |
 | Create link, folder or document | record, index or name reservation, and for a document the file | indexer (background); for a link or document also a created event (background) |
+| Update link | record, written at the `If-Match` revision (compare-and-swap) | indexer update (background); no created event and no FGA message |
 | Delete link, folder or document | record, then its index or name-reservation key; for a document, its file (background, a failure is only logged) | indexer delete (background) |
 
 Update base deliberately does not republish access unless a field that affects it changed. The settings update is the authoritative publisher of role changes, and republishing access from a base update could re-grant a user that a concurrent settings write had just revoked.
@@ -139,6 +140,8 @@ origin echoes, not all concurrent writes: the v1 staff PATCH still has no CAS.
 
 - Upload needs a name, a file name and a non-empty file of up to 10 MB, with an allow-listed content type. The bytes are sniffed: an allow-listed sniffed type replaces the declared one, a sniffed type outside the list is rejected, and when sniffing cannot tell (`application/octet-stream`, as for legacy `.doc` or `.xls`) the declared type is kept unverified. The name reservation is taken first, then the file is stored, then the metadata. A failure after a step undoes the earlier steps.
 - A folder name is unique within its project. A folder that still contains a link or document cannot be deleted.
+- **Known gap: folder delete race.** Creating a link in a folder, or moving a link into one, checks that the folder exists and then writes the link; deleting a folder checks that it is empty and then deletes it. The two writes use different keys and nothing ties them together, so a delete that lands between the check and the write can leave a link pointing at a folder that no longer exists, and it skips the not-empty rule. Nothing repairs this yet (see the index-drift note under [When publishing fails](#when-publishing-fails)).
+- A link's `name` is limited to 255 characters, its `url` to 2048 and its `description` to 4096; the API rejects longer values on create and update.
 
 ### Settings written by events
 

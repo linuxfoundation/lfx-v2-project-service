@@ -199,6 +199,11 @@ func (m *MockLinkRepository) CreateLink(ctx context.Context, link *models.Projec
 	return args.Error(0)
 }
 
+func (m *MockLinkRepository) UpdateLink(ctx context.Context, link *models.ProjectLink, revision uint64) error {
+	args := m.Called(ctx, link, revision)
+	return args.Error(0)
+}
+
 func (m *MockLinkRepository) DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error {
 	args := m.Called(ctx, projectUID, linkUID, revision)
 	return args.Error(0)

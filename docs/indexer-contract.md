@@ -214,7 +214,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 
 **Source struct:** `internal/domain/models/link.go` — `ProjectLink`
 
-**Indexed on:** create, delete of a project link.
+**Indexed on:** create, update, delete of a project link.
 
 ### Data Schema
 

@@ -42,6 +42,9 @@ type Service interface {
 	CreateProjectLink(context.Context, *CreateProjectLinkPayload) (res *ProjectLink, err error)
 	// Get a single project link.
 	GetProjectLink(context.Context, *GetProjectLinkPayload) (res *GetProjectLinkResult, err error)
+	// Update a project link. Full replace: omitting description clears it, and
+	// omitting folder_uid moves the link to the project root.
+	UpdateProjectLink(context.Context, *UpdateProjectLinkPayload) (res *ProjectLink, err error)
 	// Delete a project link.
 	DeleteProjectLink(context.Context, *DeleteProjectLinkPayload) (err error)
 	// Create a new folder for a project.
@@ -84,7 +87,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [20]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+var MethodNames = [21]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "update-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
 
 // Display-only user identity for audit attribution on viewer-readable
 // resources.
@@ -830,6 +833,31 @@ type UpdateProjectBasePayload struct {
 	WebsiteURL *string
 	// The definitive contact email address for the project
 	ContactEmail *string
+}
+
+// UpdateProjectLinkPayload is the payload type of the project-service service
+// update-project-link method.
+type UpdateProjectLinkPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Deprecated: accepted for backward compatibility but has no effect.
+	XSync *bool
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Link UID
+	LinkUID string
+	// Link display name
+	Name string
+	// The URL of the link
+	URL string
+	// A description of the link
+	Description *string
+	// Folder UID to place the link in (omit for the project root)
+	FolderUID *string
 }
 
 // UpdateProjectSettingsPayload is the payload type of the project-service

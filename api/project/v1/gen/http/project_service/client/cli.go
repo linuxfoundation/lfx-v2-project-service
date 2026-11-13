@@ -755,7 +755,18 @@ func BuildCreateProjectLinkPayload(projectServiceCreateProjectLinkBody string, p
 		if utf8.RuneCountInString(body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
 		}
+		if utf8.RuneCountInString(body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 255, false))
+		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", body.URL, goa.FormatURI))
+		if utf8.RuneCountInString(body.URL) > 2048 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.url", body.URL, utf8.RuneCountInString(body.URL), 2048, false))
+		}
+		if body.Description != nil {
+			if utf8.RuneCountInString(*body.Description) > 4096 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.description", *body.Description, utf8.RuneCountInString(*body.Description), 4096, false))
+			}
+		}
 		if body.FolderUID != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
 		}
@@ -857,6 +868,105 @@ func BuildGetProjectLinkPayload(projectServiceGetProjectLinkUID string, projectS
 	v.LinkUID = linkUID
 	v.Version = version
 	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildUpdateProjectLinkPayload builds the payload for the project-service
+// update-project-link endpoint from CLI flags.
+func BuildUpdateProjectLinkPayload(projectServiceUpdateProjectLinkBody string, projectServiceUpdateProjectLinkUID string, projectServiceUpdateProjectLinkLinkUID string, projectServiceUpdateProjectLinkVersion string, projectServiceUpdateProjectLinkBearerToken string, projectServiceUpdateProjectLinkXSync string, projectServiceUpdateProjectLinkIfMatch string) (*projectservice.UpdateProjectLinkPayload, error) {
+	var err error
+	var body UpdateProjectLinkRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceUpdateProjectLinkBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"description\": \"A description of the resource\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\",\n      \"url\": \"https://example.com\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if utf8.RuneCountInString(body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 255, false))
+		}
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", body.URL, goa.FormatURI))
+		if utf8.RuneCountInString(body.URL) > 2048 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.url", body.URL, utf8.RuneCountInString(body.URL), 2048, false))
+		}
+		if body.Description != nil {
+			if utf8.RuneCountInString(*body.Description) > 4096 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.description", *body.Description, utf8.RuneCountInString(*body.Description), 4096, false))
+			}
+		}
+		if body.FolderUID != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceUpdateProjectLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var linkUID string
+	{
+		linkUID = projectServiceUpdateProjectLinkLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("link_uid", linkUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceUpdateProjectLinkVersion != "" {
+			version = &projectServiceUpdateProjectLinkVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceUpdateProjectLinkBearerToken != "" {
+			bearerToken = &projectServiceUpdateProjectLinkBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceUpdateProjectLinkXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceUpdateProjectLinkXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	var ifMatch *string
+	{
+		if projectServiceUpdateProjectLinkIfMatch != "" {
+			ifMatch = &projectServiceUpdateProjectLinkIfMatch
+		}
+	}
+	v := &projectservice.UpdateProjectLinkPayload{
+		Name:        body.Name,
+		URL:         body.URL,
+		Description: body.Description,
+		FolderUID:   body.FolderUID,
+	}
+	v.UID = uid
+	v.LinkUID = linkUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
