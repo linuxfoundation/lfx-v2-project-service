@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -416,15 +418,16 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 
 func TestProjectsService_UpdateLink(t *testing.T) {
 	const (
-		folderUID = "00000000-0000-0000-0000-0000000000f1"
-		created   = "2026-01-02T03:04:05Z"
+		folderUID    = "00000000-0000-0000-0000-0000000000f1"
+		oldFolderUID = "00000000-0000-0000-0000-0000000000f9"
+		created      = "2026-01-02T03:04:05Z"
 	)
 	createdAt, _ := time.Parse(time.RFC3339, created)
 	existing := func() *models.ProjectLink {
 		return &models.ProjectLink{
 			UID:         "link-1",
 			ProjectUID:  "proj-1",
-			FolderUID:   misc.StringPtr("00000000-0000-0000-0000-0000000000f9"),
+			FolderUID:   misc.StringPtr(oldFolderUID),
 			Name:        "Old name",
 			URL:         "https://old.example.com",
 			Description: "old",
@@ -443,9 +446,11 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 		ifMatch     *string
 		notReady    bool
 		skipEtag    bool
-		setupMocks  func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{})
+		setupMocks  func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan indexerTypes.IndexerMessageEnvelope)
 		wantErr     error
 		wantFolder  *string
+		wantTag     string
+		wantNoTag   string
 	}{
 		{
 			name:     "service not ready",
@@ -453,7 +458,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			url:      "https://example.com",
 			ifMatch:  misc.StringPtr("3"),
 			notReady: true,
-			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan indexerTypes.IndexerMessageEnvelope) {
 			},
 			wantErr: domain.ErrServiceUnavailable,
 		},
@@ -462,7 +467,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			linkName: "",
 			url:      "https://example.com",
 			ifMatch:  misc.StringPtr("3"),
-			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan indexerTypes.IndexerMessageEnvelope) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
@@ -471,7 +476,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			linkName: "New",
 			url:      "ftp://example.com",
 			ifMatch:  misc.StringPtr("3"),
-			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan indexerTypes.IndexerMessageEnvelope) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
@@ -480,7 +485,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			linkName: "New",
 			url:      "https://example.com",
 			ifMatch:  misc.StringPtr("3"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(nil, uint64(0), domain.ErrLinkNotFound)
 			},
 			wantErr: domain.ErrLinkNotFound,
@@ -489,7 +494,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			name:     "missing If-Match header",
 			linkName: "New",
 			url:      "https://example.com",
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 			},
 			wantErr: domain.ErrValidationFailed,
@@ -500,7 +505,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			url:       "https://example.com",
 			folderUID: misc.StringPtr(folderUID),
 			ifMatch:   misc.StringPtr("3"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 				f.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
 			},
@@ -512,7 +517,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			url:       "https://example.com",
 			folderUID: misc.StringPtr("not a uid"),
 			ifMatch:   misc.StringPtr("3"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 			},
 			wantErr: domain.ErrValidationFailed,
@@ -522,7 +527,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			linkName: "New",
 			url:      "https://example.com",
 			ifMatch:  misc.StringPtr("2"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 				l.On("UpdateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink"), uint64(2)).Return(domain.ErrRevisionMismatch)
 			},
@@ -535,7 +540,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 			description: "new",
 			folderUID:   misc.StringPtr(folderUID),
 			ifMatch:     misc.StringPtr("3"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 				f.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(&models.ProjectFolder{UID: folderUID, ProjectUID: "proj-1", Name: "F"}, uint64(1), nil)
 				l.On("UpdateLink", mock.Anything, mock.MatchedBy(func(got *models.ProjectLink) bool {
@@ -543,30 +548,33 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 						got.Description == "new" && got.FolderUID != nil && *got.FolderUID == folderUID &&
 						got.CreatedAt.Equal(createdAt) && got.UpdatedAt.After(createdAt)
 				}), uint64(3)).Return(nil)
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(a mock.Arguments) { indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
 			},
 			wantFolder: misc.StringPtr(folderUID),
+			wantTag:    "folder_uid:" + folderUID,
+			wantNoTag:  "folder_uid:" + oldFolderUID,
 		},
 		{
 			name:     "omitting the folder moves the link to the project root",
 			linkName: "New name",
 			url:      "https://new.example.com",
 			ifMatch:  misc.StringPtr("3"),
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
 				l.On("UpdateLink", mock.Anything, mock.MatchedBy(func(got *models.ProjectLink) bool { return got.FolderUID == nil }), uint64(3)).Return(nil)
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(a mock.Arguments) { indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
 			},
+			wantNoTag: "folder_uid:" + oldFolderUID,
 		},
 		{
 			name:     "skip etag validation writes at the fetched revision",
 			linkName: "New name",
 			url:      "https://new.example.com",
 			skipEtag: true,
-			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan indexerTypes.IndexerMessageEnvelope) {
 				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(7), nil)
 				l.On("UpdateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink"), uint64(7)).Return(nil)
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(a mock.Arguments) { indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
 			},
 		},
 	}
@@ -580,7 +588,7 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 				svc.Resolver = nil
 			}
 			svc.Config.SkipEtagValidation = tt.skipEtag
-			indexed := make(chan struct{}, 1)
+			indexed := make(chan indexerTypes.IndexerMessageEnvelope, 1)
 			tt.setupMocks(mockLink, mockFolder, mockMsg, indexed)
 
 			got, err := svc.UpdateLink(context.Background(), "proj-1", "link-1", tt.ifMatch, tt.linkName, tt.url, tt.description, tt.folderUID)
@@ -593,7 +601,22 @@ func TestProjectsService_UpdateLink(t *testing.T) {
 				assert.Equal(t, tt.linkName, got.Name)
 				assert.Equal(t, tt.wantFolder, got.FolderUID)
 				select {
-				case <-indexed:
+				case msg := <-indexed:
+					assert.Equal(t, indexerConstants.ActionUpdated, msg.Action)
+					link, ok := msg.Data.(models.ProjectLink)
+					if assert.True(t, ok, "indexer data should be the updated link") {
+						assert.Equal(t, "link-1", link.UID)
+						assert.Equal(t, tt.linkName, link.Name)
+						assert.Equal(t, tt.wantFolder, link.FolderUID)
+					}
+					if assert.NotNil(t, msg.IndexingConfig) {
+						if tt.wantTag != "" {
+							assert.Contains(t, msg.IndexingConfig.Tags, tt.wantTag)
+						}
+						if tt.wantNoTag != "" {
+							assert.NotContains(t, msg.IndexingConfig.Tags, tt.wantNoTag)
+						}
+					}
 				case <-time.After(2 * time.Second):
 					t.Fatal("expected an updated indexer message")
 				}
