@@ -20,6 +20,32 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
+// isValidLinkURL reports whether url is an absolute http(s) URL with a host.
+func isValidLinkURL(url string) bool {
+	parsed, err := neturl.Parse(url)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+// resolveLinkFolder normalises an optional folder UID (empty means the project root) and checks
+// that a given folder exists in the project. It returns ErrValidationFailed for a malformed UID,
+// ErrFolderNotFound for a folder that is not in the project, and ErrInternal on a lookup failure.
+func (s *ProjectsService) resolveLinkFolder(ctx context.Context, projectUID string, folderUID *string) (*string, error) {
+	if folderUID == nil || *folderUID == "" {
+		return nil, nil
+	}
+	if !domain.IsValidUID(*folderUID) {
+		return nil, domain.ErrValidationFailed
+	}
+	if _, _, err := s.FolderRepository.GetFolder(ctx, projectUID, *folderUID); err != nil {
+		if errors.Is(err, domain.ErrFolderNotFound) {
+			return nil, domain.ErrFolderNotFound
+		}
+		slog.ErrorContext(ctx, "error getting folder", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+	return folderUID, nil
+}
+
 // CreateLink creates a new project link.
 func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, name, url, description string, folderUID *string) (*models.ProjectLink, error) {
 	if !s.ServiceReady() {
@@ -31,8 +57,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		return nil, domain.ErrValidationFailed
 	}
 
-	parsed, parseErr := neturl.Parse(url)
-	if parseErr != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+	if !isValidLinkURL(url) {
 		return nil, domain.ErrValidationFailed
 	}
 
@@ -47,20 +72,9 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		return nil, domain.ErrProjectNotFound
 	}
 
-	if folderUID != nil && *folderUID == "" {
-		folderUID = nil
-	}
-	if folderUID != nil && !domain.IsValidUID(*folderUID) {
-		return nil, domain.ErrValidationFailed
-	}
-	if folderUID != nil {
-		_, _, err := s.FolderRepository.GetFolder(ctx, projectUID, *folderUID)
-		if err != nil {
-			if errors.Is(err, domain.ErrFolderNotFound) {
-				return nil, domain.ErrFolderNotFound
-			}
-			return nil, domain.ErrInternal
-		}
+	folderUID, err = s.resolveLinkFolder(ctx, projectUID, folderUID)
+	if err != nil {
+		return nil, err
 	}
 
 	createdBy, updatedBy := s.stampAuditUsers(ctx)
@@ -124,6 +138,66 @@ func (s *ProjectsService) GetLink(ctx context.Context, projectUID, linkUID strin
 
 	revisionStr := strconv.FormatUint(revision, 10)
 	return link, revisionStr, nil
+}
+
+// UpdateLink replaces a link's name, URL, description and folder with optimistic concurrency.
+// A nil or empty folderUID moves the link to the project root. Audit creation fields are kept.
+func (s *ProjectsService) UpdateLink(ctx context.Context, projectUID, linkUID string, ifMatch *string, name, url, description string, folderUID *string) (*models.ProjectLink, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "service not ready")
+		return nil, domain.ErrServiceUnavailable
+	}
+
+	if name == "" || !isValidLinkURL(url) {
+		return nil, domain.ErrValidationFailed
+	}
+
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("link_uid", linkUID))
+
+	link, currentRevision, err := s.LinkRepository.GetLink(ctx, projectUID, linkUID)
+	if err != nil {
+		if errors.Is(err, domain.ErrLinkNotFound) {
+			return nil, domain.ErrLinkNotFound
+		}
+		slog.ErrorContext(ctx, "error getting link", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) { return currentRevision, nil })
+	if err != nil {
+		return nil, err
+	}
+
+	folderUID, err = s.resolveLinkFolder(ctx, projectUID, folderUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, updatedBy := s.stampAuditUsers(ctx); updatedBy != nil {
+		link.UpdatedBy = updatedBy
+	}
+	link.Name = name
+	link.URL = url
+	link.Description = description
+	link.FolderUID = folderUID
+	link.UpdatedAt = time.Now().UTC()
+
+	if err := s.LinkRepository.UpdateLink(ctx, link, revision); err != nil {
+		if errors.Is(err, domain.ErrRevisionMismatch) {
+			return nil, domain.ErrRevisionMismatch
+		}
+		return nil, err
+	}
+
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *link,
+		IndexingConfig: link.IndexingConfig(),
+	}
+	s.publishIndexer(ctx, constants.IndexProjectLinkSubject, msg)
+
+	return link, nil
 }
 
 // DeleteLink deletes a project link with optimistic concurrency.

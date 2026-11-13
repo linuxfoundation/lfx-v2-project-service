@@ -413,3 +413,195 @@ func TestProjectsService_DeleteLink(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectsService_UpdateLink(t *testing.T) {
+	const (
+		folderUID = "00000000-0000-0000-0000-0000000000f1"
+		created   = "2026-01-02T03:04:05Z"
+	)
+	createdAt, _ := time.Parse(time.RFC3339, created)
+	existing := func() *models.ProjectLink {
+		return &models.ProjectLink{
+			UID:         "link-1",
+			ProjectUID:  "proj-1",
+			FolderUID:   misc.StringPtr("00000000-0000-0000-0000-0000000000f9"),
+			Name:        "Old name",
+			URL:         "https://old.example.com",
+			Description: "old",
+			CreatedBy:   &models.UserInfo{Username: "creator"},
+			CreatedAt:   createdAt,
+			UpdatedAt:   createdAt,
+		}
+	}
+
+	tests := []struct {
+		name        string
+		linkName    string
+		url         string
+		description string
+		folderUID   *string
+		ifMatch     *string
+		notReady    bool
+		skipEtag    bool
+		setupMocks  func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{})
+		wantErr     error
+		wantFolder  *string
+	}{
+		{
+			name:     "service not ready",
+			linkName: "New",
+			url:      "https://example.com",
+			ifMatch:  misc.StringPtr("3"),
+			notReady: true,
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			},
+			wantErr: domain.ErrServiceUnavailable,
+		},
+		{
+			name:     "empty name is rejected",
+			linkName: "",
+			url:      "https://example.com",
+			ifMatch:  misc.StringPtr("3"),
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:     "non-http url is rejected",
+			linkName: "New",
+			url:      "ftp://example.com",
+			ifMatch:  misc.StringPtr("3"),
+			setupMocks: func(*domainmocks.MockLinkRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder, chan struct{}) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:     "link not found",
+			linkName: "New",
+			url:      "https://example.com",
+			ifMatch:  misc.StringPtr("3"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(nil, uint64(0), domain.ErrLinkNotFound)
+			},
+			wantErr: domain.ErrLinkNotFound,
+		},
+		{
+			name:     "missing If-Match header",
+			linkName: "New",
+			url:      "https://example.com",
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:      "target folder is not in the project",
+			linkName:  "New",
+			url:       "https://example.com",
+			folderUID: misc.StringPtr(folderUID),
+			ifMatch:   misc.StringPtr("3"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+				f.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: domain.ErrFolderNotFound,
+		},
+		{
+			name:      "malformed folder uid is rejected",
+			linkName:  "New",
+			url:       "https://example.com",
+			folderUID: misc.StringPtr("not a uid"),
+			ifMatch:   misc.StringPtr("3"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:     "stale revision is a conflict and publishes nothing",
+			linkName: "New",
+			url:      "https://example.com",
+			ifMatch:  misc.StringPtr("2"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, _ *domainmocks.MockMessageBuilder, _ chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+				l.On("UpdateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink"), uint64(2)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:        "success moves the link into a folder and keeps its creation fields",
+			linkName:    "New name",
+			url:         "https://new.example.com",
+			description: "new",
+			folderUID:   misc.StringPtr(folderUID),
+			ifMatch:     misc.StringPtr("3"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, f *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+				f.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(&models.ProjectFolder{UID: folderUID, ProjectUID: "proj-1", Name: "F"}, uint64(1), nil)
+				l.On("UpdateLink", mock.Anything, mock.MatchedBy(func(got *models.ProjectLink) bool {
+					return got.UID == "link-1" && got.Name == "New name" && got.URL == "https://new.example.com" &&
+						got.Description == "new" && got.FolderUID != nil && *got.FolderUID == folderUID &&
+						got.CreatedAt.Equal(createdAt) && got.UpdatedAt.After(createdAt)
+				}), uint64(3)).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+			},
+			wantFolder: misc.StringPtr(folderUID),
+		},
+		{
+			name:     "omitting the folder moves the link to the project root",
+			linkName: "New name",
+			url:      "https://new.example.com",
+			ifMatch:  misc.StringPtr("3"),
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(3), nil)
+				l.On("UpdateLink", mock.Anything, mock.MatchedBy(func(got *models.ProjectLink) bool { return got.FolderUID == nil }), uint64(3)).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+			},
+		},
+		{
+			name:     "skip etag validation writes at the fetched revision",
+			linkName: "New name",
+			url:      "https://new.example.com",
+			skipEtag: true,
+			setupMocks: func(l *domainmocks.MockLinkRepository, _ *domainmocks.MockFolderRepository, m *domainmocks.MockMessageBuilder, indexed chan struct{}) {
+				l.On("GetLink", mock.Anything, "proj-1", "link-1").Return(existing(), uint64(7), nil)
+				l.On("UpdateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink"), uint64(7)).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectLinkSubject, mock.Anything).Run(func(mock.Arguments) { indexed <- struct{}{} }).Return(nil).Once()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _, mockMsg := setupServiceForTesting()
+			mockLink := svc.LinkRepository.(*domainmocks.MockLinkRepository)
+			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
+			if tt.notReady {
+				svc.Resolver = nil
+			}
+			svc.Config.SkipEtagValidation = tt.skipEtag
+			indexed := make(chan struct{}, 1)
+			tt.setupMocks(mockLink, mockFolder, mockMsg, indexed)
+
+			got, err := svc.UpdateLink(context.Background(), "proj-1", "link-1", tt.ifMatch, tt.linkName, tt.url, tt.description, tt.folderUID)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, got)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.linkName, got.Name)
+				assert.Equal(t, tt.wantFolder, got.FolderUID)
+				select {
+				case <-indexed:
+				case <-time.After(2 * time.Second):
+					t.Fatal("expected an updated indexer message")
+				}
+			}
+
+			mockLink.AssertExpectations(t)
+			mockFolder.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}

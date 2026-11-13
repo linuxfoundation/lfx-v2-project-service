@@ -1727,6 +1727,189 @@ func DecodeGetProjectLinkResponse(decoder func(*http.Response) goahttp.Decoder, 
 	}
 }
 
+// BuildUpdateProjectLinkRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "update-project-link"
+// endpoint
+func (c *Client) BuildUpdateProjectLinkRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid     string
+		linkUID string
+	)
+	{
+		p, ok := v.(*projectservice.UpdateProjectLinkPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "update-project-link", "*projectservice.UpdateProjectLinkPayload", v)
+		}
+		uid = p.UID
+		linkUID = p.LinkUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectLinkProjectServicePath(uid, linkUID)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "update-project-link", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateProjectLinkRequest returns an encoder for requests sent to the
+// project-service update-project-link server.
+func EncodeUpdateProjectLinkRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UpdateProjectLinkPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "update-project-link", "*projectservice.UpdateProjectLinkPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateProjectLinkRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "update-project-link", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateProjectLinkResponse returns a decoder for responses returned by
+// the project-service update-project-link endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeUpdateProjectLinkResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateProjectLinkResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateProjectLinkResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			res := NewUpdateProjectLinkProjectLinkOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UpdateProjectLinkBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			return nil, NewUpdateProjectLinkBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectLinkConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			return nil, NewUpdateProjectLinkConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateProjectLinkInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			return nil, NewUpdateProjectLinkInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UpdateProjectLinkNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			return nil, NewUpdateProjectLinkNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateProjectLinkServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-link", err)
+			}
+			err = ValidateUpdateProjectLinkServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-link", err)
+			}
+			return nil, NewUpdateProjectLinkServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "update-project-link", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildDeleteProjectLinkRequest instantiates a HTTP request object with method
 // and path set to call the "project-service" service "delete-project-link"
 // endpoint

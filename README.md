@@ -23,6 +23,7 @@ For what the service manages (projects and their settings, links, folders and do
 | `PUT` | `/projects/:id/settings` | Update project settings | |
 | `POST` | `/projects/:id/links` | Create a link | |
 | `GET` | `/projects/:id/links/:link_uid` | Get a link | Returns `ETag` header |
+| `PUT` | `/projects/:id/links/:link_uid` | Update a link's name, URL, description and folder | Requires `If-Match: <etag>`; omitting `folder_uid` moves the link to the project root |
 | `DELETE` | `/projects/:id/links/:link_uid` | Delete a link | Requires `If-Match: <etag>` |
 | `POST` | `/projects/:id/folders` | Create a folder | Name must be unique per project |
 | `GET` | `/projects/:id/folders/:folder_uid` | Get a folder | Returns `ETag` header |
@@ -135,7 +136,7 @@ This service indexes project data into the indexer service, making it searchable
 
 - `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
 - `lfx.index.project_settings`: Published when project settings are created or updated, and when the project is deleted. Contains the project settings data and tags for indexing.
-- `lfx.index.project_link`: Published when a project link is created or deleted.
+- `lfx.index.project_link`: Published when a project link is created, updated or deleted.
 - `lfx.index.project_folder`: Published when a project folder is created or deleted.
 - `lfx.index.project_document`: Published when a project document is uploaded or deleted.
 

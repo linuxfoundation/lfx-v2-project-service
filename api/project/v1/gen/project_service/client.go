@@ -30,6 +30,7 @@ type Client struct {
 	LivezEndpoint                   goa.Endpoint
 	CreateProjectLinkEndpoint       goa.Endpoint
 	GetProjectLinkEndpoint          goa.Endpoint
+	UpdateProjectLinkEndpoint       goa.Endpoint
 	DeleteProjectLinkEndpoint       goa.Endpoint
 	CreateProjectFolderEndpoint     goa.Endpoint
 	GetProjectFolderEndpoint        goa.Endpoint
@@ -41,7 +42,7 @@ type Client struct {
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, updateProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
 		GetProjectsEndpoint:             getProjects,
 		CreateProjectEndpoint:           createProject,
@@ -55,6 +56,7 @@ func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSetti
 		LivezEndpoint:                   livez,
 		CreateProjectLinkEndpoint:       createProjectLink,
 		GetProjectLinkEndpoint:          getProjectLink,
+		UpdateProjectLinkEndpoint:       updateProjectLink,
 		DeleteProjectLinkEndpoint:       deleteProjectLink,
 		CreateProjectFolderEndpoint:     createProjectFolder,
 		GetProjectFolderEndpoint:        getProjectFolder,
@@ -253,6 +255,24 @@ func (c *Client) GetProjectLink(ctx context.Context, p *GetProjectLinkPayload) (
 		return
 	}
 	return ires.(*GetProjectLinkResult), nil
+}
+
+// UpdateProjectLink calls the "update-project-link" endpoint of the
+// "project-service" service.
+// UpdateProjectLink may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Link or folder not found
+//   - "Conflict" (type *ConflictError): Revision mismatch
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateProjectLink(ctx context.Context, p *UpdateProjectLinkPayload) (res *ProjectLink, err error) {
+	var ires any
+	ires, err = c.UpdateProjectLinkEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectLink), nil
 }
 
 // DeleteProjectLink calls the "delete-project-link" endpoint of the

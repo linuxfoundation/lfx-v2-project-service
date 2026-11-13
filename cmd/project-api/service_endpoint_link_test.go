@@ -252,3 +252,99 @@ func TestDeleteProjectLink(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateProjectLink(t *testing.T) {
+	existing := func() *models.ProjectLink {
+		return &models.ProjectLink{UID: testLinkUID, ProjectUID: testProjectUID, Name: "Old", URL: "https://old.example.com"}
+	}
+	payload := func(ifMatch *string, folderUID *string) *projsvc.UpdateProjectLinkPayload {
+		return &projsvc.UpdateProjectLinkPayload{
+			UID: testProjectUID, LinkUID: testLinkUID, IfMatch: ifMatch,
+			Name: "Website", URL: "https://example.com", Description: misc.StringPtr("Project site"), FolderUID: folderUID,
+		}
+	}
+
+	tests := []struct {
+		name          string
+		payload       *projsvc.UpdateProjectLinkPayload
+		setupMocks    func(*resourceMocks)
+		wantErr       any
+		wantFolderUID *string
+	}{
+		{
+			name:    "success writes at the If-Match revision and returns the updated link",
+			payload: payload(misc.StringPtr("4"), misc.StringPtr(testFolderUID)),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(existing(), uint64(4), nil)
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(&models.ProjectFolder{UID: testFolderUID}, uint64(1), nil)
+				m.link.On("UpdateLink", mock.Anything, mock.MatchedBy(func(l *models.ProjectLink) bool {
+					return l.Name == "Website" && l.Description == "Project site" && l.FolderUID != nil && *l.FolderUID == testFolderUID
+				}), uint64(4)).Return(nil)
+				m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+			wantFolderUID: misc.StringPtr(testFolderUID),
+		},
+		{
+			name:    "no folder moves the link to the root",
+			payload: payload(misc.StringPtr("4"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(existing(), uint64(4), nil)
+				m.link.On("UpdateLink", mock.Anything, mock.MatchedBy(func(l *models.ProjectLink) bool { return l.FolderUID == nil }), uint64(4)).Return(nil)
+				m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:    "missing If-Match is a bad request",
+			payload: payload(nil, nil),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(existing(), uint64(4), nil)
+			},
+			wantErr: &projsvc.BadRequestError{},
+		},
+		{
+			name:    "revision mismatch is a conflict",
+			payload: payload(misc.StringPtr("3"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(existing(), uint64(4), nil)
+				m.link.On("UpdateLink", mock.Anything, mock.Anything, uint64(3)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: &projsvc.ConflictError{},
+		},
+		{
+			name:    "link not found",
+			payload: payload(misc.StringPtr("4"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(nil, uint64(0), domain.ErrLinkNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+		{
+			name:    "target folder not found",
+			payload: payload(misc.StringPtr("4"), misc.StringPtr(testFolderUID)),
+			setupMocks: func(m *resourceMocks) {
+				m.link.On("GetLink", mock.Anything, testProjectUID, testLinkUID).Return(existing(), uint64(4), nil)
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api, m := setupResourceAPI()
+			tt.setupMocks(m)
+
+			got, err := api.UpdateProjectLink(context.Background(), tt.payload)
+
+			if tt.wantErr != nil {
+				assert.IsType(t, tt.wantErr, err)
+				assert.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "Website", *got.Name)
+			assert.Equal(t, tt.wantFolderUID, got.FolderUID)
+			m.link.AssertExpectations(t)
+		})
+	}
+}

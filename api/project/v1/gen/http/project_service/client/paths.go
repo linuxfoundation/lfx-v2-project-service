@@ -73,6 +73,11 @@ func GetProjectLinkProjectServicePath(uid string, linkUID string) string {
 	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
 }
 
+// UpdateProjectLinkProjectServicePath returns the URL path to the project-service service update-project-link HTTP endpoint.
+func UpdateProjectLinkProjectServicePath(uid string, linkUID string) string {
+	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
+}
+
 // DeleteProjectLinkProjectServicePath returns the URL path to the project-service service delete-project-link HTTP endpoint.
 func DeleteProjectLinkProjectServicePath(uid string, linkUID string) string {
 	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)

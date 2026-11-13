@@ -93,6 +93,55 @@ var _ = Service("project-service", func() {
 		})
 	})
 
+	Method("update-project-link", func() {
+		Description("Update a project link. Replaces its name, URL, description and folder; omitting folder_uid moves the link to the project root.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			XSyncAttribute()
+			IfMatchAttribute()
+			VersionAttribute()
+			ProjectUIDAttribute()
+			ResourceUIDAttribute("link_uid", "Link UID")
+			ResourceNameAttribute("name", "Link display name")
+			Attribute("url", String, "The URL of the link", func() {
+				Format(FormatURI)
+				Example("https://example.com")
+			})
+			ResourceDescriptionAttribute("description", "A description of the link")
+			ResourceUIDAttribute("folder_uid", "Folder UID to place the link in (omit for the project root)")
+			Required("uid", "link_uid", "name", "url")
+		})
+
+		Result(ProjectLink)
+
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("NotFound", NotFoundError, "Link or folder not found")
+		Error("Conflict", ConflictError, "Revision mismatch")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			PUT("/projects/{uid}/links/{link_uid}")
+			Params(func() {
+				Param("version:v")
+				Param("uid")
+				Param("link_uid")
+			})
+			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
+			Header("if_match:If-Match")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("NotFound", StatusNotFound)
+			Response("Conflict", StatusConflict)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
 	Method("delete-project-link", func() {
 		Description("Delete a project link.")
 
