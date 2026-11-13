@@ -95,6 +95,7 @@ Projects and content publish differently:
 | Update settings | settings | indexer, FGA, settings-updated event with the before and after snapshot |
 | Delete project | base, slug index, settings | indexer deletes, FGA `delete_access` |
 | Create link, folder or document | record, index or name reservation, and for a document the file | indexer (background); for a link or document also a created event (background) |
+| Update link | record, written at the `If-Match` revision (compare-and-swap) | indexer update (background); no created event and no FGA message |
 | Delete link, folder or document | record, then its index or name-reservation key; for a document, its file (background, a failure is only logged) | indexer delete (background) |
 
 Update base deliberately does not republish access unless a field that affects it changed. The settings update is the authoritative publisher of role changes, and republishing access from a base update could re-grant a user that a concurrent settings write had just revoked.
