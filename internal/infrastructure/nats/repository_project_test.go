@@ -365,6 +365,7 @@ func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 }
 
 func TestNatsRepository_CreateProject(t *testing.T) {
+	t.Run("concurrent creates reserve slugs globally", testConcurrentProjectCreates)
 	now := time.Now()
 	projectBase := &models.ProjectBase{
 		UID:         "test-project-uid",
@@ -784,6 +785,7 @@ func TestNatsRepository_ListAllProjects(t *testing.T) {
 }
 
 func TestNatsRepository_UpdateProjectBase(t *testing.T) {
+	t.Run("concurrent renames reserve slugs globally", testConcurrentProjectRenames)
 	now := time.Now()
 
 	projectUID := "00000000-0000-0000-0000-000000000001"

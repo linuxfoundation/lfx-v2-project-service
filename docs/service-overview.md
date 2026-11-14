@@ -158,6 +158,7 @@ The repair and inspection tools are in `project-cli`:
 - `inspect index-drift` lists records missing from search. Only projects can be republished, with `sync reindex-projects` (and `--include-access` to republish access too); a missing link, folder or document has no repair command yet.
 - `inspect settings-access` and `sync verify-global-grants` compare FGA tuples with what the records call for.
 - `inspect children` checks index keys against records, and `inspect orphans` lists content whose project is gone.
+- `inspect slug-index` checks global uniqueness from project records as well as index consistency, listing every UUID in each duplicate group. Existing duplicates require a dependency and mapping audit before [approved reconciliation](../scripts/admin-delete-project/README.md#reconciling-duplicate-projects); reserving new slugs does not repair historical duplicates.
 
 ## Reads over NATS
 

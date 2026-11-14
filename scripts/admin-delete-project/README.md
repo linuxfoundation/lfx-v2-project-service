@@ -39,7 +39,7 @@ they are orphaned / no longer visible in the UI / created in error).
    documents) become unreachable to former members, even when `--cascade-children`
    is not passed.
 6. **Deletes remaining KV entries**:
-   - `projects/slug/<slug>` (no CAS — slug mapping is single-writer)
+   - `projects/slug/<slug>` only when the audited value equals the deleted UID, using `LastRevision` CAS on the audited revision. An index owned by a different project is preserved; a changed revision reports a cleanup failure rather than deleting the new owner's entry. Settings cleanup is still attempted, and any FGA, slug and settings failures are returned together.
    - `project-settings/<uid>`
 
 ### What it does **not** do
@@ -64,6 +64,7 @@ they are orphaned / no longer visible in the UI / created in error).
 - **Idempotent.** Re-running after partial completion is safe — entries that
   are already gone are logged and skipped.
 - **CAS on base delete.** Won't clobber a concurrent update to `projects/<uid>`.
+- **Ownership and CAS on slug cleanup.** Removing a stale duplicate does not remove the canonical project's slug index. An already-absent slug is treated as cleaned up.
 - **Fire-and-forget indexer publish.** Indexer messages are always published
   fire-and-forget via `conn.Publish` since `lfx-v2-indexer-service#68` migrated
   the indexer to a JetStream durable consumer. The `--sync` flag is accepted
@@ -78,6 +79,20 @@ they are orphaned / no longer visible in the UI / created in error).
   `--cascade-children` is passed); the delete still proceeds. The
   `lfx.fga-sync.delete_access` publish triggers revocation; once fga-sync
   processes the message, those children are no longer reachable by former members.
+
+## Reconciling duplicate projects
+
+This utility is a deletion tool, not an automatic merge. It does not repair v1 mappings, move dependent resources, or prevent reverse-sync events from recreating resources. Keep incident identifiers and audit output in the private operational ticket, not in source or public PRs.
+
+1. Run `project-cli inspect slug-index` to identify every duplicate group from stored records, including all UUIDs and the current index target. Quiesce writes and rerun before remediation; a live scan is not an atomic snapshot.
+2. For **each** UUID, audit the base, settings, search documents, access tuples, child projects (including legal-parent references), links, folders, documents, and references held by other services such as committees, meetings, votes, surveys and mailing lists. The script's child scan covers only links, folders and documents and does not block deletion. Neither it nor `inspect project` is a complete cross-service dependency audit.
+3. Read both directions of the v1 mapping for every UUID. Select a canonical project using the mappings, current data and dependencies; the current index target and timestamps alone are not sufficient. Preserve or rehome data and permissions before deleting any copy.
+4. Obtain explicit approval for the exact operational plan, including how v1-sync-helper will be coordinated to avoid unintended reverse-sync effects and how stale mappings will be reconciled. Mapping writes belong to the sync-helper operational procedure, not this utility.
+5. Build the corrected utility and run it in its default dry-run mode for only the approved stale UUID. Do not use `--skip-child-scan` unless an independent audit already covered those children, and do not use `--cascade-children` to dispose of data that needs preservation. Keep the audit/backup file access-controlled.
+6. After approval, execute the reviewed deletion and mapping reconciliation. The slug index is preserved if it belongs to the canonical UUID. If any operation fails, stop and reconcile the partial state using the backup: a later fresh audit cannot rediscover the original slug once the base has been deleted, so a plain rerun is not a complete cleanup recovery.
+7. Verify the canonical project remains readable and indexed, retains its approved permissions and dependencies, and has consistent mappings in both directions. Verify stale project/settings search documents and access tuples are removed, and stale mappings cannot resolve to the deleted UUID. Rerun `inspect slug-index` and review any remaining groups individually.
+
+No production mutation is implied by adding this tooling. Detection, approved reconciliation and post-operation verification are separate steps.
 
 ## Usage
 
