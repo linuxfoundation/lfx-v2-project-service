@@ -255,7 +255,15 @@ go run ./cmd/project-cli inspect project --skip-fga example-project
 
 #### `inspect slug-index`
 
-Checks every `slug/<slug>` entry in the `projects` bucket against its project record, and every project against its slug entry. It reports `dangling_index` (the entry points at a UID with no record), `mismatched_index` (the record has a different slug), `missing_index` (the project has no entry), `wrong_index` (the entry points at another project) and `unreadable_record`. These are the states `sync rename-project-slug` repairs.
+Checks every `slug/<slug>` entry in the `projects` bucket against its project record, and every project against its slug entry. It reports `dangling_index` (the entry points at a UID with no record), `mismatched_index` (the record has a different slug), `missing_index` (the project has no entry), `wrong_index` (the entry points at another project) and `unreadable_record`.
+
+It also groups project records by slug **globally, regardless of parent**, reporting one `duplicate_slug` finding per duplicate group. The `duplicate_slugs` array lists each group's `slug`, all `project_uids` (sorted), and `indexed_uid` when an index entry exists. It includes the indexed winner as well as stale copies, and detects duplicates even when the slug index is missing. A clean scan prints `duplicate_slugs: []`.
+
+```sh
+go run ./cmd/project-cli inspect slug-index
+```
+
+This is a live scan, not a transactional snapshot. Reads can overlap creates, renames or deletes; rerun under quiescent writes before approving remediation. It does not read v1 mappings or dependencies held by other services, select a canonical project, or delete anything. Index repairs alone cannot resolve duplicate project records. Review each group using the [duplicate reconciliation procedure](../../scripts/admin-delete-project/README.md#reconciling-duplicate-projects); never run a bulk slug rename to pick a winner.
 
 #### `inspect orphans`
 

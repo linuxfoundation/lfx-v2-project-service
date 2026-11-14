@@ -20,11 +20,12 @@ func projectRecord(uid, slug string) string {
 
 func TestRunSlugIndex(t *testing.T) {
 	tests := []struct {
-		name       string
-		kv         *fakeKV
-		wantErr    string
-		wantCounts map[string]int
-		wantStats  [2]int // projects, slug entries
+		name           string
+		kv             *fakeKV
+		wantErr        string
+		wantCounts     map[string]int
+		wantStats      [2]int // projects, slug entries
+		wantDuplicates []duplicateSlugGroup
 	}{
 		{
 			name: "consistent index is clean",
@@ -82,6 +83,45 @@ func TestRunSlugIndex(t *testing.T) {
 			wantStats:  [2]int{0, 0},
 		},
 		{
+			name: "duplicate records with different parents report both UIDs including the indexed winner",
+			kv: &fakeKV{values: map[string]string{
+				uid1: fmt.Sprintf(`{"uid":%q,"slug":"alpha","parent_uid":%q}`, uid1, uid3),
+				uid2: projectRecord(uid2, "alpha"), "slug/alpha": uid2,
+			}},
+			wantErr:        "found 2 problem(s)",
+			wantCounts:     map[string]int{kindDuplicateSlug: 1, kindWrongIndex: 1},
+			wantStats:      [2]int{2, 1},
+			wantDuplicates: []duplicateSlugGroup{{Slug: "alpha", ProjectUIDs: []string{uid1, uid2}, IndexedUID: uid2}},
+		},
+		{
+			name: "duplicates are detected even without a slug index",
+			kv: &fakeKV{values: map[string]string{
+				uid1: projectRecord(uid1, "alpha"), uid2: projectRecord(uid2, "alpha"),
+			}},
+			wantErr:        "found 3 problem(s)",
+			wantCounts:     map[string]int{kindDuplicateSlug: 1, kindMissingIndex: 2},
+			wantStats:      [2]int{2, 0},
+			wantDuplicates: []duplicateSlugGroup{{Slug: "alpha", ProjectUIDs: []string{uid1, uid2}}},
+		},
+		{
+			name: "duplicate groups and members are sorted and unrelated records are excluded",
+			kv: &fakeKV{values: map[string]string{
+				uid1: projectRecord(uid1, "beta"), uid2: projectRecord(uid2, "beta"), "slug/beta": uid1,
+				uid3:                                   projectRecord(uid3, "alpha"),
+				"00000000-0000-4000-8000-000000000004": projectRecord("00000000-0000-4000-8000-000000000004", "alpha"),
+				"slug/alpha":                           uid3,
+				"00000000-0000-4000-8000-000000000005": projectRecord("00000000-0000-4000-8000-000000000005", "gamma"),
+				"slug/gamma":                           "00000000-0000-4000-8000-000000000005",
+			}},
+			wantErr:    "found 4 problem(s)",
+			wantCounts: map[string]int{kindDuplicateSlug: 2, kindWrongIndex: 2},
+			wantStats:  [2]int{5, 3},
+			wantDuplicates: []duplicateSlugGroup{
+				{Slug: "alpha", ProjectUIDs: []string{uid3, "00000000-0000-4000-8000-000000000004"}, IndexedUID: uid3},
+				{Slug: "beta", ProjectUIDs: []string{uid1, uid2}, IndexedUID: uid1},
+			},
+		},
+		{
 			name: "a key deleted mid-scan is ignored",
 			kv: &fakeKV{
 				values:   map[string]string{uid1: projectRecord(uid1, "alpha"), "slug/alpha": uid1},
@@ -121,6 +161,12 @@ func TestRunSlugIndex(t *testing.T) {
 			assert.Equal(t, wantStatus(err), report.Status)
 			assert.Equal(t, tt.wantStats[0], report.Projects)
 			assert.Equal(t, tt.wantStats[1], report.SlugEntries)
+			if tt.wantDuplicates == nil {
+				assert.Empty(t, report.DuplicateSlugs)
+			} else {
+				assert.Equal(t, tt.wantDuplicates, report.DuplicateSlugs)
+			}
+			assert.NotNil(t, report.DuplicateSlugs, "a clean scan reports an empty array, not null")
 			if tt.wantCounts == nil {
 				assert.Empty(t, report.Counts)
 				assert.Empty(t, report.Findings)

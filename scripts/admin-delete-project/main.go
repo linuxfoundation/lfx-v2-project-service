@@ -24,7 +24,8 @@
 //     slug/settings KV cleanup; it makes any remaining child resources
 //     (links/folders/documents) unreachable to former members even when
 //     --cascade-children is not passed.
-//  6. Deletes projects/slug/<slug> and project-settings/<uid>.
+//  6. Deletes projects/slug/<slug> only when the audited value belongs to this
+//     UID and its revision is unchanged, then deletes project-settings/<uid>.
 //
 // Defaults to --dry-run=true. Must explicitly pass --dry-run=false to write.
 package main
@@ -726,26 +727,40 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 		slog.With("uid", uid, "subject", fgaconstants.GenericDeleteAccessSubject).Info("published fga delete_access")
 	}
 
+	var slugErr error
 	if rec.SlugKV.Found {
-		// Slug mapping is single-writer; CAS not required.
-		if err := kv.Projects.Delete(ctx, rec.SlugKV.Key); err != nil {
-			return fmt.Errorf("delete projects/%s: %w", rec.SlugKV.Key, err)
+		if string(rec.SlugKV.Value) != uid {
+			// Historical duplicates share a slug, but the index belongs to the
+			// canonical project. Deleting a stale copy must preserve that index.
+			slog.WarnContext(ctx, "slug mapping belongs to another project; preserving index",
+				"uid", uid, "slug_key", rec.SlugKV.Key, "indexed_uid", string(rec.SlugKV.Value))
+		} else {
+			// Use the audited revision so a reassignment after the audit cannot
+			// make us delete a different project's newly claimed slug.
+			if err := kv.Projects.Delete(ctx, rec.SlugKV.Key, jetstream.LastRevision(rec.SlugKV.Revision)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+				slugErr = fmt.Errorf("delete projects/%s (rev %d): %w", rec.SlugKV.Key, rec.SlugKV.Revision, err)
+				slog.ErrorContext(ctx, "failed to delete slug index; continuing settings cleanup",
+					constants.ErrKey, err, "uid", uid, "slug_key", rec.SlugKV.Key)
+			} else {
+				slog.InfoContext(ctx, "deleted slug reverse-lookup", "uid", uid, "slug_key", rec.SlugKV.Key)
+			}
 		}
-		slog.With("uid", uid, "slug_key", rec.SlugKV.Key).Info("deleted slug reverse-lookup")
 	} else if rec.Base.Found && rec.Slug == "" && len(rec.Errors) > 0 {
 		// Base record was malformed — slug could not be extracted during audit,
 		// so the slug/* reverse-lookup key was not deleted. Manual cleanup required.
 		slog.With("uid", uid, "audit_errors", rec.Errors).Warn("slug reverse-lookup key NOT deleted: base JSON was malformed during audit; locate and delete the slug/* key manually")
 	}
 
+	var settingsErr error
 	if rec.Settings.Found {
 		if err := kv.ProjectSettings.Delete(ctx, uid); err != nil {
-			return fmt.Errorf("delete project-settings/%s: %w", uid, err)
+			settingsErr = fmt.Errorf("delete project-settings/%s: %w", uid, err)
+		} else {
+			slog.InfoContext(ctx, "deleted project-settings/<uid>", "uid", uid)
 		}
-		slog.With("uid", uid).Info("deleted project-settings/<uid>")
 	}
 
-	return fgaErr
+	return errors.Join(fgaErr, slugErr, settingsErr)
 }
 
 // cascadeDeleteChildren deletes all child links, folders, and documents for the

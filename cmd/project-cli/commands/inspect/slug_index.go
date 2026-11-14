@@ -28,6 +28,7 @@ const (
 	kindMissingIndex    = "missing_index"
 	kindWrongIndex      = "wrong_index"
 	kindUnreadable      = "unreadable_record"
+	kindDuplicateSlug   = "duplicate_slug"
 )
 
 // projectsKV is the part of the projects bucket the slug check reads.
@@ -41,7 +42,7 @@ type slugIndexSubcommand struct{}
 func (s *slugIndexSubcommand) Name() string { return "slug-index" }
 
 func (s *slugIndexSubcommand) Help() string {
-	return "check every slug/<slug> index entry against its project record, in both directions"
+	return "check global slug uniqueness and every slug/<slug> index entry against project records"
 }
 
 func (s *slugIndexSubcommand) Run(ctx context.Context, rc commands.RunContext) error {
@@ -64,10 +65,17 @@ func (s *slugIndexSubcommand) Run(ctx context.Context, rc commands.RunContext) e
 
 type slugIndexReport struct {
 	reportStatus
-	Projects    int            `json:"projects"`
-	SlugEntries int            `json:"slug_entries"`
-	Counts      map[string]int `json:"counts"`
-	Findings    []finding      `json:"findings"`
+	Projects       int                  `json:"projects"`
+	SlugEntries    int                  `json:"slug_entries"`
+	Counts         map[string]int       `json:"counts"`
+	Findings       []finding            `json:"findings"`
+	DuplicateSlugs []duplicateSlugGroup `json:"duplicate_slugs"`
+}
+
+type duplicateSlugGroup struct {
+	Slug        string   `json:"slug"`
+	ProjectUIDs []string `json:"project_uids"`
+	IndexedUID  string   `json:"indexed_uid,omitempty"`
 }
 
 // runSlugIndex reads the projects bucket once and cross-checks the slug index
@@ -88,7 +96,7 @@ func runSlugIndex(ctx context.Context, kv projectsKV, out io.Writer) error {
 		}
 	}
 
-	report := &slugIndexReport{Counts: map[string]int{}, Findings: []finding{}}
+	report := &slugIndexReport{Counts: map[string]int{}, Findings: []finding{}, DuplicateSlugs: []duplicateSlugGroup{}}
 	add := func(f finding) {
 		report.Findings = append(report.Findings, f)
 		report.Counts[f.Kind]++
@@ -96,6 +104,7 @@ func runSlugIndex(ctx context.Context, kv projectsKV, out io.Writer) error {
 
 	// uid -> slug from the records, slug -> uid from the index.
 	slugByUID := make(map[string]string, len(projectKeys))
+	uidsBySlug := make(map[string][]string, len(projectKeys))
 	for _, key := range projectKeys {
 		raw, found, err := getValue(ctx, kv, key)
 		if err != nil {
@@ -110,6 +119,7 @@ func runSlugIndex(ctx context.Context, kv projectsKV, out io.Writer) error {
 			continue
 		}
 		slugByUID[key] = base.Slug
+		uidsBySlug[base.Slug] = append(uidsBySlug[base.Slug], key)
 	}
 	report.Projects = len(slugByUID)
 
@@ -125,6 +135,23 @@ func runSlugIndex(ctx context.Context, kv projectsKV, out io.Writer) error {
 		uidBySlug[strings.TrimPrefix(key, slugKeyPrefix)] = string(raw)
 	}
 	report.SlugEntries = len(uidBySlug)
+
+	// Detect duplicates from records, not from the single-value index: the
+	// index can hide every project except the last writer for a shared slug.
+	for slug, uids := range uidsBySlug {
+		if len(uids) < 2 {
+			continue
+		}
+		sort.Strings(uids)
+		report.DuplicateSlugs = append(report.DuplicateSlugs, duplicateSlugGroup{
+			Slug: slug, ProjectUIDs: uids, IndexedUID: uidBySlug[slug],
+		})
+		add(finding{Kind: kindDuplicateSlug, Slug: slug,
+			Detail: fmt.Sprintf("%d project records share this slug; review duplicate_slugs before remediation", len(uids))})
+	}
+	sort.Slice(report.DuplicateSlugs, func(i, j int) bool {
+		return report.DuplicateSlugs[i].Slug < report.DuplicateSlugs[j].Slug
+	})
 
 	for slug, uid := range uidBySlug {
 		recordSlug, exists := slugByUID[uid]
