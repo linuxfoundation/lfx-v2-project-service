@@ -84,8 +84,8 @@ type ProjectSettings struct {
 }
 
 // Tags generates a consistent set of tags for the project base.
-// IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
-// to ensure consumers understand how to use these tags for searching.
+// IMPORTANT: If you modify this method, please update the Project Tags documentation in
+// docs/indexer-contract.md to ensure consumers understand how to use these tags for searching.
 func (p *ProjectBase) Tags() []string {
 	if p == nil {
 		return nil
@@ -101,58 +101,39 @@ func (p *ProjectBase) Tags() []string {
 	return tags
 }
 
-func (p *ProjectBase) TagsTemplatized() []string {
-	var tags []string
-
-	if p == nil {
-		return nil
-	}
-
-	if p.Slug != "" {
-		tags = append(tags, "project_slug:{{ slug }}")
-	}
-
-	return tags
-}
-
 // IndexingConfig generates an IndexingConfig for indexing this project.
+// Every value is concrete: user text such as the project name must never be
+// parsed as an indexer template (linuxfoundation/lfx-v2-indexer-service#89).
 func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 	if p == nil {
 		return nil
 	}
 
 	return &indexerTypes.IndexingConfig{
-		ObjectID:             "{{ uid }}",
+		ObjectID:             p.UID,
 		Public:               &p.Public,
-		AccessCheckObject:    "project:{{ uid }}",
+		AccessCheckObject:    fmt.Sprintf("project:%s", p.UID),
 		AccessCheckRelation:  "viewer",
-		HistoryCheckObject:   "project:{{ uid }}",
+		HistoryCheckObject:   fmt.Sprintf("project:%s", p.UID),
 		HistoryCheckRelation: "writer_guard",
-		SortName:             "{{ name }}",
-		NameAndAliases:       p.NameAndAliasesTemplatized(),
-		ParentRefs:           p.ParentRefsTemplatized(),
-		Fulltext:             p.FulltextTemplatized(),
-		Tags:                 p.TagsTemplatized(),
+		SortName:             p.Name,
+		NameAndAliases:       p.NameAndAliases(),
+		ParentRefs:           p.ParentRefs(),
+		Fulltext:             p.Fulltext(),
+		Tags:                 p.Tags(),
 	}
 }
 
-// ParentRefsTemplatized generates a list of templatized parent references for the project base.
-func (p *ProjectBase) ParentRefsTemplatized() []string {
-	if p == nil {
+// ParentRefs generates the parent references for the project base.
+func (p *ProjectBase) ParentRefs() []string {
+	if p == nil || p.ParentUID == "" {
 		return nil
 	}
-
-	var parentRefs []string
-
-	if p.ParentUID != "" {
-		parentRefs = append(parentRefs, "project:{{ parent_uid }}")
-	}
-
-	return parentRefs
+	return []string{fmt.Sprintf("project:%s", p.ParentUID)}
 }
 
-// NameAndAliasesTemplatized generates a list of templatized name and aliases for the project base.
-func (p *ProjectBase) NameAndAliasesTemplatized() []string {
+// NameAndAliases generates the searchable name and aliases for the project base.
+func (p *ProjectBase) NameAndAliases() []string {
 	if p == nil {
 		return nil
 	}
@@ -160,18 +141,17 @@ func (p *ProjectBase) NameAndAliasesTemplatized() []string {
 	var nameAndAliases []string
 
 	if p.Name != "" {
-		nameAndAliases = append(nameAndAliases, "{{ name }}")
+		nameAndAliases = append(nameAndAliases, p.Name)
 	}
 	if p.Slug != "" {
-		nameAndAliases = append(nameAndAliases, "{{ slug }}")
+		nameAndAliases = append(nameAndAliases, p.Slug)
 	}
 
 	return nameAndAliases
 }
 
-// FulltextTemplatized generates a fulltext string for the project base.
-// This is used to index the project text that is full-text searchable.
-func (p *ProjectBase) FulltextTemplatized() string {
+// Fulltext generates the full-text searchable string for the project base.
+func (p *ProjectBase) Fulltext() string {
 	if p == nil {
 		return ""
 	}
@@ -179,30 +159,22 @@ func (p *ProjectBase) FulltextTemplatized() string {
 	var fulltext []string
 
 	if p.Name != "" {
-		fulltext = append(fulltext, "{{ name }}")
+		fulltext = append(fulltext, p.Name)
 	}
 	if p.Slug != "" {
-		fulltext = append(fulltext, "{{ slug }}")
+		fulltext = append(fulltext, p.Slug)
 	}
 	if p.Description != "" {
-		fulltext = append(fulltext, "{{ description }}")
+		fulltext = append(fulltext, p.Description)
 	}
 
 	return strings.Join(fulltext, " ")
 }
 
 // Tags generates a consistent set of tags for the project settings.
-// IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
-// to ensure consumers understand how to use these tags for searching.
+// IMPORTANT: If you modify this method, please update the Project Settings Tags documentation in
+// docs/indexer-contract.md to ensure consumers understand how to use these tags for searching.
 func (p *ProjectSettings) Tags() []string {
-	if p == nil {
-		return nil
-	}
-	return []string{}
-}
-
-// TagsTemplatized generates a list of templatized tags for the project settings.
-func (p *ProjectSettings) TagsTemplatized() []string {
 	if p == nil {
 		return nil
 	}
@@ -210,11 +182,10 @@ func (p *ProjectSettings) TagsTemplatized() []string {
 	var tags []string
 
 	if p.UID != "" {
-		tags = append(tags, "{{ uid }}")
+		tags = append(tags, p.UID)
 	}
-
 	if p.MissionStatement != "" {
-		tags = append(tags, "{{ mission_statement }}")
+		tags = append(tags, p.MissionStatement)
 	}
 
 	return tags
@@ -228,27 +199,20 @@ func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.Indexi
 	}
 
 	return &indexerTypes.IndexingConfig{
-		ObjectID:             "{{ uid }}",
+		ObjectID:             p.UID,
 		AccessCheckObject:    fmt.Sprintf("project:%s", projectUID),
 		AccessCheckRelation:  "auditor_guard",
 		HistoryCheckObject:   fmt.Sprintf("project:%s", projectUID),
 		HistoryCheckRelation: "writer_guard",
-		ParentRefs:           p.ParentRefsTemplatized(),
-		Tags:                 p.TagsTemplatized(),
+		ParentRefs:           p.ParentRefs(),
+		Tags:                 p.Tags(),
 	}
 }
 
-// ParentRefsTemplatized generates a list of templatized parent references for the project settings.
-func (p *ProjectSettings) ParentRefsTemplatized() []string {
-	if p == nil {
+// ParentRefs generates the parent references for the project settings.
+func (p *ProjectSettings) ParentRefs() []string {
+	if p == nil || p.UID == "" {
 		return nil
 	}
-
-	var parentRefs []string
-
-	if p.UID != "" {
-		parentRefs = append(parentRefs, "project:{{ uid }}")
-	}
-
-	return parentRefs
+	return []string{fmt.Sprintf("project:%s", p.UID)}
 }
