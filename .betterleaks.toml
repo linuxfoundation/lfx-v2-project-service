@@ -1,7 +1,7 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 
-title = "gitleaks config"
+title = "betterleaks config"
 
 [extend]
 # useDefault will extend the base configuration with the default gitleaks config:
@@ -18,7 +18,7 @@ paths = [
     '''.mypy_cache''',
     '''./cmd/project-api/service_handler_test.go''',
     '''./cmd/project-api/service_endpoint_test.go''',
-    '''(.*?)gitleaks\.toml$''',
+    '''(.*?)betterleaks\.toml$''',
     '''(?i)(.*?)(png|jpeg|jpg|gif|doc|docx|pdf|bin|xls|xlsx|pyc|zip)$''',
     '''(go.mod|go.sum)$''',
     '''(.*?)(swagger\.yml|swagger\.yaml)$''',

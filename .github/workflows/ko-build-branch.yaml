@@ -20,7 +20,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
@@ -51,15 +51,17 @@ jobs:
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t ${{ steps.container_tag.outputs.tag }} \
+            -t "${VERSION}" \
             --sbom spdx
       - name: Build root-project-setup for PR
+        env:
+          VERSION: ${{ steps.container_tag.outputs.tag }}
         run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t ${{ steps.container_tag.outputs.tag }} \
+            -t "${VERSION}" \
             --sbom spdx
       - name: Build project-cli for PR
         env:
@@ -74,5 +76,5 @@ jobs:
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t ${{ steps.container_tag.outputs.tag }} \
+            -t "${VERSION}" \
             --sbom spdx
