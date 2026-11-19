@@ -212,7 +212,7 @@ This service uses the generic FGA sync handlers for managing fine-grained access
    --version 0.1.12
    ```
 
-2. Install the `lfx-v2-project-service` helm chart from this current repository. You have two options: either install from the OCI registry or from the source. If you don't plan to develop the service, you can just use the packaged version from the [github packages](https://github.com/linuxfoundation/lfx-v2-project-service/pkgs/container/lfx-v2-project-service%2Fchart%2Flfx-v2-project-service). <!-- markdown-link-check-disable-line -->
+2. Install the `lfx-v2-project-service` helm chart from this current repository. You have two options: either install from the OCI registry or from the source. If you don't plan to develop the service, you can just use the packaged version from the [github packages](https://github.com/linuxfoundation/lfx-v2-project-service/pkgs/container/lfx-v2-project-service%2Fchart%2Flfx-v2-project-service).
 
    ```bash
    # From OCI registry
@@ -247,7 +247,7 @@ This service uses the generic FGA sync handlers for managing fine-grained access
    project_super_admin
    ```
 
-   Currently, you should use the existing [token helper script](https://github.com/linuxfoundation/lfx-architecture-scratch/tree/main/2024-12%20ReBAC%20Demo/token_helper) to generate the ID token. The script is only accessible if you are LF staff. The team has a TODO in order to include the helper script in a public repo or come up with a better solution for generating ID tokens for local testing. <!-- markdown-link-check-disable-line -->
+   Currently, you should use the existing [token helper script](https://github.com/linuxfoundation/lfx-architecture-scratch/tree/main/2024-12%20ReBAC%20Demo/token_helper) to generate the ID token. The script is only accessible if you are LF staff. The team has a TODO in order to include the helper script in a public repo or come up with a better solution for generating ID tokens for local testing.
 
    If you have access to the token helper script, run the following command to get the ID token. Note that you will be prompted in your web browser to log in as one of the valid Authelia users. Use the kubernetes secret `authelia-users` as previously mentioned to determine the password for each user. Use the username and password for the user you want to authenticate with.
 
