@@ -93,6 +93,11 @@ func GetProjectFolderProjectServicePath(uid string, folderUID string) string {
 	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)
 }
 
+// UpdateProjectFolderProjectServicePath returns the URL path to the project-service service update-project-folder HTTP endpoint.
+func UpdateProjectFolderProjectServicePath(uid string, folderUID string) string {
+	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)
+}
+
 // DeleteProjectFolderProjectServicePath returns the URL path to the project-service service delete-project-folder HTTP endpoint.
 func DeleteProjectFolderProjectServicePath(uid string, folderUID string) string {
 	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)

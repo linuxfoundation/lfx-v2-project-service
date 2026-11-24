@@ -909,6 +909,98 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
+        put:
+            tags:
+                - project-service
+            summary: update-project-folder project-service
+            description: Rename a project folder. The name must be unique within the project.
+            operationId: project-service#update-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: folder_uid
+                  in: path
+                  description: Folder UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+                - name: Update-Project-FolderRequestBody
+                  in: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceUpdateProjectFolderRequestBody'
+                    required:
+                        - name
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectFolder'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
         delete:
             tags:
                 - project-service
@@ -3788,6 +3880,20 @@ definitions:
         example:
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+        required:
+            - name
+    ProjectServiceUpdateProjectFolderRequestBody:
+        title: ProjectServiceUpdateProjectFolderRequestBody
+        type: object
+        properties:
+            name:
+                type: string
+                description: Folder display name; unique within the project
+                example: My Resource
+                minLength: 1
+                maxLength: 255
+        example:
             name: My Resource
         required:
             - name

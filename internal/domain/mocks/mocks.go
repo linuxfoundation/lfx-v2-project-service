@@ -232,6 +232,11 @@ func (m *MockFolderRepository) CreateFolder(ctx context.Context, folder *models.
 	return args.Error(0)
 }
 
+func (m *MockFolderRepository) UpdateFolder(ctx context.Context, folder *models.ProjectFolder, revision uint64) error {
+	args := m.Called(ctx, folder, revision)
+	return args.Error(0)
+}
+
 func (m *MockFolderRepository) DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error {
 	args := m.Called(ctx, projectUID, folderUID, revision)
 	return args.Error(0)

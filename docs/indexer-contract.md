@@ -292,7 +292,7 @@ A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `
 
 **Source struct:** `internal/domain/models/folder.go` — `ProjectFolder`
 
-**Indexed on:** create, delete of a project folder.
+**Indexed on:** create, update (rename), delete of a project folder.
 
 ### Data Schema
 

@@ -27,6 +27,7 @@ For what the service manages (projects and their settings, links, folders and do
 | `DELETE` | `/projects/:id/links/:link_uid` | Delete a link | Requires `If-Match: <etag>` |
 | `POST` | `/projects/:id/folders` | Create a folder | Name must be unique per project |
 | `GET` | `/projects/:id/folders/:folder_uid` | Get a folder | Returns `ETag` header |
+| `PUT` | `/projects/:id/folders/:folder_uid` | Rename a folder | Requires `If-Match: <etag>`; the name must be unique per project; documents and links refer to the folder by UID, so none of them changes |
 | `DELETE` | `/projects/:id/folders/:folder_uid` | Delete a folder | Requires `If-Match: <etag>`; blocked if folder has contents |
 | `POST` | `/projects/:id/documents` | Upload a document | `multipart/form-data`: `name`, `description`, `folder_uid`, `file`; max 10 MB; PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, PNG, JPEG, GIF, ZIP |
 | `GET` | `/projects/:id/documents/:document_uid` | Get document metadata | Returns `ETag` header |

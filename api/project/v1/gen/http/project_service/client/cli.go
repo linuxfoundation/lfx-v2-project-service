@@ -1149,6 +1149,90 @@ func BuildGetProjectFolderPayload(projectServiceGetProjectFolderUID string, proj
 	return v, nil
 }
 
+// BuildUpdateProjectFolderPayload builds the payload for the project-service
+// update-project-folder endpoint from CLI flags.
+func BuildUpdateProjectFolderPayload(projectServiceUpdateProjectFolderBody string, projectServiceUpdateProjectFolderUID string, projectServiceUpdateProjectFolderFolderUID string, projectServiceUpdateProjectFolderVersion string, projectServiceUpdateProjectFolderBearerToken string, projectServiceUpdateProjectFolderXSync string, projectServiceUpdateProjectFolderIfMatch string) (*projectservice.UpdateProjectFolderPayload, error) {
+	var err error
+	var body UpdateProjectFolderRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceUpdateProjectFolderBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"My Resource\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if utf8.RuneCountInString(body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 255, false))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceUpdateProjectFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var folderUID string
+	{
+		folderUID = projectServiceUpdateProjectFolderFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("folder_uid", folderUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceUpdateProjectFolderVersion != "" {
+			version = &projectServiceUpdateProjectFolderVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceUpdateProjectFolderBearerToken != "" {
+			bearerToken = &projectServiceUpdateProjectFolderBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceUpdateProjectFolderXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceUpdateProjectFolderXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	var ifMatch *string
+	{
+		if projectServiceUpdateProjectFolderIfMatch != "" {
+			ifMatch = &projectServiceUpdateProjectFolderIfMatch
+		}
+	}
+	v := &projectservice.UpdateProjectFolderPayload{
+		Name: body.Name,
+	}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
 // BuildDeleteProjectFolderPayload builds the payload for the project-service
 // delete-project-folder endpoint from CLI flags.
 func BuildDeleteProjectFolderPayload(projectServiceDeleteProjectFolderUID string, projectServiceDeleteProjectFolderFolderUID string, projectServiceDeleteProjectFolderVersion string, projectServiceDeleteProjectFolderBearerToken string, projectServiceDeleteProjectFolderXSync string, projectServiceDeleteProjectFolderIfMatch string) (*projectservice.DeleteProjectFolderPayload, error) {

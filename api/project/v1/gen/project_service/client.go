@@ -34,6 +34,7 @@ type Client struct {
 	DeleteProjectLinkEndpoint       goa.Endpoint
 	CreateProjectFolderEndpoint     goa.Endpoint
 	GetProjectFolderEndpoint        goa.Endpoint
+	UpdateProjectFolderEndpoint     goa.Endpoint
 	DeleteProjectFolderEndpoint     goa.Endpoint
 	UploadProjectDocumentEndpoint   goa.Endpoint
 	GetProjectDocumentEndpoint      goa.Endpoint
@@ -43,7 +44,7 @@ type Client struct {
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, updateProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, updateProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, updateProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, updateProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, updateProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
 		GetProjectsEndpoint:             getProjects,
 		CreateProjectEndpoint:           createProject,
@@ -61,6 +62,7 @@ func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSetti
 		DeleteProjectLinkEndpoint:       deleteProjectLink,
 		CreateProjectFolderEndpoint:     createProjectFolder,
 		GetProjectFolderEndpoint:        getProjectFolder,
+		UpdateProjectFolderEndpoint:     updateProjectFolder,
 		DeleteProjectFolderEndpoint:     deleteProjectFolder,
 		UploadProjectDocumentEndpoint:   uploadProjectDocument,
 		GetProjectDocumentEndpoint:      getProjectDocument,
@@ -323,6 +325,24 @@ func (c *Client) GetProjectFolder(ctx context.Context, p *GetProjectFolderPayloa
 		return
 	}
 	return ires.(*GetProjectFolderResult), nil
+}
+
+// UpdateProjectFolder calls the "update-project-folder" endpoint of the
+// "project-service" service.
+// UpdateProjectFolder may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Folder not found
+//   - "Conflict" (type *ConflictError): Folder name already exists, or the revision is stale
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateProjectFolder(ctx context.Context, p *UpdateProjectFolderPayload) (res *ProjectFolder, err error) {
+	var ires any
+	ires, err = c.UpdateProjectFolderEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectFolder), nil
 }
 
 // DeleteProjectFolder calls the "delete-project-folder" endpoint of the

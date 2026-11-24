@@ -150,6 +150,84 @@ func TestGetProjectFolder(t *testing.T) {
 	}
 }
 
+func TestUpdateProjectFolder(t *testing.T) {
+	existing := func() *models.ProjectFolder {
+		return &models.ProjectFolder{UID: testFolderUID, ProjectUID: testProjectUID, Name: "Old"}
+	}
+	payload := func(ifMatch *string) *projsvc.UpdateProjectFolderPayload {
+		return &projsvc.UpdateProjectFolderPayload{UID: testProjectUID, FolderUID: testFolderUID, IfMatch: ifMatch, Name: "Reports"}
+	}
+
+	tests := []struct {
+		name       string
+		payload    *projsvc.UpdateProjectFolderPayload
+		setupMocks func(*resourceMocks)
+		wantErr    any
+	}{
+		{
+			name:    "success writes at the If-Match revision and returns the renamed folder",
+			payload: payload(misc.StringPtr("4")),
+			setupMocks: func(m *resourceMocks) {
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(existing(), uint64(4), nil)
+				m.folder.On("UpdateFolder", mock.Anything, mock.MatchedBy(func(f *models.ProjectFolder) bool { return f.Name == "Reports" }), uint64(4)).Return(nil)
+				m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:    "missing If-Match is a bad request",
+			payload: payload(nil),
+			setupMocks: func(m *resourceMocks) {
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(existing(), uint64(4), nil)
+			},
+			wantErr: &projsvc.BadRequestError{},
+		},
+		{
+			name:    "revision mismatch is a conflict",
+			payload: payload(misc.StringPtr("3")),
+			setupMocks: func(m *resourceMocks) {
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(existing(), uint64(4), nil)
+				m.folder.On("UpdateFolder", mock.Anything, mock.Anything, uint64(3)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: &projsvc.ConflictError{},
+		},
+		{
+			name:    "a name another folder holds is a conflict",
+			payload: payload(misc.StringPtr("4")),
+			setupMocks: func(m *resourceMocks) {
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(existing(), uint64(4), nil)
+				m.folder.On("UpdateFolder", mock.Anything, mock.Anything, uint64(4)).Return(domain.ErrFolderNameExists)
+			},
+			wantErr: &projsvc.ConflictError{},
+		},
+		{
+			name:    "folder not found",
+			payload: payload(misc.StringPtr("4")),
+			setupMocks: func(m *resourceMocks) {
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api, m := setupResourceAPI()
+			tt.setupMocks(m)
+
+			got, err := api.UpdateProjectFolder(context.Background(), tt.payload)
+
+			if tt.wantErr != nil {
+				assert.IsType(t, tt.wantErr, err)
+				assert.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "Reports", *got.Name)
+			m.folder.AssertExpectations(t)
+		})
+	}
+}
+
 func TestDeleteProjectFolder(t *testing.T) {
 	otherFolderUID := "00000000-0000-0000-0000-0000000000f2"
 

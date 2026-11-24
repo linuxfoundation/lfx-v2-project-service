@@ -64,6 +64,7 @@ type LinkRepository interface {
 type FolderRepository interface {
 	GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error)
 	CreateFolder(ctx context.Context, folder *models.ProjectFolder) error
+	UpdateFolder(ctx context.Context, folder *models.ProjectFolder, revision uint64) error
 	DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error
 	UniqueFolderName(ctx context.Context, folder *models.ProjectFolder) (string, error)
 	DeleteUniqueFolderName(ctx context.Context, uniqueKey string) error

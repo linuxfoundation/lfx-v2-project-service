@@ -41,6 +41,7 @@ type Server struct {
 	DeleteProjectLink       http.Handler
 	CreateProjectFolder     http.Handler
 	GetProjectFolder        http.Handler
+	UpdateProjectFolder     http.Handler
 	DeleteProjectFolder     http.Handler
 	UploadProjectDocument   http.Handler
 	GetProjectDocument      http.Handler
@@ -122,6 +123,7 @@ func New(
 			{"DeleteProjectLink", "DELETE", "/projects/{uid}/links/{link_uid}"},
 			{"CreateProjectFolder", "POST", "/projects/{uid}/folders"},
 			{"GetProjectFolder", "GET", "/projects/{uid}/folders/{folder_uid}"},
+			{"UpdateProjectFolder", "PUT", "/projects/{uid}/folders/{folder_uid}"},
 			{"DeleteProjectFolder", "DELETE", "/projects/{uid}/folders/{folder_uid}"},
 			{"UploadProjectDocument", "POST", "/projects/{uid}/documents"},
 			{"GetProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}"},
@@ -149,6 +151,7 @@ func New(
 		DeleteProjectLink:       NewDeleteProjectLinkHandler(e.DeleteProjectLink, mux, decoder, encoder, errhandler, formatter),
 		CreateProjectFolder:     NewCreateProjectFolderHandler(e.CreateProjectFolder, mux, decoder, encoder, errhandler, formatter),
 		GetProjectFolder:        NewGetProjectFolderHandler(e.GetProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectFolder:     NewUpdateProjectFolderHandler(e.UpdateProjectFolder, mux, decoder, encoder, errhandler, formatter),
 		DeleteProjectFolder:     NewDeleteProjectFolderHandler(e.DeleteProjectFolder, mux, decoder, encoder, errhandler, formatter),
 		UploadProjectDocument:   NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
 		GetProjectDocument:      NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
@@ -183,6 +186,7 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.DeleteProjectLink = m(s.DeleteProjectLink)
 	s.CreateProjectFolder = m(s.CreateProjectFolder)
 	s.GetProjectFolder = m(s.GetProjectFolder)
+	s.UpdateProjectFolder = m(s.UpdateProjectFolder)
 	s.DeleteProjectFolder = m(s.DeleteProjectFolder)
 	s.UploadProjectDocument = m(s.UploadProjectDocument)
 	s.GetProjectDocument = m(s.GetProjectDocument)
@@ -212,6 +216,7 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountDeleteProjectLinkHandler(mux, h.DeleteProjectLink)
 	MountCreateProjectFolderHandler(mux, h.CreateProjectFolder)
 	MountGetProjectFolderHandler(mux, h.GetProjectFolder)
+	MountUpdateProjectFolderHandler(mux, h.UpdateProjectFolder)
 	MountDeleteProjectFolderHandler(mux, h.DeleteProjectFolder)
 	MountUploadProjectDocumentHandler(mux, h.UploadProjectDocument)
 	MountGetProjectDocumentHandler(mux, h.GetProjectDocument)
@@ -1050,6 +1055,60 @@ func NewGetProjectFolderHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-folder")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountUpdateProjectFolderHandler configures the mux to serve the
+// "project-service" service "update-project-folder" endpoint.
+func MountUpdateProjectFolderHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/projects/{uid}/folders/{folder_uid}", f)
+}
+
+// NewUpdateProjectFolderHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "update-project-folder"
+// endpoint.
+func NewUpdateProjectFolderHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateProjectFolderRequest(mux, decoder)
+		encodeResponse = EncodeUpdateProjectFolderResponse(encoder)
+		encodeError    = EncodeUpdateProjectFolderError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-project-folder")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		payload, err := decodeRequest(r)
 		if err != nil {

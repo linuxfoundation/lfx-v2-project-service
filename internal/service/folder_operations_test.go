@@ -9,12 +9,15 @@ import (
 	"testing"
 	"time"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -431,6 +434,212 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			mockFolder.AssertExpectations(t)
 			mockLink.AssertExpectations(t)
 			mockDoc.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_UpdateFolder(t *testing.T) {
+	const created = "2026-01-02T03:04:05Z"
+	createdAt, _ := time.Parse(time.RFC3339, created)
+	existing := func() *models.ProjectFolder {
+		return &models.ProjectFolder{
+			UID:        "folder-1",
+			ProjectUID: "proj-1",
+			Name:       "Old name",
+			CreatedBy:  &models.UserInfo{Username: "creator"},
+			UpdatedBy:  &models.UserInfo{Username: "creator"},
+			CreatedAt:  createdAt,
+			UpdatedAt:  createdAt,
+		}
+	}
+	type mocks struct {
+		folders *domainmocks.MockFolderRepository
+		msg     *domainmocks.MockMessageBuilder
+		indexed chan indexerTypes.IndexerMessageEnvelope
+	}
+	expectIndexed := func(m mocks) {
+		m.msg.On("SendIndexerMessage", mock.Anything, constants.IndexProjectFolderSubject, mock.Anything).
+			Run(func(a mock.Arguments) { m.indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
+	}
+
+	tests := []struct {
+		name       string
+		newName    string
+		ifMatch    *string
+		notReady   bool
+		skipEtag   bool
+		principal  string
+		setupMocks func(mocks)
+		wantErr    error
+		wantEditor string
+	}{
+		{
+			name:       "service not ready",
+			newName:    "New",
+			ifMatch:    misc.StringPtr("3"),
+			notReady:   true,
+			setupMocks: func(mocks) {},
+			wantErr:    domain.ErrServiceUnavailable,
+		},
+		{
+			name:       "empty name is rejected",
+			newName:    "",
+			ifMatch:    misc.StringPtr("3"),
+			setupMocks: func(mocks) {},
+			wantErr:    domain.ErrValidationFailed,
+		},
+		{
+			name:    "folder not found",
+			newName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: domain.ErrFolderNotFound,
+		},
+		{
+			name:    "a failing read is an internal error",
+			newName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(nil, uint64(0), errors.New("kv down"))
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
+			name:    "missing If-Match header",
+			newName: "New",
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:    "stale revision is a conflict and publishes nothing",
+			newName: "New",
+			ifMatch: misc.StringPtr("2"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.AnythingOfType("*models.ProjectFolder"), uint64(2)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:    "a name another folder holds is a conflict and publishes nothing",
+			newName: "Taken",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.AnythingOfType("*models.ProjectFolder"), uint64(3)).Return(domain.ErrFolderNameExists)
+			},
+			wantErr: domain.ErrFolderNameExists,
+		},
+		{
+			name:    "a storage failure on the write is returned and publishes nothing",
+			newName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.AnythingOfType("*models.ProjectFolder"), uint64(3)).Return(domain.ErrInternal)
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
+			name:    "success renames the folder and keeps its creation fields",
+			newName: "New name",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.MatchedBy(func(got *models.ProjectFolder) bool {
+					return got.UID == "folder-1" && got.ProjectUID == "proj-1" && got.Name == "New name" &&
+						got.CreatedAt.Equal(createdAt) && got.UpdatedAt.After(createdAt)
+				}), uint64(3)).Return(nil)
+				expectIndexed(m)
+			},
+		},
+		{
+			name:      "success keeps the creator and stamps the editor",
+			newName:   "New name",
+			ifMatch:   misc.StringPtr("3"),
+			principal: "editor",
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(3), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.MatchedBy(func(got *models.ProjectFolder) bool {
+					return got.CreatedBy != nil && got.CreatedBy.Username == "creator" &&
+						got.UpdatedBy != nil && got.UpdatedBy.Username == "editor"
+				}), uint64(3)).Return(nil)
+				expectIndexed(m)
+			},
+			wantEditor: "editor",
+		},
+		{
+			name:     "skip etag validation writes at the fetched revision",
+			newName:  "New name",
+			skipEtag: true,
+			setupMocks: func(m mocks) {
+				m.folders.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(existing(), uint64(7), nil)
+				m.folders.On("UpdateFolder", mock.Anything, mock.AnythingOfType("*models.ProjectFolder"), uint64(7)).Return(nil)
+				expectIndexed(m)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _, mockMsg := setupServiceForTesting()
+			m := mocks{
+				folders: svc.FolderRepository.(*domainmocks.MockFolderRepository),
+				msg:     mockMsg,
+				indexed: make(chan indexerTypes.IndexerMessageEnvelope, 1),
+			}
+			if tt.notReady {
+				svc.Resolver = nil
+			}
+			svc.Config.SkipEtagValidation = tt.skipEtag
+			tt.setupMocks(m)
+			ctx := context.Background()
+			if tt.principal != "" {
+				ctx = context.WithValue(ctx, constants.PrincipalContextID, tt.principal)
+				userReader := svc.UserReader.(*domainmocks.MockUserReader)
+				userReader.On("UserMetadataByPrincipal", mock.Anything, tt.principal).Return((*domain.UserMetadata)(nil), nil)
+				userReader.On("PrimaryEmailByUsername", mock.Anything, tt.principal).Return("", nil)
+			}
+
+			got, err := svc.UpdateFolder(ctx, "proj-1", "folder-1", tt.ifMatch, tt.newName)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, got)
+				assert.Empty(t, m.indexed, "a refused update publishes nothing")
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.newName, got.Name)
+				if tt.wantEditor != "" {
+					if assert.NotNil(t, got.CreatedBy) {
+						assert.Equal(t, "creator", got.CreatedBy.Username)
+					}
+					if assert.NotNil(t, got.UpdatedBy) {
+						assert.Equal(t, tt.wantEditor, got.UpdatedBy.Username)
+					}
+				}
+				select {
+				case msg := <-m.indexed:
+					assert.Equal(t, indexerConstants.ActionUpdated, msg.Action)
+					folder, ok := msg.Data.(models.ProjectFolder)
+					if assert.True(t, ok, "indexer data should be the updated folder") {
+						assert.Equal(t, "folder-1", folder.UID)
+						assert.Equal(t, tt.newName, folder.Name)
+					}
+					if assert.NotNil(t, msg.IndexingConfig) {
+						assert.Equal(t, tt.newName, msg.IndexingConfig.SortName)
+					}
+				case <-time.After(2 * time.Second):
+					t.Fatal("expected an updated indexer message")
+				}
+			}
+
+			m.folders.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
 		})
 	}

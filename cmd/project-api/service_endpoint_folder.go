@@ -33,6 +33,16 @@ func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.Get
 	}, nil
 }
 
+// UpdateProjectFolder renames a project folder.
+func (s *ProjectsAPI) UpdateProjectFolder(ctx context.Context, payload *projsvc.UpdateProjectFolderPayload) (*projsvc.ProjectFolder, error) {
+	folder, err := s.service.UpdateFolder(ctx, payload.UID, payload.FolderUID, payload.IfMatch, payload.Name)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+
+	return service.ConvertToServiceFolder(folder), nil
+}
+
 // DeleteProjectFolder deletes a project folder.
 func (s *ProjectsAPI) DeleteProjectFolder(ctx context.Context, payload *projsvc.DeleteProjectFolderPayload) error {
 	if err := s.service.DeleteFolder(ctx, payload.UID, payload.FolderUID, payload.IfMatch); err != nil {
