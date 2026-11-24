@@ -67,7 +67,7 @@ If the ROOT project already exists:
 
 ## Dependencies
 
-- Go 1.27.3+
+- Go 1.27.4+
 - NATS server with JetStream enabled
 - Access to the project service's NATS key-value bucket
 

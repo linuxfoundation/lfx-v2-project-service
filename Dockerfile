@@ -30,8 +30,8 @@ RUN go build -o /go/bin/project-svc -trimpath -ldflags="-w -s" github.com/linuxf
 # Run our go binary standalone
 FROM cgr.dev/chainguard/static:latest
 
-# Implicit with base image; setting explicitly for linters.
-USER nonroot
+# Numeric UID of the Chainguard nonroot user (implicit with the base image).
+USER 65532
 
 COPY --from=builder /go/bin/project-svc /cmd/project-api
 
