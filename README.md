@@ -103,6 +103,7 @@ Fire-and-forget event subscribers — no reply is sent to the publisher:
 |---|---|---|
 | `lfx.projects-api.project_settings.updated` | Self | Sends role-notification emails or invite requests when project membership changes |
 | `lfx.invite-service.invite_accepted` | invite-service | Promotes matching email-only members to full LFID membership across all their projects |
+| `lfx.auth-service.user_email_verified` | auth-service | Promotes matching email-only members to full LFID membership when their email is first verified on an account, whether or not they used the invite link |
 | `lfx.projects-api.project_document.created` | Self | Emails project writers and auditors about the newly uploaded document |
 | `lfx.projects-api.project_link.created` | Self | Emails project writers and auditors about the newly added link |
 

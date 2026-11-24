@@ -119,3 +119,14 @@ type V1UserDeletedEvent struct {
 	Username string `json:"username"`
 	Email    string `json:"email,omitempty"`
 }
+
+// UserEmailVerifiedEvent is the payload published by the auth service on
+// lfx.auth-service.user_email_verified when a user is first seen with a verified primary email.
+// Username is the user's LFID and Email the verified address. The event travels over an
+// unauthenticated bus, so subscribers re-resolve Email through the auth service before
+// trusting Username.
+type UserEmailVerifiedEvent struct {
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Timestamp time.Time `json:"timestamp"`
+}

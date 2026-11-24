@@ -148,7 +148,7 @@ origin echoes, not all concurrent writes: the v1 staff PATCH still has no CAS.
 
 ### Settings written by events
 
-Project settings are also written by two inbound event handlers, not only by `PUT /projects/{uid}/settings`: `HandleInviteAccepted` promotes email-only role holders to their LFID once they accept an invite, and `HandleUserDeleted` scrubs a deleted user's username (`lfx.v1-sync-helper.user.deleted`). Both update the settings with a revision check, then republish the indexer and FGA messages through `republishProjectSettings`. No request is waiting on them, so a failure there is logged rather than returned.
+Project settings are also written by three inbound event handlers, not only by `PUT /projects/{uid}/settings`: `HandleInviteAccepted` promotes email-only role holders to their LFID once they accept an invite, `HandleUserEmailVerified` does the same when the auth service reports that their email is verified on a new account (so signing up without the invite link still grants the role), and `HandleUserDeleted` scrubs a deleted user's username (`lfx.v1-sync-helper.user.deleted`). Both update the settings with a revision check, then republish the indexer and FGA messages through `republishProjectSettings`. No request is waiting on them, so a failure there is logged rather than returned.
 
 ### When publishing fails
 
