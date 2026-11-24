@@ -343,7 +343,8 @@ func (s *NatsRepository) documentWriteLanded(ctx context.Context, doc *models.Pr
 //     left it;
 //   - the old name at the revision it was sent at: the write may still be on its way, and a key released now could be
 //     taken by another document before it lands, so both keys are kept and the condition is logged;
-//   - unreadable: the state is not known, so both keys are kept.
+//   - unreadable, or older than the revision the write was sent at (a stale read from a lagging replica): the state is
+//     not known, so both keys are kept.
 //
 // Every release is guarded by the revision the key had, so a key that changed hands is left alone. A crash between
 // reserving the new name and writing the record leaves the same lock, and nothing here can settle it.
@@ -363,6 +364,14 @@ func (s *NatsRepository) settleDocumentRename(ctx context.Context, doc *models.P
 	if errGet != nil {
 		slog.ErrorContext(ctx, "could not read the document back after a rename write error; keeping both name keys, and the one the record does not use stays locked until it is removed",
 			append([]any{constants.ErrKey, errGet, "write_error", writeErr}, attrs...)...)
+		return false
+	}
+	if entry.Revision() < revision {
+		// The record was read at this revision before the write was sent, and revisions only grow, so an older one is
+		// a stale read (KV reads may be served by a replica that lags the leader). It says nothing about whether the
+		// pending write can still apply, so both keys are kept, as for a record that cannot be read.
+		slog.ErrorContext(ctx, "the document read back after a rename write error is older than the revision the write was sent at; keeping both name keys, and the one the record does not use stays locked until it is removed",
+			append([]any{"write_error", writeErr, "read_revision", entry.Revision(), "write_revision", revision}, attrs...)...)
 		return false
 	}
 	stored := &models.ProjectDocument{}

@@ -833,6 +833,30 @@ func TestNatsRepository_UpdateDocumentMetadata(t *testing.T) {
 			assert.True(t, nameHeld(kv, "Minutes 2026"))
 		})
 
+		t.Run("a read-back older than the revision the write was sent at keeps both names", func(t *testing.T) {
+			kv := newMemKV()
+			repo0, _, _ := seedDocument(t, kv)
+			oldEntry, err := kv.Get(ctx, updateDocUID)
+			require.NoError(t, err)
+			// Another edit moves the record on, so the rename below is sent at a later revision than the snapshot.
+			latest, rev, err := repo0.GetDocumentMetadata(ctx, updateProjectUID, updateDocUID)
+			require.NoError(t, err)
+			latest.Description = "edited"
+			require.NoError(t, repo0.UpdateDocumentMetadata(ctx, latest, rev))
+			doc, revision, err := repo0.GetDocumentMetadata(ctx, updateProjectUID, updateDocUID)
+			require.NoError(t, err)
+			failing := &renameWriteKV{INatsKeyValue: kv, recordKey: updateDocUID, err: context.DeadlineExceeded}
+			// After the write is attempted, the read-back is served by a replica that still has the older record.
+			repo := &NatsRepository{Documents: &staleReadKV{INatsKeyValue: failing, failing: failing, recordKey: updateDocUID, stale: oldEntry}}
+
+			doc.Name = "Minutes 2026"
+			require.Error(t, repo.UpdateDocumentMetadata(ctx, doc, revision))
+
+			// The older record says nothing about whether the write can still land, so neither key is released.
+			assert.True(t, nameHeld(kv, "Minutes"))
+			assert.True(t, nameHeld(kv, "Minutes 2026"))
+		})
+
 		t.Run("an update that keeps the name and landed despite the error is a success", func(t *testing.T) {
 			repo, kv, doc, revision, _ := setup(t, func(k *renameWriteKV) { k.applied, k.err = true, context.DeadlineExceeded })
 
@@ -1016,6 +1040,22 @@ func (k *cancelAfterCreateKV) Create(ctx context.Context, key string, value []by
 	rev, err := k.INatsKeyValue.Create(ctx, key, value, opts...)
 	k.cancel()
 	return rev, err
+}
+
+// staleReadKV serves an older snapshot of one record once its failing write has been attempted: a read that went to a
+// replica behind the leader.
+type staleReadKV struct {
+	INatsKeyValue
+	failing   *renameWriteKV
+	recordKey string
+	stale     jetstream.KeyValueEntry
+}
+
+func (k *staleReadKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	if key == k.recordKey && k.failing.attempted {
+		return k.stale, nil
+	}
+	return k.INatsKeyValue.Get(ctx, key)
 }
 
 // getHookKV runs a hook once, just before one key is read: what another request does while this one is paused there.
