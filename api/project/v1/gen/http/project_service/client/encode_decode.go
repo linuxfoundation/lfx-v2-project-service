@@ -2400,6 +2400,189 @@ func DecodeGetProjectFolderResponse(decoder func(*http.Response) goahttp.Decoder
 	}
 }
 
+// BuildUpdateProjectFolderRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "update-project-folder" endpoint
+func (c *Client) BuildUpdateProjectFolderRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid       string
+		folderUID string
+	)
+	{
+		p, ok := v.(*projectservice.UpdateProjectFolderPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "update-project-folder", "*projectservice.UpdateProjectFolderPayload", v)
+		}
+		uid = p.UID
+		folderUID = p.FolderUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectFolderProjectServicePath(uid, folderUID)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "update-project-folder", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateProjectFolderRequest returns an encoder for requests sent to the
+// project-service update-project-folder server.
+func EncodeUpdateProjectFolderRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UpdateProjectFolderPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "update-project-folder", "*projectservice.UpdateProjectFolderPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateProjectFolderRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "update-project-folder", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateProjectFolderResponse returns a decoder for responses returned
+// by the project-service update-project-folder endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeUpdateProjectFolderResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateProjectFolderResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateProjectFolderResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			res := NewUpdateProjectFolderProjectFolderOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UpdateProjectFolderBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			return nil, NewUpdateProjectFolderBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectFolderConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			return nil, NewUpdateProjectFolderConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateProjectFolderInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			return nil, NewUpdateProjectFolderInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UpdateProjectFolderNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			return nil, NewUpdateProjectFolderNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateProjectFolderServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-folder", err)
+			}
+			err = ValidateUpdateProjectFolderServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-folder", err)
+			}
+			return nil, NewUpdateProjectFolderServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "update-project-folder", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildDeleteProjectFolderRequest instantiates a HTTP request object with
 // method and path set to call the "project-service" service
 // "delete-project-folder" endpoint

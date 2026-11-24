@@ -35,6 +35,7 @@ type Endpoints struct {
 	DeleteProjectLink       goa.Endpoint
 	CreateProjectFolder     goa.Endpoint
 	GetProjectFolder        goa.Endpoint
+	UpdateProjectFolder     goa.Endpoint
 	DeleteProjectFolder     goa.Endpoint
 	UploadProjectDocument   goa.Endpoint
 	GetProjectDocument      goa.Endpoint
@@ -72,6 +73,7 @@ func NewEndpoints(s Service) *Endpoints {
 		DeleteProjectLink:       NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
 		CreateProjectFolder:     NewCreateProjectFolderEndpoint(s, a.JWTAuth),
 		GetProjectFolder:        NewGetProjectFolderEndpoint(s, a.JWTAuth),
+		UpdateProjectFolder:     NewUpdateProjectFolderEndpoint(s, a.JWTAuth),
 		DeleteProjectFolder:     NewDeleteProjectFolderEndpoint(s, a.JWTAuth),
 		UploadProjectDocument:   NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
 		GetProjectDocument:      NewGetProjectDocumentEndpoint(s, a.JWTAuth),
@@ -100,6 +102,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.DeleteProjectLink = m(e.DeleteProjectLink)
 	e.CreateProjectFolder = m(e.CreateProjectFolder)
 	e.GetProjectFolder = m(e.GetProjectFolder)
+	e.UpdateProjectFolder = m(e.UpdateProjectFolder)
 	e.DeleteProjectFolder = m(e.DeleteProjectFolder)
 	e.UploadProjectDocument = m(e.UploadProjectDocument)
 	e.GetProjectDocument = m(e.GetProjectDocument)
@@ -443,6 +446,29 @@ func NewGetProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.
 			return nil, err
 		}
 		return s.GetProjectFolder(ctx, p)
+	}
+}
+
+// NewUpdateProjectFolderEndpoint returns an endpoint function that calls the
+// method "update-project-folder" of service "project-service".
+func NewUpdateProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateProjectFolderPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateProjectFolder(ctx, p)
 	}
 }
 

@@ -220,6 +220,13 @@ type CreateProjectFolderRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 }
 
+// UpdateProjectFolderRequestBody is the type of the "project-service" service
+// "update-project-folder" endpoint HTTP request body.
+type UpdateProjectFolderRequestBody struct {
+	// Folder display name; unique within the project
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
 // UploadProjectDocumentRequestBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP request body.
 type UploadProjectDocumentRequestBody struct {
@@ -535,6 +542,25 @@ type CreateProjectFolderResponseBody struct {
 // GetProjectFolderResponseBody is the type of the "project-service" service
 // "get-project-folder" endpoint HTTP response body.
 type GetProjectFolderResponseBody ProjectFolderResponseBody
+
+// UpdateProjectFolderResponseBody is the type of the "project-service" service
+// "update-project-folder" endpoint HTTP response body.
+type UpdateProjectFolderResponseBody struct {
+	// Folder UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// User who created this resource
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
 
 // UploadProjectDocumentResponseBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP response body.
@@ -1182,6 +1208,56 @@ type GetProjectFolderNotFoundResponseBody struct {
 // "project-service" service "get-project-folder" endpoint HTTP response body
 // for the "ServiceUnavailable" error.
 type GetProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateProjectFolderBadRequestResponseBody is the type of the
+// "project-service" service "update-project-folder" endpoint HTTP response
+// body for the "BadRequest" error.
+type UpdateProjectFolderBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateProjectFolderConflictResponseBody is the type of the "project-service"
+// service "update-project-folder" endpoint HTTP response body for the
+// "Conflict" error.
+type UpdateProjectFolderConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "update-project-folder" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UpdateProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "update-project-folder" endpoint HTTP response body for the
+// "NotFound" error.
+type UpdateProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "update-project-folder" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UpdateProjectFolderServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code string `form:"code" json:"code" xml:"code"`
 	// Error message
@@ -2224,6 +2300,26 @@ func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult)
 	return body
 }
 
+// NewUpdateProjectFolderResponseBody builds the HTTP response body from the
+// result of the "update-project-folder" endpoint of the "project-service"
+// service.
+func NewUpdateProjectFolderResponseBody(res *projectservice.ProjectFolder) *UpdateProjectFolderResponseBody {
+	body := &UpdateProjectFolderResponseBody{
+		UID:        res.UID,
+		ProjectUID: res.ProjectUID,
+		Name:       res.Name,
+		CreatedAt:  res.CreatedAt,
+		UpdatedAt:  res.UpdatedAt,
+	}
+	if res.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.CreatedBy)
+	}
+	if res.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.UpdatedBy)
+	}
+	return body
+}
+
 // NewUploadProjectDocumentResponseBody builds the HTTP response body from the
 // result of the "upload-project-document" endpoint of the "project-service"
 // service.
@@ -2940,6 +3036,61 @@ func NewGetProjectFolderServiceUnavailableResponseBody(res *projectservice.Servi
 	return body
 }
 
+// NewUpdateProjectFolderBadRequestResponseBody builds the HTTP response body
+// from the result of the "update-project-folder" endpoint of the
+// "project-service" service.
+func NewUpdateProjectFolderBadRequestResponseBody(res *projectservice.BadRequestError) *UpdateProjectFolderBadRequestResponseBody {
+	body := &UpdateProjectFolderBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectFolderConflictResponseBody builds the HTTP response body
+// from the result of the "update-project-folder" endpoint of the
+// "project-service" service.
+func NewUpdateProjectFolderConflictResponseBody(res *projectservice.ConflictError) *UpdateProjectFolderConflictResponseBody {
+	body := &UpdateProjectFolderConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectFolderInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "update-project-folder" endpoint of the
+// "project-service" service.
+func NewUpdateProjectFolderInternalServerErrorResponseBody(res *projectservice.InternalServerError) *UpdateProjectFolderInternalServerErrorResponseBody {
+	body := &UpdateProjectFolderInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectFolderNotFoundResponseBody builds the HTTP response body
+// from the result of the "update-project-folder" endpoint of the
+// "project-service" service.
+func NewUpdateProjectFolderNotFoundResponseBody(res *projectservice.NotFoundError) *UpdateProjectFolderNotFoundResponseBody {
+	body := &UpdateProjectFolderNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectFolderServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "update-project-folder" endpoint of the
+// "project-service" service.
+func NewUpdateProjectFolderServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *UpdateProjectFolderServiceUnavailableResponseBody {
+	body := &UpdateProjectFolderServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
 // NewDeleteProjectFolderBadRequestResponseBody builds the HTTP response body
 // from the result of the "delete-project-folder" endpoint of the
 // "project-service" service.
@@ -3576,6 +3727,22 @@ func NewGetProjectFolderPayload(uid string, folderUID string, version *string, b
 	return v
 }
 
+// NewUpdateProjectFolderPayload builds a project-service service
+// update-project-folder endpoint payload.
+func NewUpdateProjectFolderPayload(body *UpdateProjectFolderRequestBody, uid string, folderUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.UpdateProjectFolderPayload {
+	v := &projectservice.UpdateProjectFolderPayload{
+		Name: *body.Name,
+	}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v
+}
+
 // NewDeleteProjectFolderPayload builds a project-service service
 // delete-project-folder endpoint payload.
 func NewDeleteProjectFolderPayload(uid string, folderUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectFolderPayload {
@@ -4026,6 +4193,25 @@ func ValidateCreateProjectFolderRequestBody(body *CreateProjectFolderRequestBody
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	return
+}
+
+// ValidateUpdateProjectFolderRequestBody runs the validations defined on
+// Update-Project-FolderRequestBody
+func ValidateUpdateProjectFolderRequestBody(body *UpdateProjectFolderRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 255, false))
 		}
 	}
 	return

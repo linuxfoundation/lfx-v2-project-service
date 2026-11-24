@@ -25,7 +25,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|update-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|update-project-document|delete-project-document)",
+		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|update-project-link|delete-project-link|create-project-folder|get-project-folder|update-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|update-project-document|delete-project-document)",
 	}
 }
 
@@ -143,6 +143,15 @@ func ParseEndpoint(
 		projectServiceGetProjectFolderVersionFlag     = projectServiceGetProjectFolderFlags.String("version", "", "")
 		projectServiceGetProjectFolderBearerTokenFlag = projectServiceGetProjectFolderFlags.String("bearer-token", "", "")
 
+		projectServiceUpdateProjectFolderFlags           = flag.NewFlagSet("update-project-folder", flag.ExitOnError)
+		projectServiceUpdateProjectFolderBodyFlag        = projectServiceUpdateProjectFolderFlags.String("body", "REQUIRED", "")
+		projectServiceUpdateProjectFolderUIDFlag         = projectServiceUpdateProjectFolderFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUpdateProjectFolderFolderUIDFlag   = projectServiceUpdateProjectFolderFlags.String("folder-uid", "REQUIRED", "Folder UID")
+		projectServiceUpdateProjectFolderVersionFlag     = projectServiceUpdateProjectFolderFlags.String("version", "", "")
+		projectServiceUpdateProjectFolderBearerTokenFlag = projectServiceUpdateProjectFolderFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectFolderXSyncFlag       = projectServiceUpdateProjectFolderFlags.String("x-sync", "", "")
+		projectServiceUpdateProjectFolderIfMatchFlag     = projectServiceUpdateProjectFolderFlags.String("if-match", "", "")
+
 		projectServiceDeleteProjectFolderFlags           = flag.NewFlagSet("delete-project-folder", flag.ExitOnError)
 		projectServiceDeleteProjectFolderUIDFlag         = projectServiceDeleteProjectFolderFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceDeleteProjectFolderFolderUIDFlag   = projectServiceDeleteProjectFolderFlags.String("folder-uid", "REQUIRED", "Folder UID")
@@ -204,6 +213,7 @@ func ParseEndpoint(
 	projectServiceDeleteProjectLinkFlags.Usage = projectServiceDeleteProjectLinkUsage
 	projectServiceCreateProjectFolderFlags.Usage = projectServiceCreateProjectFolderUsage
 	projectServiceGetProjectFolderFlags.Usage = projectServiceGetProjectFolderUsage
+	projectServiceUpdateProjectFolderFlags.Usage = projectServiceUpdateProjectFolderUsage
 	projectServiceDeleteProjectFolderFlags.Usage = projectServiceDeleteProjectFolderUsage
 	projectServiceUploadProjectDocumentFlags.Usage = projectServiceUploadProjectDocumentUsage
 	projectServiceGetProjectDocumentFlags.Usage = projectServiceGetProjectDocumentUsage
@@ -292,6 +302,9 @@ func ParseEndpoint(
 
 			case "get-project-folder":
 				epf = projectServiceGetProjectFolderFlags
+
+			case "update-project-folder":
+				epf = projectServiceUpdateProjectFolderFlags
 
 			case "delete-project-folder":
 				epf = projectServiceDeleteProjectFolderFlags
@@ -382,6 +395,9 @@ func ParseEndpoint(
 			case "get-project-folder":
 				endpoint = c.GetProjectFolder()
 				data, err = projectservicec.BuildGetProjectFolderPayload(*projectServiceGetProjectFolderUIDFlag, *projectServiceGetProjectFolderFolderUIDFlag, *projectServiceGetProjectFolderVersionFlag, *projectServiceGetProjectFolderBearerTokenFlag)
+			case "update-project-folder":
+				endpoint = c.UpdateProjectFolder()
+				data, err = projectservicec.BuildUpdateProjectFolderPayload(*projectServiceUpdateProjectFolderBodyFlag, *projectServiceUpdateProjectFolderUIDFlag, *projectServiceUpdateProjectFolderFolderUIDFlag, *projectServiceUpdateProjectFolderVersionFlag, *projectServiceUpdateProjectFolderBearerTokenFlag, *projectServiceUpdateProjectFolderXSyncFlag, *projectServiceUpdateProjectFolderIfMatchFlag)
 			case "delete-project-folder":
 				endpoint = c.DeleteProjectFolder()
 				data, err = projectservicec.BuildDeleteProjectFolderPayload(*projectServiceDeleteProjectFolderUIDFlag, *projectServiceDeleteProjectFolderFolderUIDFlag, *projectServiceDeleteProjectFolderVersionFlag, *projectServiceDeleteProjectFolderBearerTokenFlag, *projectServiceDeleteProjectFolderXSyncFlag, *projectServiceDeleteProjectFolderIfMatchFlag)
@@ -432,6 +448,7 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    delete-project-link: Delete a project link.`)
 	fmt.Fprintln(os.Stderr, `    create-project-folder: Create a new folder for a project.`)
 	fmt.Fprintln(os.Stderr, `    get-project-folder: Get a single project folder.`)
+	fmt.Fprintln(os.Stderr, `    update-project-folder: Rename a project folder. The name must be unique within the project.`)
 	fmt.Fprintln(os.Stderr, `    delete-project-folder: Delete a project folder. The folder must be empty.`)
 	fmt.Fprintln(os.Stderr, `    upload-project-document: Upload a new document for a project (multipart/form-data).`)
 	fmt.Fprintln(os.Stderr, `    get-project-document: Get project document metadata.`)
@@ -822,6 +839,36 @@ func projectServiceGetProjectFolderUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service get-project-folder --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --folder-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceUpdateProjectFolderUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service update-project-folder", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -folder-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Rename a project folder. The name must be unique within the project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -folder-uid STRING: Folder UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service update-project-folder --body '{\n      \"name\": \"My Resource\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --folder-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
 }
 
 func projectServiceDeleteProjectFolderUsage() {

@@ -102,6 +102,55 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 	return folder, revisionStr, nil
 }
 
+// UpdateFolder renames a project folder with optimistic concurrency. The name must stay unique within the project.
+// Documents and links refer to a folder by UID, so none of them changes. Audit creation fields are kept.
+func (s *ProjectsService) UpdateFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string, name string) (*models.ProjectFolder, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "service not ready")
+		return nil, domain.ErrServiceUnavailable
+	}
+
+	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("folder_uid", folderUID))
+
+	folder, currentRevision, err := s.FolderRepository.GetFolder(ctx, projectUID, folderUID)
+	if err != nil {
+		if errors.Is(err, domain.ErrFolderNotFound) {
+			return nil, domain.ErrFolderNotFound
+		}
+		slog.ErrorContext(ctx, "error getting folder", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) { return currentRevision, nil })
+	if err != nil {
+		return nil, err
+	}
+
+	if _, updatedBy := s.stampAuditUsers(ctx); updatedBy != nil {
+		folder.UpdatedBy = updatedBy
+	}
+	folder.Name = name
+	folder.UpdatedAt = time.Now().UTC()
+
+	if err := s.FolderRepository.UpdateFolder(ctx, folder, revision); err != nil {
+		return nil, err
+	}
+
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *folder,
+		IndexingConfig: folder.IndexingConfig(),
+	}
+	s.publishIndexer(ctx, constants.IndexProjectFolderSubject, msg)
+
+	return folder, nil
+}
+
 // DeleteFolder deletes a project folder with optimistic concurrency.
 // Returns ErrFolderNotEmpty if the folder still has links or documents.
 func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string) error {

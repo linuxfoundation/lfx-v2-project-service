@@ -83,6 +83,10 @@ type Client struct {
 	// get-project-folder endpoint.
 	GetProjectFolderDoer goahttp.Doer
 
+	// UpdateProjectFolder Doer is the HTTP client used to make requests to the
+	// update-project-folder endpoint.
+	UpdateProjectFolderDoer goahttp.Doer
+
 	// DeleteProjectFolder Doer is the HTTP client used to make requests to the
 	// delete-project-folder endpoint.
 	DeleteProjectFolderDoer goahttp.Doer
@@ -149,6 +153,7 @@ func NewClient(
 		DeleteProjectLinkDoer:       doer,
 		CreateProjectFolderDoer:     doer,
 		GetProjectFolderDoer:        doer,
+		UpdateProjectFolderDoer:     doer,
 		DeleteProjectFolderDoer:     doer,
 		UploadProjectDocumentDoer:   doer,
 		GetProjectDocumentDoer:      doer,
@@ -532,6 +537,30 @@ func (c *Client) GetProjectFolder() goa.Endpoint {
 		resp, err := c.GetProjectFolderDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "get-project-folder", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateProjectFolder returns an endpoint that makes HTTP requests to the
+// project-service service update-project-folder server.
+func (c *Client) UpdateProjectFolder() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateProjectFolderRequest(c.encoder)
+		decodeResponse = DecodeUpdateProjectFolderResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateProjectFolderRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateProjectFolderDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "update-project-folder", err)
 		}
 		return decodeResponse(resp)
 	}

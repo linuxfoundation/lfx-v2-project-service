@@ -85,7 +85,20 @@ func (s *NatsRepository) ListFolders(ctx context.Context, projectUID string) ([]
 	})
 }
 
-// UpdateFolder persists folder metadata with optimistic concurrency.
+// folderNames is the folder collection with its per-project name uniqueness, held by a lookup key.
+func (s *NatsRepository) folderNames() namedCollection[models.ProjectFolder] {
+	return namedCollection[models.ProjectFolder]{
+		kvCollection: s.folders(),
+		lookupFormat: constants.KVLookupFolderPrefix,
+		uid:          func(f *models.ProjectFolder) string { return f.UID },
+		indexKey:     func(ctx context.Context, f *models.ProjectFolder) string { return f.BuildIndexKey(ctx) },
+		nameExists:   domain.ErrFolderNameExists,
+	}
+}
+
+// UpdateFolder replaces a folder when the revision is still current. A changed name moves the (project, name) lookup
+// key with it, so a name another folder holds is ErrFolderNameExists and changes nothing; see namedCollection.update
+// for the sequence and how an ambiguous write error is settled.
 func (s *NatsRepository) UpdateFolder(ctx context.Context, folder *models.ProjectFolder, revision uint64) error {
-	return s.folders().update(ctx, folder.UID, folder, revision)
+	return s.folderNames().update(ctx, folder, revision)
 }

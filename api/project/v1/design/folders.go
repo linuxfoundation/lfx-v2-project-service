@@ -89,6 +89,53 @@ var _ = Service("project-service", func() {
 		})
 	})
 
+	Method("update-project-folder", func() {
+		Description("Rename a project folder. The name must be unique within the project.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			XSyncAttribute()
+			IfMatchAttribute()
+			VersionAttribute()
+			ProjectUIDAttribute()
+			ResourceUIDAttribute("folder_uid", "Folder UID")
+			Attribute("name", String, "Folder display name; unique within the project", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
+			Required("uid", "folder_uid", "name")
+		})
+
+		Result(ProjectFolder)
+
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("NotFound", NotFoundError, "Folder not found")
+		Error("Conflict", ConflictError, "Folder name already exists, or the revision is stale")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			PUT("/projects/{uid}/folders/{folder_uid}")
+			Params(func() {
+				Param("version:v")
+				Param("uid")
+				Param("folder_uid")
+			})
+			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
+			Header("if_match:If-Match")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("NotFound", StatusNotFound)
+			Response("Conflict", StatusConflict)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
 	Method("delete-project-folder", func() {
 		Description("Delete a project folder. The folder must be empty.")
 
