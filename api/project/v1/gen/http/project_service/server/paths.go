@@ -113,6 +113,11 @@ func DownloadProjectDocumentProjectServicePath(uid string, documentUID string) s
 	return fmt.Sprintf("/projects/%v/documents/%v/download", uid, documentUID)
 }
 
+// UpdateProjectDocumentProjectServicePath returns the URL path to the project-service service update-project-document HTTP endpoint.
+func UpdateProjectDocumentProjectServicePath(uid string, documentUID string) string {
+	return fmt.Sprintf("/projects/%v/documents/%v", uid, documentUID)
+}
+
 // DeleteProjectDocumentProjectServicePath returns the URL path to the project-service service delete-project-document HTTP endpoint.
 func DeleteProjectDocumentProjectServicePath(uid string, documentUID string) string {
 	return fmt.Sprintf("/projects/%v/documents/%v", uid, documentUID)

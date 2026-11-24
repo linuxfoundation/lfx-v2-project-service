@@ -99,6 +99,10 @@ type Client struct {
 	// download-project-document endpoint.
 	DownloadProjectDocumentDoer goahttp.Doer
 
+	// UpdateProjectDocument Doer is the HTTP client used to make requests to the
+	// update-project-document endpoint.
+	UpdateProjectDocumentDoer goahttp.Doer
+
 	// DeleteProjectDocument Doer is the HTTP client used to make requests to the
 	// delete-project-document endpoint.
 	DeleteProjectDocumentDoer goahttp.Doer
@@ -149,6 +153,7 @@ func NewClient(
 		UploadProjectDocumentDoer:   doer,
 		GetProjectDocumentDoer:      doer,
 		DownloadProjectDocumentDoer: doer,
+		UpdateProjectDocumentDoer:   doer,
 		DeleteProjectDocumentDoer:   doer,
 		RestoreResponseBody:         restoreBody,
 		scheme:                      scheme,
@@ -630,6 +635,30 @@ func (c *Client) DownloadProjectDocument() goa.Endpoint {
 			return nil, err
 		}
 		return &projectservice.DownloadProjectDocumentResponseData{Body: resp.Body}, nil
+	}
+}
+
+// UpdateProjectDocument returns an endpoint that makes HTTP requests to the
+// project-service service update-project-document server.
+func (c *Client) UpdateProjectDocument() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateProjectDocumentRequest(c.encoder)
+		decodeResponse = DecodeUpdateProjectDocumentResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateProjectDocumentRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateProjectDocumentDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "update-project-document", err)
+		}
+		return decodeResponse(resp)
 	}
 }
 

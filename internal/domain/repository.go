@@ -43,6 +43,7 @@ type DocumentRepository interface {
 	GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error)
 	ListDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error)
 	CreateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument) error
+	UpdateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument, revision uint64) error
 	PutDocumentFile(ctx context.Context, documentUID string, fileData []byte) error
 	DeleteDocumentMetadata(ctx context.Context, projectUID, documentUID string, revision uint64) error
 	DeleteDocumentFile(ctx context.Context, documentUID string) error

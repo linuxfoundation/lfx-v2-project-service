@@ -237,6 +237,17 @@ type UploadProjectDocumentRequestBody struct {
 	ContentType string `form:"content_type" json:"content_type" xml:"content_type"`
 }
 
+// UpdateProjectDocumentRequestBody is the type of the "project-service"
+// service "update-project-document" endpoint HTTP request body.
+type UpdateProjectDocumentRequestBody struct {
+	// Document display name; unique within the project
+	Name string `form:"name" json:"name" xml:"name"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the document in (omit for the project root)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+}
+
 // GetProjectsResponseBody is the type of the "project-service" service
 // "get-projects" endpoint HTTP response body.
 type GetProjectsResponseBody struct {
@@ -557,6 +568,35 @@ type UploadProjectDocumentResponseBody struct {
 // GetProjectDocumentResponseBody is the type of the "project-service" service
 // "get-project-document" endpoint HTTP response body.
 type GetProjectDocumentResponseBody ProjectDocumentResponseBody
+
+// UpdateProjectDocumentResponseBody is the type of the "project-service"
+// service "update-project-document" endpoint HTTP response body.
+type UpdateProjectDocumentResponseBody struct {
+	// Document UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Original uploaded file name
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// File size in bytes
+	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
+	// User who created this resource
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
 // service "get-projects" endpoint HTTP response body for the "BadRequest"
@@ -1308,6 +1348,56 @@ type DownloadProjectDocumentServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// UpdateProjectDocumentBadRequestResponseBody is the type of the
+// "project-service" service "update-project-document" endpoint HTTP response
+// body for the "BadRequest" error.
+type UpdateProjectDocumentBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectDocumentConflictResponseBody is the type of the
+// "project-service" service "update-project-document" endpoint HTTP response
+// body for the "Conflict" error.
+type UpdateProjectDocumentConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "update-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UpdateProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "update-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type UpdateProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "update-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UpdateProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
 // DeleteProjectDocumentBadRequestResponseBody is the type of the
 // "project-service" service "delete-project-document" endpoint HTTP response
 // body for the "BadRequest" error.
@@ -1933,6 +2023,18 @@ func NewUploadProjectDocumentRequestBody(p *projectservice.UploadProjectDocument
 		File:        p.File,
 		FileName:    p.FileName,
 		ContentType: p.ContentType,
+	}
+	return body
+}
+
+// NewUpdateProjectDocumentRequestBody builds the HTTP request body from the
+// payload of the "update-project-document" endpoint of the "project-service"
+// service.
+func NewUpdateProjectDocumentRequestBody(p *projectservice.UpdateProjectDocumentPayload) *UpdateProjectDocumentRequestBody {
+	body := &UpdateProjectDocumentRequestBody{
+		Name:        p.Name,
+		Description: p.Description,
+		FolderUID:   p.FolderUID,
 	}
 	return body
 }
@@ -3275,6 +3377,86 @@ func NewDownloadProjectDocumentServiceUnavailable(body *DownloadProjectDocumentS
 	return v
 }
 
+// NewUpdateProjectDocumentProjectDocumentOK builds a "project-service" service
+// "update-project-document" endpoint result from a HTTP "OK" response.
+func NewUpdateProjectDocumentProjectDocumentOK(body *UpdateProjectDocumentResponseBody) *projectservice.ProjectDocument {
+	v := &projectservice.ProjectDocument{
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		Description: body.Description,
+		FileName:    body.FileName,
+		FileSize:    body.FileSize,
+		ContentType: body.ContentType,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(body.UpdatedBy)
+	}
+
+	return v
+}
+
+// NewUpdateProjectDocumentBadRequest builds a project-service service
+// update-project-document endpoint BadRequest error.
+func NewUpdateProjectDocumentBadRequest(body *UpdateProjectDocumentBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectDocumentConflict builds a project-service service
+// update-project-document endpoint Conflict error.
+func NewUpdateProjectDocumentConflict(body *UpdateProjectDocumentConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectDocumentInternalServerError builds a project-service service
+// update-project-document endpoint InternalServerError error.
+func NewUpdateProjectDocumentInternalServerError(body *UpdateProjectDocumentInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectDocumentNotFound builds a project-service service
+// update-project-document endpoint NotFound error.
+func NewUpdateProjectDocumentNotFound(body *UpdateProjectDocumentNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectDocumentServiceUnavailable builds a project-service service
+// update-project-document endpoint ServiceUnavailable error.
+func NewUpdateProjectDocumentServiceUnavailable(body *UpdateProjectDocumentServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
 // NewDeleteProjectDocumentBadRequest builds a project-service service
 // delete-project-document endpoint BadRequest error.
 func NewDeleteProjectDocumentBadRequest(body *DeleteProjectDocumentBadRequestResponseBody) *projectservice.BadRequestError {
@@ -3982,6 +4164,42 @@ func ValidateUploadProjectDocumentResponseBody(body *UploadProjectDocumentRespon
 // ValidateGetProjectDocumentResponseBody runs the validations defined on
 // Get-Project-DocumentResponseBody
 func ValidateGetProjectDocumentResponseBody(body *GetProjectDocumentResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateAuditUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateAuditUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentResponseBody runs the validations defined on
+// Update-Project-DocumentResponseBody
+func ValidateUpdateProjectDocumentResponseBody(body *UpdateProjectDocumentResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
@@ -4916,6 +5134,68 @@ func ValidateDownloadProjectDocumentNotFoundResponseBody(body *DownloadProjectDo
 // validations defined on
 // download-project-document_ServiceUnavailable_response_body
 func ValidateDownloadProjectDocumentServiceUnavailableResponseBody(body *DownloadProjectDocumentServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentBadRequestResponseBody runs the validations
+// defined on update-project-document_BadRequest_response_body
+func ValidateUpdateProjectDocumentBadRequestResponseBody(body *UpdateProjectDocumentBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentConflictResponseBody runs the validations
+// defined on update-project-document_Conflict_response_body
+func ValidateUpdateProjectDocumentConflictResponseBody(body *UpdateProjectDocumentConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentInternalServerErrorResponseBody runs the
+// validations defined on
+// update-project-document_InternalServerError_response_body
+func ValidateUpdateProjectDocumentInternalServerErrorResponseBody(body *UpdateProjectDocumentInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentNotFoundResponseBody runs the validations
+// defined on update-project-document_NotFound_response_body
+func ValidateUpdateProjectDocumentNotFoundResponseBody(body *UpdateProjectDocumentNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectDocumentServiceUnavailableResponseBody runs the
+// validations defined on
+// update-project-document_ServiceUnavailable_response_body
+func ValidateUpdateProjectDocumentServiceUnavailableResponseBody(body *UpdateProjectDocumentServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

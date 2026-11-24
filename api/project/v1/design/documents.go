@@ -141,6 +141,58 @@ var _ = Service("project-service", func() {
 		})
 	})
 
+	Method("update-project-document", func() {
+		Description("Update a project document's name, description and folder. Full replace: omitting description clears it, and omitting folder_uid moves the document to the project root. The uploaded file is not changed.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			XSyncAttribute()
+			IfMatchAttribute()
+			VersionAttribute()
+			ProjectUIDAttribute()
+			ResourceUIDAttribute("document_uid", "Document UID")
+			Attribute("name", String, "Document display name; unique within the project", func() {
+				MinLength(1)
+				MaxLength(255)
+				Example("My Resource")
+			})
+			Attribute("description", String, "A description of the document", func() {
+				MaxLength(4096)
+				Example("A description of the resource")
+			})
+			ResourceUIDAttribute("folder_uid", "Folder UID to place the document in (omit for the project root)")
+			Required("uid", "document_uid", "name")
+		})
+
+		Result(ProjectDocument)
+
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("NotFound", NotFoundError, "Document or folder not found")
+		Error("Conflict", ConflictError, "Document name already exists, or the revision is stale")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			PUT("/projects/{uid}/documents/{document_uid}")
+			Params(func() {
+				Param("version:v")
+				Param("uid")
+				Param("document_uid")
+			})
+			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
+			Header("if_match:If-Match")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("NotFound", StatusNotFound)
+			Response("Conflict", StatusConflict)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
 	Method("delete-project-document", func() {
 		Description("Delete a project document.")
 

@@ -350,7 +350,7 @@ A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `
 
 **Source struct:** `internal/domain/models/document.go` — `ProjectDocument`
 
-**Indexed on:** upload (create), delete of a project document.
+**Indexed on:** upload (create), update (name, description or folder), delete of a project document.
 
 ### Data Schema
 

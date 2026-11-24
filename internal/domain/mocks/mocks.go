@@ -140,6 +140,11 @@ func (m *MockDocumentRepository) CreateDocumentMetadata(ctx context.Context, doc
 	return args.Error(0)
 }
 
+func (m *MockDocumentRepository) UpdateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument, revision uint64) error {
+	args := m.Called(ctx, doc, revision)
+	return args.Error(0)
+}
+
 func (m *MockDocumentRepository) PutDocumentFile(ctx context.Context, documentUID string, fileData []byte) error {
 	args := m.Called(ctx, documentUID, fileData)
 	return args.Error(0)

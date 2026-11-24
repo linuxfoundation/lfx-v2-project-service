@@ -245,6 +245,115 @@ func TestDownloadProjectDocument(t *testing.T) {
 	}
 }
 
+func TestUpdateProjectDocument(t *testing.T) {
+	existing := func() *models.ProjectDocument {
+		return &models.ProjectDocument{
+			UID: testDocumentUID, ProjectUID: testProjectUID, Name: "Old", FileName: "old.pdf",
+			ContentType: "application/pdf", FileSize: 12,
+		}
+	}
+	payload := func(ifMatch *string, folderUID *string) *projsvc.UpdateProjectDocumentPayload {
+		return &projsvc.UpdateProjectDocumentPayload{
+			UID: testProjectUID, DocumentUID: testDocumentUID, IfMatch: ifMatch,
+			Name: "Charter", Description: misc.StringPtr("The charter"), FolderUID: folderUID,
+		}
+	}
+
+	tests := []struct {
+		name          string
+		payload       *projsvc.UpdateProjectDocumentPayload
+		setupMocks    func(*resourceMocks)
+		wantErr       any
+		wantFolderUID *string
+	}{
+		{
+			name:    "success writes at the If-Match revision and returns the updated document",
+			payload: payload(misc.StringPtr("4"), misc.StringPtr(testFolderUID)),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(&models.ProjectFolder{UID: testFolderUID}, uint64(1), nil)
+				m.document.On("UpdateDocumentMetadata", mock.Anything, mock.MatchedBy(func(d *models.ProjectDocument) bool {
+					return d.Name == "Charter" && d.Description == "The charter" && d.FolderUID != nil && *d.FolderUID == testFolderUID &&
+						d.FileName == "old.pdf" && d.FileSize == 12
+				}), uint64(4)).Return(nil)
+				m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+			wantFolderUID: misc.StringPtr(testFolderUID),
+		},
+		{
+			name:    "no folder moves the document to the root",
+			payload: payload(misc.StringPtr("4"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+				m.document.On("UpdateDocumentMetadata", mock.Anything, mock.MatchedBy(func(d *models.ProjectDocument) bool { return d.FolderUID == nil }), uint64(4)).Return(nil)
+				m.msg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name:    "missing If-Match is a bad request",
+			payload: payload(nil, nil),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+			},
+			wantErr: &projsvc.BadRequestError{},
+		},
+		{
+			name:    "revision mismatch is a conflict",
+			payload: payload(misc.StringPtr("3"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+				m.document.On("UpdateDocumentMetadata", mock.Anything, mock.Anything, uint64(3)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: &projsvc.ConflictError{},
+		},
+		{
+			name:    "a name another document holds is a conflict",
+			payload: payload(misc.StringPtr("4"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+				m.document.On("UpdateDocumentMetadata", mock.Anything, mock.Anything, uint64(4)).Return(domain.ErrDocumentNameExists)
+			},
+			wantErr: &projsvc.ConflictError{},
+		},
+		{
+			name:    "document not found",
+			payload: payload(misc.StringPtr("4"), nil),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(nil, uint64(0), domain.ErrDocumentNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+		{
+			name:    "target folder not found",
+			payload: payload(misc.StringPtr("4"), misc.StringPtr(testFolderUID)),
+			setupMocks: func(m *resourceMocks) {
+				m.document.On("GetDocumentMetadata", mock.Anything, testProjectUID, testDocumentUID).Return(existing(), uint64(4), nil)
+				m.folder.On("GetFolder", mock.Anything, testProjectUID, testFolderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: &projsvc.NotFoundError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api, m := setupResourceAPI()
+			tt.setupMocks(m)
+
+			got, err := api.UpdateProjectDocument(context.Background(), tt.payload)
+
+			if tt.wantErr != nil {
+				assert.IsType(t, tt.wantErr, err)
+				assert.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "Charter", *got.Name)
+			assert.Equal(t, tt.wantFolderUID, got.FolderUID)
+			m.document.AssertExpectations(t)
+		})
+	}
+}
+
 func TestDeleteProjectDocument(t *testing.T) {
 	tests := []struct {
 		name       string

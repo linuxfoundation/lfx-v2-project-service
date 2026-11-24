@@ -26,10 +26,10 @@ func isValidLinkURL(url string) bool {
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }
 
-// resolveLinkFolder normalises an optional folder UID (empty means the project root) and checks
+// resolveFolder normalises an optional link or document folder UID (empty means the project root) and checks
 // that a given folder exists in the project. It returns ErrValidationFailed for a malformed UID,
 // ErrFolderNotFound for a folder that is not in the project, and ErrInternal on a lookup failure.
-func (s *ProjectsService) resolveLinkFolder(ctx context.Context, projectUID string, folderUID *string) (*string, error) {
+func (s *ProjectsService) resolveFolder(ctx context.Context, projectUID string, folderUID *string) (*string, error) {
 	if folderUID == nil || *folderUID == "" {
 		return nil, nil
 	}
@@ -72,7 +72,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		return nil, domain.ErrProjectNotFound
 	}
 
-	folderUID, err = s.resolveLinkFolder(ctx, projectUID, folderUID)
+	folderUID, err = s.resolveFolder(ctx, projectUID, folderUID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (s *ProjectsService) UpdateLink(ctx context.Context, projectUID, linkUID st
 		return nil, err
 	}
 
-	folderUID, err = s.resolveLinkFolder(ctx, projectUID, folderUID)
+	folderUID, err = s.resolveFolder(ctx, projectUID, folderUID)
 	if err != nil {
 		return nil, err
 	}

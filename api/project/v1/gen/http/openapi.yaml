@@ -526,6 +526,98 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
+        put:
+            tags:
+                - project-service
+            summary: update-project-document project-service
+            description: 'Update a project document''s name, description and folder. Full replace: omitting description clears it, and omitting folder_uid moves the document to the project root. The uploaded file is not changed.'
+            operationId: project-service#update-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: 'Deprecated: accepted for backward compatibility but has no effect.'
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+                - name: Update-Project-DocumentRequestBody
+                  in: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceUpdateProjectDocumentRequestBody'
+                    required:
+                        - name
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectDocument'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
         delete:
             tags:
                 - project-service
@@ -3673,6 +3765,32 @@ definitions:
             - description
             - name
             - parent_uid
+    ProjectServiceUpdateProjectDocumentRequestBody:
+        title: ProjectServiceUpdateProjectDocumentRequestBody
+        type: object
+        properties:
+            description:
+                type: string
+                description: A description of the document
+                example: A description of the resource
+                maxLength: 4096
+            folder_uid:
+                type: string
+                description: Folder UID to place the document in (omit for the project root)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Document display name; unique within the project
+                example: My Resource
+                minLength: 1
+                maxLength: 255
+        example:
+            description: A description of the resource
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+        required:
+            - name
     ProjectServiceUpdateProjectLinkRequestBody:
         title: ProjectServiceUpdateProjectLinkRequestBody
         type: object

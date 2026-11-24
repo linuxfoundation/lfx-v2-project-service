@@ -45,6 +45,7 @@ type Server struct {
 	UploadProjectDocument   http.Handler
 	GetProjectDocument      http.Handler
 	DownloadProjectDocument http.Handler
+	UpdateProjectDocument   http.Handler
 	DeleteProjectDocument   http.Handler
 	GenHTTPOpenapiJSON      http.Handler
 	GenHTTPOpenapiYaml      http.Handler
@@ -125,6 +126,7 @@ func New(
 			{"UploadProjectDocument", "POST", "/projects/{uid}/documents"},
 			{"GetProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}"},
 			{"DownloadProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}/download"},
+			{"UpdateProjectDocument", "PUT", "/projects/{uid}/documents/{document_uid}"},
 			{"DeleteProjectDocument", "DELETE", "/projects/{uid}/documents/{document_uid}"},
 			{"Serve gen/http/openapi.json", "GET", "/_projects/openapi.json"},
 			{"Serve gen/http/openapi.yaml", "GET", "/_projects/openapi.yaml"},
@@ -151,6 +153,7 @@ func New(
 		UploadProjectDocument:   NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
 		GetProjectDocument:      NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
 		DownloadProjectDocument: NewDownloadProjectDocumentHandler(e.DownloadProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectDocument:   NewUpdateProjectDocumentHandler(e.UpdateProjectDocument, mux, decoder, encoder, errhandler, formatter),
 		DeleteProjectDocument:   NewDeleteProjectDocumentHandler(e.DeleteProjectDocument, mux, decoder, encoder, errhandler, formatter),
 		GenHTTPOpenapiJSON:      http.FileServer(fileSystemGenHTTPOpenapiJSON),
 		GenHTTPOpenapiYaml:      http.FileServer(fileSystemGenHTTPOpenapiYaml),
@@ -184,6 +187,7 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.UploadProjectDocument = m(s.UploadProjectDocument)
 	s.GetProjectDocument = m(s.GetProjectDocument)
 	s.DownloadProjectDocument = m(s.DownloadProjectDocument)
+	s.UpdateProjectDocument = m(s.UpdateProjectDocument)
 	s.DeleteProjectDocument = m(s.DeleteProjectDocument)
 }
 
@@ -212,6 +216,7 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountUploadProjectDocumentHandler(mux, h.UploadProjectDocument)
 	MountGetProjectDocumentHandler(mux, h.GetProjectDocument)
 	MountDownloadProjectDocumentHandler(mux, h.DownloadProjectDocument)
+	MountUpdateProjectDocumentHandler(mux, h.UpdateProjectDocument)
 	MountDeleteProjectDocumentHandler(mux, h.DeleteProjectDocument)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_projects", h.GenHTTPOpenapiJSON))
 	MountGenHTTPOpenapiYaml(mux, http.StripPrefix("/_projects", h.GenHTTPOpenapiYaml))
@@ -1315,6 +1320,60 @@ func NewDownloadProjectDocumentHandler(
 		if _, err := io.Copy(w, buf); err != nil {
 			http.NewResponseController(w).Flush()
 			panic(http.ErrAbortHandler) // too late to write an error
+		}
+	})
+}
+
+// MountUpdateProjectDocumentHandler configures the mux to serve the
+// "project-service" service "update-project-document" endpoint.
+func MountUpdateProjectDocumentHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/projects/{uid}/documents/{document_uid}", f)
+}
+
+// NewUpdateProjectDocumentHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "update-project-document"
+// endpoint.
+func NewUpdateProjectDocumentHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateProjectDocumentRequest(mux, decoder)
+		encodeResponse = EncodeUpdateProjectDocumentResponse(encoder)
+		encodeError    = EncodeUpdateProjectDocumentError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-project-document")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
 		}
 	})
 }
