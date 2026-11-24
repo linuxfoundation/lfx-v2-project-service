@@ -654,6 +654,24 @@ func TestNatsRepository_UpdateDocumentMetadata(t *testing.T) {
 		assert.Equal(t, domain.ErrDocumentNotFound, err)
 	})
 
+	t.Run("a request that ended after the new name was reserved releases it without writing", func(t *testing.T) {
+		kv := newMemKV()
+		_, doc, revision := seedDocument(t, kv)
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		repo := &NatsRepository{Documents: &cancelAfterCreateKV{INatsKeyValue: kv, cancel: cancel}}
+
+		doc.Name = "Minutes 2026"
+		require.Error(t, repo.UpdateDocumentMetadata(cancelCtx, doc, revision))
+
+		got, _, err := repo.GetDocumentMetadata(ctx, updateProjectUID, updateDocUID)
+		require.NoError(t, err)
+		assert.Equal(t, "Minutes", got.Name, "no write was sent")
+		assert.True(t, nameHeld(kv, "Minutes"))
+		assert.False(t, nameHeld(kv, "Minutes 2026"), "the reservation is nobody's, so it is released")
+		require.NoError(t, (&NatsRepository{Documents: kv}).UpdateDocumentMetadata(ctx, doc, revision), "a retry is not blocked by the earlier attempt")
+	})
+
 	t.Run("a store error on the update is an internal error", func(t *testing.T) {
 		kv := newMemKV()
 		_, doc, revision := seedDocument(t, kv)
@@ -985,6 +1003,19 @@ func (k *renameWriteKV) Get(ctx context.Context, key string) (jetstream.KeyValue
 		return nil, k.getErr
 	}
 	return k.INatsKeyValue.Get(ctx, key)
+}
+
+// cancelAfterCreateKV ends the request right after a lookup key has been created: what a client that goes away between
+// reserving a name and writing the record looks like.
+type cancelAfterCreateKV struct {
+	INatsKeyValue
+	cancel func()
+}
+
+func (k *cancelAfterCreateKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
+	rev, err := k.INatsKeyValue.Create(ctx, key, value, opts...)
+	k.cancel()
+	return rev, err
 }
 
 // getHookKV runs a hook once, just before one key is read: what another request does while this one is paused there.

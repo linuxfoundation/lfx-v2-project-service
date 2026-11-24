@@ -88,7 +88,8 @@ func (kv *memKV) remove(key string, opts []jetstream.KVDeleteOpt) error {
 		fn := reflect.ValueOf(opt)
 		target := reflect.New(fn.Type().In(0).Elem())
 		fn.Call([]reflect.Value{target})
-		if target.Elem().FieldByName("revision").Uint() != entry.Revision() {
+		// A revision of zero is no guard at all, as in nats.go.
+		if want := target.Elem().FieldByName("revision").Uint(); want != 0 && want != entry.Revision() {
 			return fmt.Errorf("nats: wrong last sequence: %d", entry.Revision())
 		}
 	}

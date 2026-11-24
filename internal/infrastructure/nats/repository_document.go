@@ -216,6 +216,16 @@ func (s *NatsRepository) UpdateDocumentMetadata(ctx context.Context, doc *models
 		reserved = rev
 	}
 
+	if renamed {
+		// A request that has ended since the name was reserved never sends the write, so nothing can land and the
+		// reservation is nobody's. (An error returned after the write is sent is ambiguous and is settled below.)
+		if errCtx := ctx.Err(); errCtx != nil {
+			s.releaseDocumentKey(ctx, newKey, reserved, errCtx, attrs)
+			slog.WarnContext(ctx, "request ended before the document write was sent; released the new name", append([]any{constants.ErrKey, errCtx}, attrs...)...)
+			return domain.ErrInternal
+		}
+	}
+
 	if _, errUpdate := s.Documents.Update(ctx, doc.UID, data, revision); errUpdate != nil {
 		conflict := isJetStreamCASConflict(errUpdate)
 		switch {
@@ -347,7 +357,7 @@ func (s *NatsRepository) settleDocumentRename(ctx context.Context, doc *models.P
 		// A deleted record can never take the write: it needs the revision it was sent at, and the delete moved the key
 		// past it. The delete released only the name the record held when it read it, so both captured keys are released.
 		s.releaseOldDocumentName(ctx, oldKey, oldRev, attrs)
-		s.purgeDocumentKey(ctx, newKey, writeErr, attrs, jetstream.LastRevision(reserved))
+		s.releaseDocumentKey(ctx, newKey, reserved, writeErr, attrs)
 		return false
 	}
 	if errGet != nil {
@@ -375,7 +385,7 @@ func (s *NatsRepository) settleDocumentRename(ctx context.Context, doc *models.P
 		if storedKey != oldKey {
 			s.releaseOldDocumentName(ctx, oldKey, oldRev, attrs)
 		}
-		s.purgeDocumentKey(ctx, newKey, writeErr, attrs, jetstream.LastRevision(reserved))
+		s.releaseDocumentKey(ctx, newKey, reserved, writeErr, attrs)
 		return false
 	}
 }
