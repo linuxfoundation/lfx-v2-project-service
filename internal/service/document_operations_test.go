@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -689,6 +691,277 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			}
 
 			mockDoc.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_UpdateDocument(t *testing.T) {
+	const (
+		folderUID    = "00000000-0000-0000-0000-0000000000f1"
+		oldFolderUID = "00000000-0000-0000-0000-0000000000f9"
+		created      = "2026-01-02T03:04:05Z"
+	)
+	createdAt, _ := time.Parse(time.RFC3339, created)
+	existing := func() *models.ProjectDocument {
+		return &models.ProjectDocument{
+			UID:         "doc-1",
+			ProjectUID:  "proj-1",
+			FolderUID:   misc.StringPtr(oldFolderUID),
+			Name:        "Old name",
+			Description: "old",
+			FileName:    "spec.pdf",
+			FileSize:    2048,
+			ContentType: "application/pdf",
+			CreatedBy:   &models.UserInfo{Username: "creator"},
+			UpdatedBy:   &models.UserInfo{Username: "creator"},
+			CreatedAt:   createdAt,
+			UpdatedAt:   createdAt,
+		}
+	}
+	type mocks struct {
+		docs    *domainmocks.MockDocumentRepository
+		folders *domainmocks.MockFolderRepository
+		msg     *domainmocks.MockMessageBuilder
+		indexed chan indexerTypes.IndexerMessageEnvelope
+	}
+	expectIndexed := func(m mocks) {
+		m.msg.On("SendIndexerMessage", mock.Anything, constants.IndexProjectDocumentSubject, mock.Anything).
+			Run(func(a mock.Arguments) { m.indexed <- a.Get(2).(indexerTypes.IndexerMessageEnvelope) }).Return(nil).Once()
+	}
+
+	tests := []struct {
+		name        string
+		docName     string
+		description string
+		folderUID   *string
+		ifMatch     *string
+		notReady    bool
+		skipEtag    bool
+		principal   string
+		setupMocks  func(mocks)
+		wantErr     error
+		wantFolder  *string
+		wantEditor  string
+		wantTag     string
+		wantNoTag   string
+	}{
+		{
+			name:       "service not ready",
+			docName:    "New",
+			ifMatch:    misc.StringPtr("3"),
+			notReady:   true,
+			setupMocks: func(mocks) {},
+			wantErr:    domain.ErrServiceUnavailable,
+		},
+		{
+			name:       "empty name is rejected",
+			docName:    "",
+			ifMatch:    misc.StringPtr("3"),
+			setupMocks: func(mocks) {},
+			wantErr:    domain.ErrValidationFailed,
+		},
+		{
+			name:    "document not found",
+			docName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(nil, uint64(0), domain.ErrDocumentNotFound)
+			},
+			wantErr: domain.ErrDocumentNotFound,
+		},
+		{
+			name:    "a failing read is an internal error",
+			docName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(nil, uint64(0), errors.New("kv down"))
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
+			name:    "missing If-Match header",
+			docName: "New",
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:      "target folder is not in the project",
+			docName:   "New",
+			folderUID: misc.StringPtr(folderUID),
+			ifMatch:   misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.folders.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(nil, uint64(0), domain.ErrFolderNotFound)
+			},
+			wantErr: domain.ErrFolderNotFound,
+		},
+		{
+			name:      "malformed folder uid is rejected",
+			docName:   "New",
+			folderUID: misc.StringPtr("not a uid"),
+			ifMatch:   misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:    "stale revision is a conflict and publishes nothing",
+			docName: "New",
+			ifMatch: misc.StringPtr("2"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument"), uint64(2)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:    "a name another document holds is a conflict and publishes nothing",
+			docName: "Taken",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument"), uint64(3)).Return(domain.ErrDocumentNameExists)
+			},
+			wantErr: domain.ErrDocumentNameExists,
+		},
+		{
+			name:    "a storage failure on the write is returned and publishes nothing",
+			docName: "New",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument"), uint64(3)).Return(domain.ErrInternal)
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
+			name:        "success renames and moves the document, keeping the file and creation fields",
+			docName:     "New name",
+			description: "new",
+			folderUID:   misc.StringPtr(folderUID),
+			ifMatch:     misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.folders.On("GetFolder", mock.Anything, "proj-1", folderUID).Return(&models.ProjectFolder{UID: folderUID, ProjectUID: "proj-1", Name: "F"}, uint64(1), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.MatchedBy(func(got *models.ProjectDocument) bool {
+					return got.UID == "doc-1" && got.Name == "New name" && got.Description == "new" &&
+						got.FolderUID != nil && *got.FolderUID == folderUID &&
+						got.FileName == "spec.pdf" && got.FileSize == 2048 && got.ContentType == "application/pdf" &&
+						got.CreatedAt.Equal(createdAt) && got.UpdatedAt.After(createdAt)
+				}), uint64(3)).Return(nil)
+				expectIndexed(m)
+			},
+			wantFolder: misc.StringPtr(folderUID),
+			wantTag:    "folder_uid:" + folderUID,
+			wantNoTag:  "folder_uid:" + oldFolderUID,
+		},
+		{
+			name:    "omitting the folder moves the document to the project root",
+			docName: "New name",
+			ifMatch: misc.StringPtr("3"),
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.MatchedBy(func(got *models.ProjectDocument) bool { return got.FolderUID == nil }), uint64(3)).Return(nil)
+				expectIndexed(m)
+			},
+			wantNoTag: "folder_uid:" + oldFolderUID,
+		},
+		{
+			name:      "success keeps the creator and stamps the editor",
+			docName:   "New name",
+			ifMatch:   misc.StringPtr("3"),
+			principal: "editor",
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(3), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.MatchedBy(func(got *models.ProjectDocument) bool {
+					return got.CreatedBy != nil && got.CreatedBy.Username == "creator" &&
+						got.UpdatedBy != nil && got.UpdatedBy.Username == "editor"
+				}), uint64(3)).Return(nil)
+				expectIndexed(m)
+			},
+			wantEditor: "editor",
+		},
+		{
+			name:     "skip etag validation writes at the fetched revision",
+			docName:  "New name",
+			skipEtag: true,
+			setupMocks: func(m mocks) {
+				m.docs.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(existing(), uint64(7), nil)
+				m.docs.On("UpdateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument"), uint64(7)).Return(nil)
+				expectIndexed(m)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _, mockMsg := setupServiceForTesting()
+			m := mocks{
+				docs:    svc.DocumentRepository.(*domainmocks.MockDocumentRepository),
+				folders: svc.FolderRepository.(*domainmocks.MockFolderRepository),
+				msg:     mockMsg,
+				indexed: make(chan indexerTypes.IndexerMessageEnvelope, 1),
+			}
+			if tt.notReady {
+				svc.Resolver = nil
+			}
+			svc.Config.SkipEtagValidation = tt.skipEtag
+			tt.setupMocks(m)
+			ctx := context.Background()
+			if tt.principal != "" {
+				ctx = context.WithValue(ctx, constants.PrincipalContextID, tt.principal)
+				userReader := svc.UserReader.(*domainmocks.MockUserReader)
+				userReader.On("UserMetadataByPrincipal", mock.Anything, tt.principal).Return((*domain.UserMetadata)(nil), nil)
+				userReader.On("PrimaryEmailByUsername", mock.Anything, tt.principal).Return("", nil)
+			}
+
+			got, err := svc.UpdateDocument(ctx, "proj-1", "doc-1", tt.ifMatch, tt.docName, tt.description, tt.folderUID)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, got)
+				assert.Empty(t, m.indexed, "a refused update publishes nothing")
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.docName, got.Name)
+				assert.Equal(t, tt.wantFolder, got.FolderUID)
+				if tt.wantEditor != "" {
+					if assert.NotNil(t, got.CreatedBy) {
+						assert.Equal(t, "creator", got.CreatedBy.Username)
+					}
+					if assert.NotNil(t, got.UpdatedBy) {
+						assert.Equal(t, tt.wantEditor, got.UpdatedBy.Username)
+					}
+				}
+				select {
+				case msg := <-m.indexed:
+					assert.Equal(t, indexerConstants.ActionUpdated, msg.Action)
+					doc, ok := msg.Data.(models.ProjectDocument)
+					if assert.True(t, ok, "indexer data should be the updated document") {
+						assert.Equal(t, "doc-1", doc.UID)
+						assert.Equal(t, tt.docName, doc.Name)
+						assert.Equal(t, tt.wantFolder, doc.FolderUID)
+					}
+					if assert.NotNil(t, msg.IndexingConfig) {
+						if tt.wantTag != "" {
+							assert.Contains(t, msg.IndexingConfig.Tags, tt.wantTag)
+						}
+						if tt.wantNoTag != "" {
+							assert.NotContains(t, msg.IndexingConfig.Tags, tt.wantNoTag)
+						}
+						assert.Equal(t, tt.docName, msg.IndexingConfig.SortName)
+					}
+				case <-time.After(2 * time.Second):
+					t.Fatal("expected an updated indexer message")
+				}
+			}
+
+			m.docs.AssertExpectations(t)
+			m.folders.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
 		})
 	}

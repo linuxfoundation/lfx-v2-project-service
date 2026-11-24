@@ -39,6 +39,7 @@ type Endpoints struct {
 	UploadProjectDocument   goa.Endpoint
 	GetProjectDocument      goa.Endpoint
 	DownloadProjectDocument goa.Endpoint
+	UpdateProjectDocument   goa.Endpoint
 	DeleteProjectDocument   goa.Endpoint
 }
 
@@ -75,6 +76,7 @@ func NewEndpoints(s Service) *Endpoints {
 		UploadProjectDocument:   NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
 		GetProjectDocument:      NewGetProjectDocumentEndpoint(s, a.JWTAuth),
 		DownloadProjectDocument: NewDownloadProjectDocumentEndpoint(s, a.JWTAuth),
+		UpdateProjectDocument:   NewUpdateProjectDocumentEndpoint(s, a.JWTAuth),
 		DeleteProjectDocument:   NewDeleteProjectDocumentEndpoint(s, a.JWTAuth),
 	}
 }
@@ -102,6 +104,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.UploadProjectDocument = m(e.UploadProjectDocument)
 	e.GetProjectDocument = m(e.GetProjectDocument)
 	e.DownloadProjectDocument = m(e.DownloadProjectDocument)
+	e.UpdateProjectDocument = m(e.UpdateProjectDocument)
 	e.DeleteProjectDocument = m(e.DeleteProjectDocument)
 }
 
@@ -536,6 +539,29 @@ func NewDownloadProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFun
 			return nil, err
 		}
 		return &DownloadProjectDocumentResponseData{Body: body}, nil
+	}
+}
+
+// NewUpdateProjectDocumentEndpoint returns an endpoint function that calls the
+// method "update-project-document" of service "project-service".
+func NewUpdateProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateProjectDocumentPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateProjectDocument(ctx, p)
 	}
 }
 

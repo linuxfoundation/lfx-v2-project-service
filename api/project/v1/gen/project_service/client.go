@@ -38,11 +38,12 @@ type Client struct {
 	UploadProjectDocumentEndpoint   goa.Endpoint
 	GetProjectDocumentEndpoint      goa.Endpoint
 	DownloadProjectDocumentEndpoint goa.Endpoint
+	UpdateProjectDocumentEndpoint   goa.Endpoint
 	DeleteProjectDocumentEndpoint   goa.Endpoint
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, updateProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, updateProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, updateProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
 		GetProjectsEndpoint:             getProjects,
 		CreateProjectEndpoint:           createProject,
@@ -64,6 +65,7 @@ func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSetti
 		UploadProjectDocumentEndpoint:   uploadProjectDocument,
 		GetProjectDocumentEndpoint:      getProjectDocument,
 		DownloadProjectDocumentEndpoint: downloadProjectDocument,
+		UpdateProjectDocumentEndpoint:   updateProjectDocument,
 		DeleteProjectDocumentEndpoint:   deleteProjectDocument,
 	}
 }
@@ -386,6 +388,24 @@ func (c *Client) DownloadProjectDocument(ctx context.Context, p *DownloadProject
 	}
 	o := ires.(*DownloadProjectDocumentResponseData)
 	return o.Body, nil
+}
+
+// UpdateProjectDocument calls the "update-project-document" endpoint of the
+// "project-service" service.
+// UpdateProjectDocument may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Document or folder not found
+//   - "Conflict" (type *ConflictError): Document name already exists, or the revision is stale
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateProjectDocument(ctx context.Context, p *UpdateProjectDocumentPayload) (res *ProjectDocument, err error) {
+	var ires any
+	ires, err = c.UpdateProjectDocumentEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectDocument), nil
 }
 
 // DeleteProjectDocument calls the "delete-project-document" endpoint of the

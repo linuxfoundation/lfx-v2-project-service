@@ -13,6 +13,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
 // UploadProjectDocument handles multipart document upload.
@@ -120,6 +121,16 @@ func contentDispositionHeader(fileName string) string {
 		asciiFallback,
 		url.PathEscape(fileName),
 	)
+}
+
+// UpdateProjectDocument updates a project document's name, description and folder.
+func (s *ProjectsAPI) UpdateProjectDocument(ctx context.Context, payload *projsvc.UpdateProjectDocumentPayload) (*projsvc.ProjectDocument, error) {
+	doc, err := s.service.UpdateDocument(ctx, payload.UID, payload.DocumentUID, payload.IfMatch, payload.Name, misc.ValueOrZero(payload.Description), payload.FolderUID)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+
+	return service.ConvertToServiceDocument(doc), nil
 }
 
 // DeleteProjectDocument deletes a project document.

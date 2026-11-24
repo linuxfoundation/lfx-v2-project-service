@@ -63,6 +63,10 @@ type Service interface {
 	// Consider [goa.design/goa/v3/pkg.SkipResponseWriter] to adapt existing
 	// implementations.
 	DownloadProjectDocument(context.Context, *DownloadProjectDocumentPayload) (body io.ReadCloser, err error)
+	// Update a project document's name, description and folder. Full replace:
+	// omitting description clears it, and omitting folder_uid moves the document
+	// to the project root. The uploaded file is not changed.
+	UpdateProjectDocument(context.Context, *UpdateProjectDocumentPayload) (res *ProjectDocument, err error)
 	// Delete a project document.
 	DeleteProjectDocument(context.Context, *DeleteProjectDocumentPayload) (err error)
 }
@@ -87,7 +91,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [21]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "update-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+var MethodNames = [22]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "update-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "update-project-document", "delete-project-document"}
 
 // Display-only user identity for audit attribution on viewer-readable
 // resources.
@@ -833,6 +837,29 @@ type UpdateProjectBasePayload struct {
 	WebsiteURL *string
 	// The definitive contact email address for the project
 	ContactEmail *string
+}
+
+// UpdateProjectDocumentPayload is the payload type of the project-service
+// service update-project-document method.
+type UpdateProjectDocumentPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Deprecated: accepted for backward compatibility but has no effect.
+	XSync *bool
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Document UID
+	DocumentUID string
+	// Document display name; unique within the project
+	Name string
+	// A description of the document
+	Description *string
+	// Folder UID to place the document in (omit for the project root)
+	FolderUID *string
 }
 
 // UpdateProjectLinkPayload is the payload type of the project-service service

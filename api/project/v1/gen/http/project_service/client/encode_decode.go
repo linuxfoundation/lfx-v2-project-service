@@ -3034,6 +3034,189 @@ func DecodeDownloadProjectDocumentResponse(decoder func(*http.Response) goahttp.
 	}
 }
 
+// BuildUpdateProjectDocumentRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "update-project-document" endpoint
+func (c *Client) BuildUpdateProjectDocumentRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid         string
+		documentUID string
+	)
+	{
+		p, ok := v.(*projectservice.UpdateProjectDocumentPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "update-project-document", "*projectservice.UpdateProjectDocumentPayload", v)
+		}
+		uid = p.UID
+		documentUID = p.DocumentUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectDocumentProjectServicePath(uid, documentUID)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "update-project-document", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateProjectDocumentRequest returns an encoder for requests sent to
+// the project-service update-project-document server.
+func EncodeUpdateProjectDocumentRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UpdateProjectDocumentPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "update-project-document", "*projectservice.UpdateProjectDocumentPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateProjectDocumentRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "update-project-document", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateProjectDocumentResponse returns a decoder for responses returned
+// by the project-service update-project-document endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeUpdateProjectDocumentResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateProjectDocumentResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateProjectDocumentResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			res := NewUpdateProjectDocumentProjectDocumentOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UpdateProjectDocumentBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			return nil, NewUpdateProjectDocumentBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectDocumentConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			return nil, NewUpdateProjectDocumentConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateProjectDocumentInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			return nil, NewUpdateProjectDocumentInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UpdateProjectDocumentNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			return nil, NewUpdateProjectDocumentNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateProjectDocumentServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-document", err)
+			}
+			err = ValidateUpdateProjectDocumentServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-document", err)
+			}
+			return nil, NewUpdateProjectDocumentServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "update-project-document", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildDeleteProjectDocumentRequest instantiates a HTTP request object with
 // method and path set to call the "project-service" service
 // "delete-project-document" endpoint

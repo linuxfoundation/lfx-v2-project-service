@@ -175,6 +175,62 @@ func (s *ProjectsService) GetDocumentMetadata(ctx context.Context, projectUID, d
 	return doc, revisionStr, nil
 }
 
+// UpdateDocument replaces a document's name, description and folder with optimistic concurrency. A nil or empty
+// folderUID moves the document to the project root. The uploaded file and the creation audit fields are kept.
+func (s *ProjectsService) UpdateDocument(ctx context.Context, projectUID, documentUID string, ifMatch *string, name, description string, folderUID *string) (*models.ProjectDocument, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "service not ready")
+		return nil, domain.ErrServiceUnavailable
+	}
+
+	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("document_uid", documentUID))
+
+	doc, currentRevision, err := s.DocumentRepository.GetDocumentMetadata(ctx, projectUID, documentUID)
+	if err != nil {
+		if errors.Is(err, domain.ErrDocumentNotFound) {
+			return nil, domain.ErrDocumentNotFound
+		}
+		slog.ErrorContext(ctx, "error getting document metadata", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	revision, err := s.resolveRevision(ctx, ifMatch, func() (uint64, error) { return currentRevision, nil })
+	if err != nil {
+		return nil, err
+	}
+
+	folderUID, err = s.resolveFolder(ctx, projectUID, folderUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, updatedBy := s.stampAuditUsers(ctx); updatedBy != nil {
+		doc.UpdatedBy = updatedBy
+	}
+	doc.Name = name
+	doc.Description = description
+	doc.FolderUID = folderUID
+	doc.UpdatedAt = time.Now().UTC()
+
+	if err := s.DocumentRepository.UpdateDocumentMetadata(ctx, doc, revision); err != nil {
+		return nil, err
+	}
+
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *doc,
+		IndexingConfig: doc.IndexingConfig(),
+	}
+	s.publishIndexer(ctx, constants.IndexProjectDocumentSubject, msg)
+
+	return doc, nil
+}
+
 // GetDocumentFile retrieves the binary file content for a document.
 func (s *ProjectsService) GetDocumentFile(ctx context.Context, projectUID, documentUID string) ([]byte, *models.ProjectDocument, error) {
 	if !s.ServiceReady() {

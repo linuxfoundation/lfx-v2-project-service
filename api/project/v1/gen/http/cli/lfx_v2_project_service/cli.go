@@ -25,7 +25,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|update-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
+		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|update-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|update-project-document|delete-project-document)",
 	}
 }
 
@@ -170,6 +170,15 @@ func ParseEndpoint(
 		projectServiceDownloadProjectDocumentVersionFlag     = projectServiceDownloadProjectDocumentFlags.String("version", "", "")
 		projectServiceDownloadProjectDocumentBearerTokenFlag = projectServiceDownloadProjectDocumentFlags.String("bearer-token", "", "")
 
+		projectServiceUpdateProjectDocumentFlags           = flag.NewFlagSet("update-project-document", flag.ExitOnError)
+		projectServiceUpdateProjectDocumentBodyFlag        = projectServiceUpdateProjectDocumentFlags.String("body", "REQUIRED", "")
+		projectServiceUpdateProjectDocumentUIDFlag         = projectServiceUpdateProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUpdateProjectDocumentDocumentUIDFlag = projectServiceUpdateProjectDocumentFlags.String("document-uid", "REQUIRED", "Document UID")
+		projectServiceUpdateProjectDocumentVersionFlag     = projectServiceUpdateProjectDocumentFlags.String("version", "", "")
+		projectServiceUpdateProjectDocumentBearerTokenFlag = projectServiceUpdateProjectDocumentFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectDocumentXSyncFlag       = projectServiceUpdateProjectDocumentFlags.String("x-sync", "", "")
+		projectServiceUpdateProjectDocumentIfMatchFlag     = projectServiceUpdateProjectDocumentFlags.String("if-match", "", "")
+
 		projectServiceDeleteProjectDocumentFlags           = flag.NewFlagSet("delete-project-document", flag.ExitOnError)
 		projectServiceDeleteProjectDocumentUIDFlag         = projectServiceDeleteProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceDeleteProjectDocumentDocumentUIDFlag = projectServiceDeleteProjectDocumentFlags.String("document-uid", "REQUIRED", "Document UID")
@@ -199,6 +208,7 @@ func ParseEndpoint(
 	projectServiceUploadProjectDocumentFlags.Usage = projectServiceUploadProjectDocumentUsage
 	projectServiceGetProjectDocumentFlags.Usage = projectServiceGetProjectDocumentUsage
 	projectServiceDownloadProjectDocumentFlags.Usage = projectServiceDownloadProjectDocumentUsage
+	projectServiceUpdateProjectDocumentFlags.Usage = projectServiceUpdateProjectDocumentUsage
 	projectServiceDeleteProjectDocumentFlags.Usage = projectServiceDeleteProjectDocumentUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
@@ -295,6 +305,9 @@ func ParseEndpoint(
 			case "download-project-document":
 				epf = projectServiceDownloadProjectDocumentFlags
 
+			case "update-project-document":
+				epf = projectServiceUpdateProjectDocumentFlags
+
 			case "delete-project-document":
 				epf = projectServiceDeleteProjectDocumentFlags
 
@@ -381,6 +394,9 @@ func ParseEndpoint(
 			case "download-project-document":
 				endpoint = c.DownloadProjectDocument()
 				data, err = projectservicec.BuildDownloadProjectDocumentPayload(*projectServiceDownloadProjectDocumentUIDFlag, *projectServiceDownloadProjectDocumentDocumentUIDFlag, *projectServiceDownloadProjectDocumentVersionFlag, *projectServiceDownloadProjectDocumentBearerTokenFlag)
+			case "update-project-document":
+				endpoint = c.UpdateProjectDocument()
+				data, err = projectservicec.BuildUpdateProjectDocumentPayload(*projectServiceUpdateProjectDocumentBodyFlag, *projectServiceUpdateProjectDocumentUIDFlag, *projectServiceUpdateProjectDocumentDocumentUIDFlag, *projectServiceUpdateProjectDocumentVersionFlag, *projectServiceUpdateProjectDocumentBearerTokenFlag, *projectServiceUpdateProjectDocumentXSyncFlag, *projectServiceUpdateProjectDocumentIfMatchFlag)
 			case "delete-project-document":
 				endpoint = c.DeleteProjectDocument()
 				data, err = projectservicec.BuildDeleteProjectDocumentPayload(*projectServiceDeleteProjectDocumentUIDFlag, *projectServiceDeleteProjectDocumentDocumentUIDFlag, *projectServiceDeleteProjectDocumentVersionFlag, *projectServiceDeleteProjectDocumentBearerTokenFlag, *projectServiceDeleteProjectDocumentXSyncFlag, *projectServiceDeleteProjectDocumentIfMatchFlag)
@@ -420,6 +436,7 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    upload-project-document: Upload a new document for a project (multipart/form-data).`)
 	fmt.Fprintln(os.Stderr, `    get-project-document: Get project document metadata.`)
 	fmt.Fprintln(os.Stderr, `    download-project-document: Download the binary file of a project document.`)
+	fmt.Fprintln(os.Stderr, `    update-project-document: Update a project document's name, description and folder. Full replace: omitting description clears it, and omitting folder_uid moves the document to the project root. The uploaded file is not changed.`)
 	fmt.Fprintln(os.Stderr, `    delete-project-document: Delete a project document.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
@@ -907,6 +924,36 @@ func projectServiceDownloadProjectDocumentUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service download-project-document --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --document-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceUpdateProjectDocumentUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service update-project-document", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -document-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Update a project document's name, description and folder. Full replace: omitting description clears it, and omitting folder_uid moves the document to the project root. The uploaded file is not changed.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -document-uid STRING: Document UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service update-project-document --body '{\n      \"description\": \"A description of the resource\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --document-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
 }
 
 func projectServiceDeleteProjectDocumentUsage() {
