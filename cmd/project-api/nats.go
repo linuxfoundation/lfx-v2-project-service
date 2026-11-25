@@ -155,6 +155,7 @@ func createNatsSubscriptions(ctx context.Context, svc *ProjectsAPI, natsConn *na
 	for _, eh := range []eventHandler{
 		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
 		{inviteapi.InviteServiceAcceptedSubject, svc.service.HandleInviteAccepted},
+		{constants.AuthUserEmailVerifiedSubject, svc.service.HandleUserEmailVerified},
 		{constants.V1SyncHelperUserDeletedSubject, svc.service.HandleUserDeleted},
 		{constants.ProjectDocumentCreatedSubject, svc.service.HandleProjectDocumentCreated},
 		{constants.ProjectLinkCreatedSubject, svc.service.HandleProjectLinkCreated},

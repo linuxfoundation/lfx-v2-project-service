@@ -143,4 +143,10 @@ const (
 	// project settings writers/auditors/meeting coordinators and named role fields.
 	// Payload: JSON-encoded events.V1UserDeletedEvent.
 	V1SyncHelperUserDeletedSubject = "lfx.v1-sync-helper.user.deleted"
+
+	// AuthUserEmailVerifiedSubject is emitted by the auth service once per user, when the user
+	// is first seen with a verified primary email. The project service subscribes to promote
+	// email-only role entries matching that email to the new account's LFID.
+	// Payload: JSON-encoded events.UserEmailVerifiedEvent.
+	AuthUserEmailVerifiedSubject = "lfx.auth-service.user_email_verified"
 )

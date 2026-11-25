@@ -149,58 +149,115 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 
 	// The event arrives over an unauthenticated bus, so accepted_by is only a claim. Bind it to
 	// the recipient email through the auth service before it can become an FGA principal.
-	verifiedUsername, ok := s.verifyInviteAcceptor(ctx, event.UID, event.AcceptedBy, normalizedEmail)
+	ref := logRef{key: "invite_uid", value: event.UID}
+	verifiedUsername, ok := s.verifyEmailOwner(ctx, ref, event.AcceptedBy, normalizedEmail)
 	if !ok {
 		return nil
 	}
 
-	// Scan all project settings for email-only entries that match the recipient.
+	s.reconcileEmailOnlyEntries(ctx, ref, "invite acceptance", normalizedEmail, verifiedUsername, []string{event.Role})
+	return nil
+}
+
+// HandleUserEmailVerified processes the auth service's user_email_verified event, published
+// once when a user is first seen with a verified primary email. It promotes email-only role
+// entries matching that email to the new account's LFID, so a person added to a project before
+// they had an account gets their role however they sign up, not only through the invite link.
+//
+// The event travels over an unauthenticated bus, so it is treated as a hint: the promotion only
+// proceeds when the auth service resolves the email to the event's username. That lookup matches
+// verified emails only, so an unverified address is never promoted.
+//
+// Every role is reconciled (Manage and View), since there is no invite role to narrow by.
+// Promotion is idempotent: entries that already carry a username are skipped.
+//
+// TODO: replace the full-scan with an email → [project_uid] index lookup, shared with
+// HandleInviteAccepted.
+func (s *ProjectsService) HandleUserEmailVerified(ctx context.Context, msg domain.Message) error {
+	var event events.UserEmailVerifiedEvent
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal user_email_verified event", constants.ErrKey, err)
+		return nil
+	}
+
+	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Email))
+	username := strings.TrimSpace(event.Username)
+	if username == "" || normalizedEmail == "" {
+		slog.WarnContext(ctx, "project_subscriber: user_email_verified event missing username or email — discarding",
+			"has_username", username != "", "has_email", normalizedEmail != "")
+		return nil
+	}
+
+	ref := logRef{key: "username", value: username}
+	verifiedUsername, ok := s.verifyEmailOwner(ctx, ref, username, normalizedEmail)
+	if !ok {
+		return nil
+	}
+
+	s.reconcileEmailOnlyEntries(ctx, ref, "email verification", normalizedEmail, verifiedUsername,
+		[]string{string(inviteapi.InviteRoleManage), string(inviteapi.InviteRoleView)})
+	return nil
+}
+
+// logRef names the event that triggered a reconciliation in logs, as one key/value pair
+// (for example invite_uid or username). It is a pair rather than a slog.Attr so call sites
+// keep the key/value style the rest of the file uses.
+type logRef struct{ key, value string }
+
+// reconcileEmailOnlyEntries scans all project settings for email-only entries matching
+// normalizedEmail in the role-appropriate slices for roles, and promotes each matching project.
+// ref identifies the triggering event in logs; reason names it for the republish.
+// It is best-effort: a failure is logged and the entry stays pending.
+func (s *ProjectsService) reconcileEmailOnlyEntries(ctx context.Context, ref logRef, reason, normalizedEmail, username string, roles []string) {
 	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
 	listCancel()
 	if listErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for invite reconciliation",
-			constants.ErrKey, listErr, "invite_uid", event.UID)
-		return nil
+		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for email-only reconciliation",
+			constants.ErrKey, listErr, "reason", reason, ref.key, ref.value)
+		return
 	}
 
 	for _, candidate := range allSettings {
-		if !projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail, event.Role) {
+		matches := false
+		for _, role := range roles {
+			if projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail, role) {
+				matches = true
+				break
+			}
+		}
+		if !matches {
 			continue
 		}
-		projectUID := candidate.UID
 		promoteCtx, promoteCancel := context.WithTimeout(ctx, settingsScanTimeout)
-		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, verifiedUsername, event.UID, event.Role)
+		s.promoteEmailOnlyEntries(promoteCtx, ref, reason, candidate.UID, normalizedEmail, username, roles)
 		promoteCancel()
 	}
-
-	return nil
 }
 
-// verifyInviteAcceptor checks that the auth service resolves recipientEmail to the claimed
-// acceptedBy LFID and returns the auth-resolved username. Callers must persist and publish that
-// value rather than the event's acceptedBy, so the exact string that becomes an FGA principal
-// always comes from the auth service. It fails closed: a missing reader, lookup error, unknown
-// email or mismatched username all return false so no settings or FGA state changes.
-func (s *ProjectsService) verifyInviteAcceptor(ctx context.Context, inviteUID, acceptedBy, recipientEmail string) (string, bool) {
+// verifyEmailOwner checks that the auth service resolves email to the claimed username and
+// returns the auth-resolved username. Callers must persist and publish that value rather than
+// the event's claim, so the exact string that becomes an FGA principal always comes from the
+// auth service. It fails closed: a missing reader, lookup error, unknown email or mismatched
+// username all return false so no settings or FGA state changes. ref identifies the triggering
+// event in logs.
+func (s *ProjectsService) verifyEmailOwner(ctx context.Context, ref logRef, claimedUsername, email string) (string, bool) {
 	if s.UserReader == nil {
-		slog.WarnContext(ctx, "project_subscriber: no user reader configured — discarding invite_accepted event",
-			"invite_uid", inviteUID)
+		slog.WarnContext(ctx, "project_subscriber: no user reader configured — discarding event", ref.key, ref.value)
 		return "", false
 	}
 
 	lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
 
-	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, recipientEmail)
+	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, email)
 	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: could not verify invite acceptor against recipient email — discarding",
-			constants.ErrKey, err, "invite_uid", inviteUID)
+		slog.WarnContext(ctx, "project_subscriber: could not verify the claimed username against the email — discarding",
+			constants.ErrKey, err, ref.key, ref.value)
 		return "", false
 	}
-	if !usernameMatches(resolved, acceptedBy) {
-		slog.WarnContext(ctx, "project_subscriber: invite_accepted accepted_by does not own recipient email — discarding",
-			"invite_uid", inviteUID)
+	if !usernameMatches(resolved, claimedUsername) {
+		slog.WarnContext(ctx, "project_subscriber: claimed username does not own the email — discarding", ref.key, ref.value)
 		return "", false
 	}
 	return resolved, true
@@ -248,25 +305,29 @@ func projectRoleSlices(s *models.ProjectSettings, role string) [][]models.UserIn
 	return slices
 }
 
-// promoteInvitedUserInProjectSettings promotes all email-only entries matching normalizedEmail
-// in the given project's settings to full LFID users. It retries on revision conflicts.
-func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Context, projectUID, normalizedEmail, username, inviteUID, role string) {
+// promoteEmailOnlyEntries promotes all email-only entries matching normalizedEmail in the
+// role-appropriate slices for roles, in the given project's settings, to full LFID users.
+// It retries on revision conflicts. ref identifies the triggering event in logs; reason names
+// it for the republish.
+func (s *ProjectsService) promoteEmailOnlyEntries(ctx context.Context, ref logRef, reason, projectUID, normalizedEmail, username string, roles []string) {
 	const maxRetries = 3
 	for attempt := range maxRetries {
 		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite promotion",
-				constants.ErrKey, err, "project_uid", projectUID, "invite_uid", inviteUID)
+			slog.WarnContext(ctx, "project_subscriber: failed to read settings for email-only promotion",
+				constants.ErrKey, err, "project_uid", projectUID, "reason", reason, ref.key, ref.value)
 			return
 		}
 
 		promoted := false
-		for _, slice := range projectRoleSlicePtrs(settings, role) {
-			for i := range *slice {
-				if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
-					(*slice)[i].Username = username
-					(*slice)[i].Invite = nil
-					promoted = true
+		for _, role := range roles {
+			for _, slice := range projectRoleSlicePtrs(settings, role) {
+				for i := range *slice {
+					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
+						(*slice)[i].Username = username
+						(*slice)[i].Invite = nil
+						promoted = true
+					}
 				}
 			}
 		}
@@ -274,24 +335,24 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		if !promoted {
 			// Race: another handler already promoted this entry between the scan and now.
 			slog.DebugContext(ctx, "project_subscriber: email-only entry already promoted — skipping",
-				"project_uid", projectUID, "invite_uid", inviteUID)
+				"project_uid", projectUID, "reason", reason, ref.key, ref.value)
 			return
 		}
 
 		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
 		if updateErr == nil {
-			slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
-				"project_uid", projectUID, "invite_uid", inviteUID, "username", username)
-			s.republishProjectSettings(ctx, projectUID, "invite acceptance")
+			slog.InfoContext(ctx, "project_subscriber: promoted user from non-LFID to LFID",
+				"project_uid", projectUID, "reason", reason, "username", username, ref.key, ref.value)
+			s.republishProjectSettings(ctx, projectUID, reason)
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
-			slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
-				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", inviteUID)
+			slog.WarnContext(ctx, "project_subscriber: failed to update settings after email-only promotion",
+				constants.ErrKey, updateErr, "project_uid", projectUID, "reason", reason, ref.key, ref.value)
 			return
 		}
-		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
-			"attempt", attempt+1, "project_uid", projectUID, "invite_uid", inviteUID)
+		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting email-only entry — retrying",
+			"attempt", attempt+1, "project_uid", projectUID, "reason", reason, ref.key, ref.value)
 	}
 }
 

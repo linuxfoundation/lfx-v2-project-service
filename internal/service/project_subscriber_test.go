@@ -1511,6 +1511,231 @@ func TestHandleInviteAccepted(t *testing.T) {
 	}
 }
 
+func TestHandleUserEmailVerified(t *testing.T) {
+	const username = "newuser"
+	const email = "invitee@example.com"
+	const projectUID = "proj-1"
+	const project2UID = "proj-2"
+
+	makeEvent := func(user, addr string) events.UserEmailVerifiedEvent {
+		return events.UserEmailVerifiedEvent{Username: user, Email: addr, Timestamp: time.Now()}
+	}
+
+	expectPromotion := func(r *domainmocks.MockProjectRepository, settings *models.ProjectSettings, match func(*models.ProjectSettings) bool) {
+		r.On("GetProjectSettingsWithRevision", mock.Anything, settings.UID).Return(settings, uint64(1), nil)
+		r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(match), uint64(1)).Return(nil).Once()
+		r.On("GetProjectBase", mock.Anything, settings.UID).Return(&models.ProjectBase{UID: settings.UID}, nil)
+	}
+	expectPublishes := func(m *domainmocks.MockMessageBuilder, times int) {
+		m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything).Return(nil).Times(times)
+		m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Times(times)
+	}
+
+	tests := []struct {
+		name         string
+		payload      any
+		setupRepo    func(*domainmocks.MockProjectRepository)
+		setupMsg     func(*domainmocks.MockMessageBuilder)
+		setupUser    func(*domainmocks.MockUserReader)
+		noUserReader bool
+	}{
+		{
+			name:    "malformed payload — returns nil without crashing",
+			payload: []byte("not json"),
+		},
+		{
+			name:    "missing username — discarded before any lookup",
+			payload: makeEvent("", email),
+			setupUser: func(*domainmocks.MockUserReader) {
+				// No lookup expected: the guard rejects the event first.
+			},
+		},
+		{
+			name:    "missing email — discarded before any lookup",
+			payload: makeEvent(username, "  "),
+			setupUser: func(*domainmocks.MockUserReader) {
+			},
+		},
+		{
+			name:    "auth service resolves the email to a different user — discarded, settings untouched",
+			payload: makeEvent("attacker", email),
+			setupUser: func(u *domainmocks.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, email).Return(username, nil).Once()
+			},
+		},
+		{
+			name:    "email not registered with the auth service — discarded",
+			payload: makeEvent(username, email),
+			setupUser: func(u *domainmocks.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, email).Return("", domain.ErrUserNotFound).Once()
+			},
+		},
+		{
+			name:    "auth service lookup fails — discarded, fails closed",
+			payload: makeEvent(username, email),
+			setupUser: func(u *domainmocks.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, email).Return("", errors.New("auth unavailable")).Once()
+			},
+		},
+		{
+			name:         "no user reader configured — discarded, fails closed",
+			payload:      makeEvent(username, email),
+			noUserReader: true,
+		},
+		{
+			name:    "ListAllProjectsSettings error — early return, no promotion",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return(nil, errors.New("kv unavailable"))
+			},
+		},
+		{
+			name:    "no matching email in any project — no update called",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{
+					{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}},
+				}, nil)
+			},
+		},
+		{
+			name:    "entry that already has a username is left alone",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{
+					{UID: projectUID, Writers: []models.UserInfo{{Email: email, Username: "someone"}}},
+				}, nil)
+			},
+		},
+		{
+			name:    "email matches case-insensitively — writer promoted with the auth-resolved username",
+			payload: makeEvent(username, "  Invitee@Example.COM "),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: "Invitee@example.com"}}}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				expectPromotion(r, settings, func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == username
+				})
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) { expectPublishes(m, 1) },
+		},
+		{
+			name:    "every role is reconciled in one write — writer and auditor both promoted",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:      projectUID,
+					Writers:  []models.UserInfo{{Email: email}},
+					Auditors: []models.UserInfo{{Email: email}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				// One GET and one UPDATE: both roles are promoted in a single revision.
+				expectPromotion(r, settings, func(s *models.ProjectSettings) bool {
+					return s.Writers[0].Username == username && s.Auditors[0].Username == username
+				})
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) { expectPublishes(m, 1) },
+		},
+		{
+			name:    "meeting coordinator and mentorship admin entries are promoted",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:                     projectUID,
+					MeetingCoordinators:     []models.UserInfo{{Email: email}},
+					MentorshipProgramAdmins: []models.UserInfo{{Email: email}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				expectPromotion(r, settings, func(s *models.ProjectSettings) bool {
+					return s.MeetingCoordinators[0].Username == username && s.MentorshipProgramAdmins[0].Username == username
+				})
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) { expectPublishes(m, 1) },
+		},
+		{
+			name:    "user pending in several projects — each promoted, indexer and FGA published per project",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings1 := &models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: email}}}
+				settings2 := &models.ProjectSettings{UID: project2UID, Auditors: []models.UserInfo{{Email: email}}}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings1, settings2}, nil)
+				expectPromotion(r, settings1, func(s *models.ProjectSettings) bool {
+					return s.UID == projectUID && s.Writers[0].Username == username
+				})
+				expectPromotion(r, settings2, func(s *models.ProjectSettings) bool {
+					return s.UID == project2UID && s.Auditors[0].Username == username
+				})
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) { expectPublishes(m, 2) },
+		},
+		{
+			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: email}}}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: email}}}, uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: email}}}, uint64(2), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return s.Writers[0].Username == username
+				}), uint64(2)).Return(nil).Once()
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) { expectPublishes(m, 1) },
+		},
+		{
+			name:    "GetProjectSettingsWithRevision error — promotion skipped for that project",
+			payload: makeEvent(username, email),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: email}}}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), errors.New("read failure"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{ProjectRepository: mockRepo, Publisher: mockMsg}
+			mockUser := &domainmocks.MockUserReader{}
+			switch {
+			case tt.noUserReader:
+			case tt.setupUser != nil:
+				tt.setupUser(mockUser)
+				svc.UserReader = mockUser
+			default:
+				mockUser.On("UsernameByEmail", mock.Anything, strings.ToLower(strings.TrimSpace(email))).Return(username, nil).Maybe()
+				svc.UserReader = mockUser
+			}
+
+			var data []byte
+			if raw, ok := tt.payload.([]byte); ok {
+				data = raw
+			} else {
+				data = marshalEvent(t, tt.payload)
+			}
+			err := svc.HandleUserEmailVerified(context.Background(), domainmocks.NewMockMessage(data, ""))
+			assert.NoError(t, err)
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+			mockUser.AssertExpectations(t)
+		})
+	}
+}
+
 func TestCtxWithServiceAuth(t *testing.T) {
 	t.Run("injects service bearer when absent", func(t *testing.T) {
 		ctx := ctxWithServiceAuth(context.Background())

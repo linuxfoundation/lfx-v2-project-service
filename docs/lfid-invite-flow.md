@@ -11,7 +11,7 @@ When a user is added to a project's role list via `PUT /projects/{uid}/settings`
 | User state | `username` field | Action |
 |---|---|---|
 | Has LFID | non-empty | Send a direct role-notification email via the email service |
-| No LFID | empty | Send an invite request to the invite service; no invite state is stored (acceptance is reconciled by recipient email) |
+| No LFID | empty | Send an invite request to the invite service; no invite state is stored (acceptance, or the person verifying an email on a new account, is reconciled by email) |
 
 The invite service handles rendering and delivering the invite email to the recipient. The project service does not store any invite state: when the invite is later accepted, the invite service publishes an enriched acceptance event that carries the recipient email, and the project service reconciles by email.
 
@@ -70,7 +70,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
 1. Unmarshal and guard: discard (log + return `nil`) unless `uid`, `accepted_by`, a non-empty normalized `recipient.email`, and a recognized `role` (`Manage` or `View`) are all present.
 2. Verify ownership: resolve the recipient email through the auth service (`UsernameByEmail`) and require the result to equal `accepted_by` (case-insensitive). The event arrives over an unauthenticated bus, so `accepted_by` is only a claim; a lookup failure, conflicting replies from more than one responder, unknown email, mismatch or missing user reader discards the event with no settings or FGA changes. `UsernameByEmail` also rejects replies that are not LFID-shaped (ASCII letters, digits, `.`, `_`, `-`; at most 128 characters). It collects every reply within a short window of the first (100 ms) and fails when they disagree, so a rogue bus participant answering ahead of the auth service cannot bind its own username; a spoofed reply that lands before a slow genuine one is not caught.
 3. List **all** project settings (`ListAllProjectsSettings`; `lookup/` keys are skipped).
-4. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators + Mentorship Program Admins, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteInvitedUserInProjectSettings`:
+4. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators + Mentorship Program Admins, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteEmailOnlyEntries`:
    - Re-read settings with revision (optimistic concurrency).
    - Set `username` to the auth-resolved username from step 2 (never the event's `accepted_by` string) and clear any legacy `invite` field on every matching email-only entry.
    - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.
@@ -82,13 +82,42 @@ Accepting a single invite intentionally reconciles **every** project where the s
 
 ---
 
+## Email Verification
+
+Acceptance through the invite link is not the only way a person ends up with an account. Someone added by email can create an LFID and sign in without ever following the link. Without a second trigger they would keep the pending email-only entry and see only public content.
+
+**Triggered by:** a `lfx.auth-service.user_email_verified` event (`constants.AuthUserEmailVerifiedSubject`) published by the auth service once per user, when the user is first seen with a verified primary email. The payload is `events.UserEmailVerifiedEvent`:
+
+```json
+{
+  "username":  "<new LFID username>",
+  "email":     "<verified primary email>",
+  "timestamp": "2026-11-24T12:00:00Z"
+}
+```
+
+**NATS subscription:** queue-subscribed in `cmd/project-api/nats.go` under the `ProjectsAPIQueue` consumer group, like the invite event.
+
+**Handler:** `(*ProjectsService).HandleUserEmailVerified`
+
+**Processing steps:**
+
+1. Unmarshal and guard: discard (log + return `nil`) unless `username` and a non-empty normalized `email` are present.
+2. Verify ownership exactly as for invite acceptance: resolve the email through the auth service (`UsernameByEmail`) and require the result to equal the event's `username`. The auth service's lookup only matches verified emails, so an unverified address is never promoted, and the event itself is only a hint.
+3. Scan all project settings and promote every project that has an email-only entry for that email, in **every** role (`Manage` slices and `View`), since there is no invite role to narrow by. All matching roles in a project are promoted in one revision-checked write.
+4. Promotion, re-indexing and the FGA publish are shared with invite acceptance (`promoteEmailOnlyEntries`, `republishProjectSettings`), including the 3-attempt retry on `ErrRevisionMismatch`.
+
+The handler is idempotent and best-effort. If it runs after the invite was already accepted there is nothing left to promote. If the event is missed, for example because the service was down (core NATS does not replay), the entry stays pending until the next acceptance or verification event for that email.
+
+---
+
 ## Timeout and Retry Behavior
 
 - Invite-service request/reply and auth-service actor lookups run under `notificationTimeout` (5 seconds), scoped per operation.
-- `HandleInviteAccepted` uses `settingsScanTimeout` (2 minutes) for both `ListAllProjectsSettings` and each per-project promotion, because a full settings-bucket scan is not a single RPC.
-- `promoteInvitedUserInProjectSettings` retries up to 3 times on `ErrRevisionMismatch` within its project's window. This handles concurrent writers racing on the same KV revision.
+- `HandleInviteAccepted` and `HandleUserEmailVerified` use `settingsScanTimeout` (2 minutes) for both `ListAllProjectsSettings` and each per-project promotion, because a full settings-bucket scan is not a single RPC.
+- `promoteEmailOnlyEntries` retries up to 3 times on `ErrRevisionMismatch` within its project's window. This handles concurrent writers racing on the same KV revision.
 - `republishProjectSettings` retries indexer and FGA publishes up to `scrubMaxRetries` times, reloading settings on each attempt, so a transient NATS or project-base read failure does not permanently omit the new grant.
-- If a promotion fails (timeout or exhausted retries), the email-only entry remains pending until another acceptance event for the same email/role arrives or the settings are corrected manually.
+- If a promotion fails (timeout or exhausted retries), the email-only entry remains pending until another acceptance or email-verified event for the same email arrives or the settings are corrected manually.
 - Errors from individual sends are logged but never propagated — the handler is entirely best-effort and always returns `nil`.
 
 ---
