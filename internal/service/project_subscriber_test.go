@@ -1523,7 +1523,7 @@ func TestHandleUserEmailVerified(t *testing.T) {
 
 	expectPromotion := func(r *domainmocks.MockProjectRepository, settings *models.ProjectSettings, match func(*models.ProjectSettings) bool) {
 		r.On("GetProjectSettingsWithRevision", mock.Anything, settings.UID).Return(settings, uint64(1), nil)
-		r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(match), uint64(1)).Return(nil)
+		r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(match), uint64(1)).Return(nil).Once()
 		r.On("GetProjectBase", mock.Anything, settings.UID).Return(&models.ProjectBase{UID: settings.UID}, nil)
 	}
 	expectPublishes := func(m *domainmocks.MockMessageBuilder, times int) {
